@@ -5,7 +5,6 @@ CREATE TABLE Users (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    address VARCHAR(255),
     dob DATE NOT NULL,
     role ENUM('administrator', 'manager', 'accountant') NOT NULL,
     avatar_url VARCHAR(500),
@@ -38,11 +37,12 @@ CREATE TABLE Password_History (
 -- Stores new user registration requests pending administrator approval
 CREATE TABLE User_Requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL,
-    address VARCHAR(255),
     dob DATE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     security_question VARCHAR(255) NOT NULL,
     security_answer VARCHAR(255) NOT NULL,
     status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
