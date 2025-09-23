@@ -8,7 +8,7 @@ exports.handler = async (event) => {
   if (!username || !password_hash) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ error: "Missing username or password_hash" }),
+      body: { error: "Missing username or password_hash" },
     };
   }
 
@@ -32,7 +32,7 @@ exports.handler = async (event) => {
     if (rows.length === 0) {
       return {
         statusCode: 401,
-        body: JSON.stringify({ error: "Invalid username or password" }),
+        body: { error: "Invalid username or password" },
       };
     }
 
@@ -42,7 +42,7 @@ exports.handler = async (event) => {
     if (user.password_hash !== password_hash) {
       return {
         statusCode: 401,
-        body: JSON.stringify({ error: "Invalid username or password" }),
+        body: { error: "Invalid username or password" },
       };
     }
 
@@ -51,12 +51,12 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify(user),
+      body: user,
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
+      body: { error: err.message },
     };
   } finally {
     if (connection) await connection.end();
