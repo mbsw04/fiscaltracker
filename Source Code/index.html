@@ -7,10 +7,25 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <label id="Fiscal">Fiscal</label>
+  <img src="../images/logo.png" id="logoImage">
+  <label id="fTracker">Tracker</label>
   <div class="stage">
      <div class="container">
-      <div class="box" id="LoginBox"></div>
+      <div class="box" id="LoginBox">
+        <label id="LoginText">Login</label>
+        <form id="LoginForm" onsubmit="">
+          <label id="EmailText">Email</label>
+          <input type="text" id="EmailBox" placeholder="example@gmail.com">
+          <label id="PasswordText">Password</label>
+          <input type="password" id="PasswordBox">
+          <a href="#" id="ForgotPassword">Forgot Password?</a>
+          <input type="submit" value="Login" id="submitButton">
+        </form>
+        <label id="noAccount">Don't have Account?</label>
+        <a href="#" id="Registration">Register Here!</a>
+      </div>
     </div>
-     </div>
+  </div>
 </body>
 </html>
