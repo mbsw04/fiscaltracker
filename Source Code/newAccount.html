@@ -4,9 +4,53 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Fiscal Tracker - New Account</title>
-    <link rel="stylesheet" href="style.css" />
+    <!--link rel="stylesheet" href="style.css" /-->
+
+    <style type="text/css">
+        html{
+            height:100%;
+        }
+        body {
+            background: linear-gradient(
+                135deg, 
+                red 0%,    
+                black 50%, 
+                green 100% 
+                );
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        div{
+            display: block;
+        }
+        .top-nav-bar{
+            height: 80px;
+            background-color: black;
+            border-color: white;
+            border-style: solid none;
+            border-width: 2px;
+            overflow: hidden;
+        }
+        #ft-logo{
+            font-weight: bold;
+            text-decoration: none;
+            color: white;
+            font-size: 24px;
+            padding: 28px 8px;
+        }
+        #ft-logo:hover{
+            background-color: green;
+        }
+
+    </style>
 </head>
 <body>
+    <div class="top-nav-bar">
+        <a id="ft-logo" href="index.html" title="Home">
+            <img src="../images/logo.png" id="logoImage" title="logo" width="60" height="60" style="vertical-align:middle; margin:10px 5px">
+            Fiscal Tracker
+        </a>
+    </div>
     <div class="stage">
         <div class="container">
             <div class="box" id="newAccountBox">
