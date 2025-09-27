@@ -1,14 +1,23 @@
 const mysql = require("mysql2/promise");
+const nodemailer = require("nodemailer");
+const bcrypt = require("bcryptjs");
 
-const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB } = process.env;
+const {
+  RDS_HOST,
+  RDS_USER,
+  RDS_PASSWORD,
+  RDS_DB,
+  GMAIL_USER,
+  GMAIL_PASS
+} = process.env;
 
 exports.handler = async (event) => {
-  const { request_id, role } = event;
+  const { admin_id, request_id, role } = event;
 
-  if (!request_id || !role) {
+  if (!admin_id || !request_id || !role) {
     return {
       statusCode: 400,
-      body: { error: "Missing required fields" },
+      body: JSON.stringify({ error: "Missing required fields" }),
     };
   }
 
@@ -16,14 +25,13 @@ exports.handler = async (event) => {
   if (!validRoles.includes(role)) {
     return {
       statusCode: 400,
-      body: { error: "Invalid role" },
+      body: JSON.stringify({ error: "Invalid role" }),
     };
   }
 
   let connection;
 
   try {
-    // connect to RDS
     connection = await mysql.createConnection({
       host: RDS_HOST,
       user: RDS_USER,
@@ -31,7 +39,7 @@ exports.handler = async (event) => {
       database: RDS_DB,
     });
 
-    // query the request
+    // get the request
     const [rows] = await connection.execute(
       "SELECT * FROM User_Requests WHERE id = ?",
       [request_id]
@@ -40,61 +48,92 @@ exports.handler = async (event) => {
     if (rows.length === 0) {
       return {
         statusCode: 404,
-        body: { error: "Request not found" },
+        body: JSON.stringify({ error: "Request not found" }),
       };
     }
 
     const request = rows[0];
 
-    // check for duplicate username/email in Users table
-    const [existing] = await connection.execute(
-      "SELECT id FROM Users WHERE username = ? OR email = ?",
-      [request.username, request.email]
-    );
+    // Generate username
+    // first letter of first name + full last name + MMYY (from dob)
+    const dobDate = new Date(request.dob);
+    const mm = String(dobDate.getMonth() + 1).padStart(2, "0");
+    const yy = String(dobDate.getFullYear()).slice(-2);
+    const username =
+      request.first_name.charAt(0).toLowerCase() +
+      request.last_name.toLowerCase() +
+      mm +
+      yy;
 
-    if (existing.length > 0) {
-      return {
-        statusCode: 409,
-        body: { error: "Username or email already exists" },
-      };
-    }
+    // Generate temporary plaintext password
+    const tempPassword = "temp_" + Math.random().toString().slice(2, 10); // 8 digits
 
-    // insert into Users table with specified role
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(tempPassword, salt);
+
+    // Insert into Users
     const insertSql = `
       INSERT INTO Users 
-        (username, first_name, last_name, email, dob, role, password_hash, security_question, security_answer)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (username, first_name, last_name, email, dob, role, password_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
     const [result] = await connection.execute(insertSql, [
-      request.username,
+      username,
       request.first_name,
       request.last_name,
       request.email,
       request.dob,
-      role, // use role from input
-      request.password_hash,
-      request.security_question,
-      request.security_answer,
+      role,
+      passwordHash,
     ]);
 
-    // update the User_Requests status to 'approved'
+    // Update User_Requests
     await connection.execute(
       "UPDATE User_Requests SET status = 'approved', resolved_by = ?, resolved_at = NOW() WHERE id = ?",
-      [result.insertId, request_id]
+      [admin_id, request_id]
     );
 
-    // return confirmation
+    // Send email with username + temp password
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: GMAIL_USER,
+        pass: GMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: GMAIL_USER,
+      to: request.email,
+      subject: "Your Account Has Been Approved",
+      text: `Hello ${request.first_name},
+
+      Your account has been approved. Here are your login credentials:
+
+      Username: ${username}
+      Temporary Password: ${tempPassword}
+
+      Please log in and change your password and add a security question and answer as soon as possible.
+
+      Thanks,
+      Admin Team at Fiscal Tracker
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
     return {
       statusCode: 201,
-      body: {
-        message: "User registered successfully",
-      },
+      body: JSON.stringify({ message: "User registered and email sent" }),
     };
+
   } catch (err) {
     return {
       statusCode: 500,
-      body: { error: "Internal server error" },
+      body: JSON.stringify({ error: err.message }),
     };
+
   } finally {
     if (connection) await connection.end();
   }
