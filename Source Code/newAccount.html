@@ -37,9 +37,32 @@
             color: white;
             font-size: 24px;
             padding: 28px 8px;
+            transition: background-color 0.5s;
         }
         #ft-logo:hover{
             background-color: green;
+        }
+        .stage{
+            margin: 20px 35px;
+            padding: 25px 40px;
+            background-color: rgb(255, 255, 255, 0.5);
+            border-radius: 15px;
+        }
+        form{
+            font-size: 18px;
+        
+        }
+        input[type=text], input[type=date]{
+            font-size: 18px;
+            padding: 5px 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        input[type=submit]{
+            font-size:18px;
+            border-radius: 10px;
+            margin: 15px;
+            padding: 20px 25px;
         }
 
     </style>
@@ -51,26 +74,27 @@
             Fiscal Tracker
         </a>
     </div>
-    <div class="stage">
-        <div class="container">
-            <div class="box" id="newAccountBox">
-                <form>
-                    <label for="fname">First name:</label><br>
-                    <input type="text" id="fname" name="fname"><br>
-                    <label for="lname">Last name:</label><br>
-                    <input type="text" id="lname" name="lname"><br>
-                    <label for="address">Address:</label><br>
-                    <input type="text" id="address" name="address"><br>
-                    <label for="city">City:</label><br>
-                    <input type="text" id="city" name="city"><br>
-                    <label for="state">State:</label><br>
-                    <input type="text" id="state" name="state"><br>
-                    <label for="zip">Zipcode:</label><br>
-                    <input type="text" id="zip" name="zip"><br>
-                    <label for="dob">Date of Birth:</label>
-                    <input type="date" id="dob" name="dob"><br>
-                </form>
-            </div>
-        </div>
+    <div class="stage" id="newAccountForm">
+        <h1>New User Form</h1>
+        <form action="#">
+            <label for="fname">First name:</label><br>
+            <input type="text" id="fname" name="fname"><br>
+            <label for="lname">Last name:</label><br>
+            <input type="text" id="lname" name="lname"><br>
+            <label for="email">Email:</label><br>
+            <input type="text" id="email" name="email"><br>
+            <label for="address">Address:</label><br>
+            <input type="text" id="address" name="address"><br>
+            <label for="city">City:</label><br>
+            <input type="text" id="city" name="city"><br>
+            <label for="state">State:</label><br>
+            <input type="text" id="state" name="state"><br>
+            <label for="zip">Zipcode:</label><br>
+            <input type="text" id="zip" name="zip"><br>
+            <label for="dob">Date of Birth:</label><br>
+            <input type="date" id="dob" name="dob"><br>
+            <input type="submit" value="Submit">
+        </form>
     </div>
 </body>
+</html>
