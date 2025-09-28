@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Admin Panel</title>
+        <link rel="stylesheet" href="admin.css" />
+    </head>
+    
+    <body>
+        <header class ="topbar">
+            <div class="brand">
+                <a href="adminpng.html" class="logo">Fiscal Tracker</a>
+            </div>
+
+            <div class="profile-area" role="region" aria-label="User profile">
+                <img src="images/avatar.png" alt="Profile of Jane Doe" class="profile-pic" />
+                <button id="signoutBtn" class="signout-btn">
+                    <a href="index.html">Sign out</a>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <div class="admin-box" role="region" aria-label="Admin panel">
+                <h1>Admin Panel</h1>
+                <form id="adminForm">
+                    <label for="adminAction">Select Action:</label>
+                    <select id="adminAction" name="adminAction">
+                        <option value="viewUsers">View Users</option>
+                        <option value="manageAccounts">Manage Accounts</option>
+                        <option value="generateReports">Generate Reports</option>
+                        <option value="emailUser">Email User</option>
+                    </select>
+                    <!-- <input type="submit" value="Submit" id="executeButton"> -->
+                </form>
+                <div id="actionContent" class="content-box"></div>
+            </div>
+        </main>
+
+        <script>
+            const adminAction = document.getElementById('adminAction');
+            const actionContent = document.getElementById('actionContent');
+            const form = document.getElementById('adminForm');
+
+            // form.onsubmit = (e) => {
+            //     e.preventDefault();
+            //     updateContent(adminAction.value);
+            // };
+            updateContent(adminAction.value);
+            adminAction.onchange = () => updateContent(adminAction.value);
+
+            function updateContent(adminAction){
+                switch(adminAction){
+                    case 'viewUsers':
+
+                        actionContent.innerHTML ='<h2>View Users</h2>' +
+                        '<p>List of users will be displayed here.</p>';
+                        break;
+
+                    case 'manageAccounts':
+
+                        actionContent.innerHTML = '<h2>Manage Accounts</h2>' +
+                        '<p>Account management tools will be displayed here.</p>';
+                        break;
+
+                    case 'generateReports':
+
+                        actionContent.innerHTML = '<h2>Generate Reports</h2>' +
+                        '<p>Report generation options will be displayed here.</p>';
+                        break;
+
+                    case 'emailUser':
+                        //
+                        actionContent.innerHTML = `
+                            <h2>Email User</h2>
+                            <form>
+                                <label for="userEmail">User Email:</label>
+                                <br>
+                                <input type="email" id="userEmail" required>
+                                <br><br>
+                                <label for="message">Message:</label>
+                                <br>
+                                <textarea id="message" rows="15" cols="60" placeholder="Type your message here..."></textarea>
+                                <br><br>
+                                <button id="email-btn" class="sendEmailbtn">Send Email</button>
+                            </form>
+                            `;
+                        
+                        break;
+                    default:
+                        actionContent.innerHTML = '';
+                }
+            }
+        </script>
+
+        <footer>
+            <p>&copy; 2024 Fiscal Tracker. All rights reserved.</p>
+        
+    </body>
+</html >

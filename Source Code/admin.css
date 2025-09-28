@@ -1,0 +1,147 @@
+/* Top header */
+:root {
+  --topbar-bg: #0c0c0c;     /* white background */
+  --topbar-height: 64px;    /* adjust if you want taller/shorter */
+  --topbar-border: #e6e6e6; /* subtle bottom border */
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 25%var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--topbar-bg);
+  border-bottom: 1px solid var(--topbar-border);
+  z-index: 1000;
+  box-sizing: border-box;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  padding-top: env(safe-area-inset-top);
+}
+.content, main, .page {
+  padding-top: calc(var(--topbar-height) + env(safe-area-inset-top));
+}
+
+/* small visual polish */
+.topbar .logo {
+  font-weight: 700;
+  font: 1em sans-serif;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 2.15rem;
+}
+
+/* Right side profile stack */
+.profile-area {
+  display: flex;
+  flex-direction: column; /* image on top, button underneath */
+  align-items: center;    /* align to right visually inside the flex container */
+  gap: 8px;
+}
+
+/* Profile image */
+.profile-pic {
+    display: right;
+
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  border: 2px solid #ddd;
+}
+
+/* Sign out button */
+.signout-btn {
+  font-size: 0.9rem;
+  padding: 6px 10px;
+  background: #f44336;
+  color: black;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Focus & hover for accessibility */
+.signout-btn:focus,
+.signout-btn:hover {
+  background: #d32f2f;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(211,47,47,0.15);
+}
+
+/* Responsive: if very narrow, shrink image & button or wrap */
+@media (max-width: 420px) {
+  .profile-pic { width: 40px; height: 40px; }
+  .signout-btn { padding: 5px 8px; font-size: 0.85rem; }
+}
+
+/* Body styles */
+html, body {
+  height: 100%;
+  margin: 0;                 /* reset default margin so header sits flush */
+}
+
+body {
+  background: linear-gradient(
+    135deg,
+    red 0%,
+    black 50%,
+    green 100%
+  );
+  font-family: Arial, sans-serif;
+  color: white;
+  
+}
+.content {
+  display: flex;
+  align-items: center;            /* vertical centering */
+  justify-content: center;        /* horizontal centering */
+  min-height: calc(100vh - var(--topbar-height) - env(safe-area-inset-top));
+  padding: 24px;                  /* breathing room on small screens */
+  box-sizing: border-box;
+}
+
+.admin-box {
+  margin: auto;
+  position: center;
+  width: 100%;
+  max-width: 1800px;               /* change to taste */
+  background: white; /* white-ish box on your gradient background */
+  color: #111;                    /* dark text for readability */
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  box-sizing: border-box;
+  overflow: auto;                 /* allow scroll inside the box if content gets big */
+}
+.message {
+  margin: 0 0 16px 0;
+  width: 100%;
+  max-width: 600px;
+  padding: 12px 16px;
+  
+  background: #f0f0f0;
+  border-left: 4px solid #2196F3;
+}
+
+.sendEmailbtn {
+  font-size: 1rem;
+  padding: 10px 16px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .content { padding: 16px; min-height: calc(100vh - var(--topbar-height)); }
+  .admin-box { padding: 16px; border-radius: 6px; max-width: 100%; }
+}
+
+
