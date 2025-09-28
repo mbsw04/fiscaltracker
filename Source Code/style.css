@@ -24,9 +24,15 @@ body {
     z-index: 10;
   }
 
-  .box{
+.box{
     width: 450px;
     height: 450px;
+    transition: all 0.3s ease;
+}
+.box.small{
+  width: 450px;
+  height: 300px;
+  
 }
 
 #LoginBox{
@@ -46,6 +52,16 @@ body {
     font-weight: bold;
 
 }
+#resetTitle{
+    display: block;
+    position: relative;
+    top: 20px;
+    text-align: center;
+    color: white;
+
+    font-size: 45px;
+    font-weight: bold;
+}
 
 #EmailText{
   display: block;
@@ -55,6 +71,26 @@ body {
   top: 60px;
   font-size: 30px;
   text-align: left;
+}
+.resetEmail{
+  display: block;
+  position: relative;
+  margin-left: 35px;
+
+  top: 60px;
+  font-size: 30px;
+  text-align: left;
+}
+#resetField{
+  display: block;
+  position: relative;
+  margin-left: 35px;
+
+  top: 70px;
+  font-size: 30px;
+  text-align: left;
+  border: 2px solid;
+  border-radius: 10px;
 }
 
 #PasswordText{
@@ -114,6 +150,22 @@ body {
     color: black;
     height: 40px;
     width: 150px;
+
+    font-size: 25px;
+    font-weight: bold;
+    border: 2px solid;
+    border-radius: 10px;
+    text-align: center;
+}
+#resetButton{
+    display: block;
+    position: relative;
+    margin-left: 110px;
+    top: 90px;
+    text-align: left;
+    color: black;
+    height: 40px;
+    width: 220px;
 
     font-size: 25px;
     font-weight: bold;
