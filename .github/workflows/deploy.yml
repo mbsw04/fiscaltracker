@@ -1,0 +1,76 @@
+name: CI/CD Deployment
+
+on:
+  push:
+    branches:
+      - tmain
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      S3_BUCKET_NAME: your-bucket-name-here
+      CLOUDFRONT_DISTRIBUTION_ID: your-distribution-id-here
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3️⃣ Deploy frontend to S3 if changed
+      - name: Deploy frontend if changed
+        id: frontend
+        run: |
+          FRONTEND_CHANGED=$(git diff --name-only HEAD~1 HEAD | grep "^Source Code/" || true)
+          if [ -n "$FRONTEND_CHANGED" ]; then
+            echo "Frontend changed, deploying..."
+            cd "Source Code"
+            zip -r ../frontend.zip .
+            aws s3 cp ../frontend.zip s3://${{ env.S3_BUCKET_NAME }}/frontend.zip
+            aws s3 sync . s3://${{ env.S3_BUCKET_NAME }}/ --delete
+            aws cloudfront create-invalidation \
+              --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+              --paths "/*"
+            echo "Frontend deployed ✅"
+          else
+            echo "No frontend changes detected, skipping deployment."
+          fi
+
+      # 4️⃣ Deploy only changed Lambda functions
+      - name: Deploy changed Lambda functions
+        id: lambda
+        run: |
+          echo "Detecting changed Lambda functions..."
+          CHANGED_LAMBDAS=$(git diff --name-only HEAD~1 HEAD | grep "^Lambda_Functions/.*\.js$" || true)
+
+          if [ -z "$CHANGED_LAMBDAS" ]; then
+            echo "No Lambda functions changed, skipping deployment."
+          else
+            for file in $CHANGED_LAMBDAS; do
+              fname=$(basename "$file" .js)
+              echo "Deploying Lambda: $fname"
+              zip -j "/tmp/$fname.zip" "$file"
+              aws lambda update-function-code \
+                --function-name "$fname" \
+                --zip-file "fileb:///tmp/$fname.zip"
+              echo "✅ $fname deployed successfully"
+            done
+          fi
+
+      # 5️⃣ Summary log
+      - name: Deployment Summary
+        run: |
+          echo "--------------------------------------"
+          echo "Deployment complete."
+          echo "Check CloudFront & Lambda for updated functions."
+          echo "--------------------------------------"
