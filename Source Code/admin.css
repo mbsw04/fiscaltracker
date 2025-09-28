@@ -25,9 +25,16 @@
 .content, main, .page {
   padding-top: calc(var(--topbar-height) + env(safe-area-inset-top));
 }
-
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 /* small visual polish */
 .topbar .logo {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   font-weight: 700;
   font: 1em sans-serif;
   color: #ffffff;
@@ -87,12 +94,12 @@ html, body {
 }
 
 body {
-  background: linear-gradient(
+  /* background: linear-gradient(
     135deg,
     red 0%,
     black 50%,
     green 100%
-  );
+  ); */
   font-family: Arial, sans-serif;
   color: white;
   
