@@ -1,8 +1,8 @@
 /* Top header */
 :root {
-  --topbar-bg: #0c0c0c;     /* white background */
-  --topbar-height: 64px;    /* adjust if you want taller/shorter */
-  --topbar-border: #e6e6e6; /* subtle bottom border */
+  --topbar-bg: #0c0c0c;
+  --topbar-height: 64px;    
+  --topbar-border: #e6e6e6; 
 }
 
 .topbar {
@@ -30,7 +30,7 @@
   align-items: center;
   gap: 12px;
 }
-/* small visual polish */
+
 .topbar .logo {
   display: flex;
   flex-direction: row;
@@ -42,15 +42,15 @@
   font-size: 2.15rem;
 }
 
-/* Right side profile stack */
+
 .profile-area {
   display: flex;
-  flex-direction: column; /* image on top, button underneath */
-  align-items: center;    /* align to right visually inside the flex container */
+  flex-direction: column; 
+  align-items: center;    
   gap: 8px;
 }
 
-/* Profile image */
+
 .profile-pic {
     display: right;
 
@@ -62,7 +62,7 @@
   border: 2px solid #ddd;
 }
 
-/* Sign out button */
+
 .signout-btn {
   font-size: 0.9rem;
   padding: 6px 10px;
@@ -73,7 +73,7 @@
   cursor: pointer;
 }
 
-/* Focus & hover for accessibility */
+
 .signout-btn:focus,
 .signout-btn:hover {
   background: #d32f2f;
@@ -81,16 +81,16 @@
   box-shadow: 0 0 0 3px rgba(211,47,47,0.15);
 }
 
-/* Responsive: if very narrow, shrink image & button or wrap */
+
 @media (max-width: 420px) {
   .profile-pic { width: 40px; height: 40px; }
   .signout-btn { padding: 5px 8px; font-size: 0.85rem; }
 }
 
-/* Body styles */
+
 html, body {
   height: 100%;
-  margin: 0;                 /* reset default margin so header sits flush */
+  margin: 0;                 
 }
 
 body {
@@ -106,10 +106,10 @@ body {
 }
 .content {
   display: flex;
-  align-items: center;            /* vertical centering */
-  justify-content: center;        /* horizontal centering */
+  align-items: center;            
+  justify-content: center;        
   min-height: calc(100vh - var(--topbar-height) - env(safe-area-inset-top));
-  padding: 24px;                  /* breathing room on small screens */
+  padding: 24px;                  
   box-sizing: border-box;
 }
 
@@ -117,14 +117,14 @@ body {
   margin: auto;
   position: center;
   width: 100%;
-  max-width: 1800px;               /* change to taste */
-  background: white; /* white-ish box on your gradient background */
-  color: #111;                    /* dark text for readability */
+  max-width: 1800px;               
+  background: white; 
+  color: #111;                    
   padding: 24px;
   border-radius: 8px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.25);
   box-sizing: border-box;
-  overflow: auto;                 /* allow scroll inside the box if content gets big */
+  overflow: auto;                 
 }
 a
 .message {
