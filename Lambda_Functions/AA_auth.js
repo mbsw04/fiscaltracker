@@ -1,21 +1,21 @@
-const mysql = require("mysql2/promise");
+import mysql from "mysql2/promise";
+import bcrypt from "bcryptjs";
 
 const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB } = process.env;
 
-exports.handler = async (event) => {
-  const { username, password_hash } = event;
+export const handler = async (event) => {
+  const { username, password } = event;
 
-  if (!username || !password_hash) {
+  if (!username || !password) {
     return {
       statusCode: 400,
-      body: { error: "Missing username or password_hash" },
+      body: JSON.stringify({ error: "Missing username or password" }),
     };
   }
 
   let connection;
 
   try {
-    // connect to RDS
     connection = await mysql.createConnection({
       host: RDS_HOST,
       user: RDS_USER,
@@ -23,7 +23,6 @@ exports.handler = async (event) => {
       database: RDS_DB,
     });
 
-    // query for the user
     const [rows] = await connection.execute(
       "SELECT * FROM Users WHERE username = ?",
       [username]
@@ -32,31 +31,30 @@ exports.handler = async (event) => {
     if (rows.length === 0) {
       return {
         statusCode: 401,
-        body: { error: "Invalid username or password" },
+        body: JSON.stringify({ error: "Invalid username or password" }),
       };
     }
 
     const user = rows[0];
 
-    // check password hash
-    if (user.password_hash !== password_hash) {
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
       return {
         statusCode: 401,
-        body: { error: "Invalid username or password" },
+        body: JSON.stringify({ error: "Invalid username or password" }),
       };
     }
 
-    // remove password before returning
     delete user.password_hash;
 
     return {
       statusCode: 200,
-      body: user,
+      body: JSON.stringify(user),
     };
   } catch (err) {
     return {
       statusCode: 500,
-      body: { error: err.message },
+      body: JSON.stringify({ error: err.message }),
     };
   } finally {
     if (connection) await connection.end();
