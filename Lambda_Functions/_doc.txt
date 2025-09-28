@@ -34,14 +34,10 @@ AA_auth:
 AA_new_user:
     input:
         {
-            "username": "jdoe",
             "first_name": "John",
             "last_name": "Doe",
             "email": "jdoe@example.com",
             "dob": "1990-05-10",
-            "password_hash": "abcd1234hash",
-            "security_question": "Favorite color?",
-            "security_answer": "blue"
         }
 
     output:
@@ -49,7 +45,6 @@ AA_new_user:
             "statusCode": 201,
             "body": {
                 "message": "User request submitted successfully",
-                "status": "pending"
             }
         }
 
