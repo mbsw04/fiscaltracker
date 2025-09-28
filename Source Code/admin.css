@@ -119,6 +119,7 @@ body {
   box-sizing: border-box;
   overflow: auto;                 /* allow scroll inside the box if content gets big */
 }
+a
 .message {
   margin: 0 0 16px 0;
   width: 100%;
@@ -138,6 +139,28 @@ body {
   border-radius: 6px;
   cursor: pointer;
 }
+
+.tabs {
+  display: flex;
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.tab-btn {
+    flex: 1;
+    padding: 12px;
+    cursor: pointer;
+    background: #f4f4f4;
+    border: none;
+    border-right: 1px solid #ccc;
+    font-size: 16px;
+    transition: background 0.3s ease;
+  }
+  .tab-btn.active {
+    background: #007BFF;
+    color: white;
+    font-weight: bold;
+  }
 
 @media (max-width: 600px) {
   .content { padding: 16px; min-height: calc(100vh - var(--topbar-height)); }

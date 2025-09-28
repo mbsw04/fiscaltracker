@@ -24,7 +24,19 @@
         <main>
             <div class="admin-box" role="region" aria-label="Admin panel">
                 <h1>Admin Panel</h1>
-                <form id="adminForm">
+                
+                
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="viewUsers">View Users</button>
+                    <button class="tab-btn" data-tab="manageAccounts">Manage Accounts</button>
+                    <button class="tab-btn" data-tab="generateReports">Generate Reports</button>
+                    <button class="tab-btn" data-tab="emailUser">Email User</button>
+                </div>
+
+                <div id="actionContent" class="content-box"></div>
+
+
+                <!-- <form id="adminForm">
                     <label for="adminAction">Select Action:</label>
                     <select id="adminAction" name="adminAction">
                         <option value="viewUsers">View Users</option>
@@ -32,26 +44,40 @@
                         <option value="generateReports">Generate Reports</option>
                         <option value="emailUser">Email User</option>
                     </select>
-                    <!-- <input type="submit" value="Submit" id="executeButton"> -->
-                </form>
-                <div id="actionContent" class="content-box"></div>
+                    
+                </form> -->
+                <!-- <div id="actionContent" class="content-box"></div> -->
             </div>
         </main>
 
         <script>
-            const adminAction = document.getElementById('adminAction');
+            // const adminAction = document.getElementById('adminAction');
+            // const actionContent = document.getElementById('actionContent');
+            // const form = document.getElementById('adminForm');
+
+            // // form.onsubmit = (e) => {
+            // //     e.preventDefault();
+            // //     updateContent(adminAction.value);
+            // // };
+            // updateContent(adminAction.value);
+            // adminAction.onchange = () => updateContent(adminAction.value);
+
+            const tabs = document.querySelectorAll('.tab-btn');
             const actionContent = document.getElementById('actionContent');
-            const form = document.getElementById('adminForm');
 
-            // form.onsubmit = (e) => {
-            //     e.preventDefault();
-            //     updateContent(adminAction.value);
-            // };
-            updateContent(adminAction.value);
-            adminAction.onchange = () => updateContent(adminAction.value);
+            updateContent('viewUsers');
 
-            function updateContent(adminAction){
-                switch(adminAction){
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelector('.tab-btn.active').classList.remove('active');
+                    tab.classList.add('active');
+                    const selectedTab = tab.getAttribute('data-tab');
+                    updateContent(selectedTab);
+                });
+            });
+
+            function updateContent(tab){
+                switch(tab){
                     case 'viewUsers':
 
                         actionContent.innerHTML ='<h2>View Users</h2>' +
