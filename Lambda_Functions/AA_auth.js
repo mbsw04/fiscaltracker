@@ -19,7 +19,6 @@ export const handler = async (event) => {
 
   const { username, password } = body;
 
-
   if (!username || !password) {
     return {
       statusCode: 400,
