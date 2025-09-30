@@ -10,6 +10,7 @@ const {
 exports.handler = async (event) => {
   const { type, email, new_passwordHash, security_question, security_answer } = event;
 
+  // Validate at the top and return properly
   if (!type || !email || !new_passwordHash || !security_question || !security_answer) {
     return {
       statusCode: 400,
@@ -27,7 +28,7 @@ exports.handler = async (event) => {
       database: RDS_DB,
     });
 
-    // find the user by email
+    // Find the user by email
     const [userRows] = await connection.execute(
       "SELECT id, password_hash FROM Users WHERE email = ?",
       [email]
@@ -44,9 +45,8 @@ exports.handler = async (event) => {
     const userId = user.id;
     const oldPasswordHash = user.password_hash;
 
-    // 1) FORGOT PASSWORD (type == 1)
+    // FORGOT PASSWORD
     if (type == 1) {
-      // Cannot reuse the current password
       if (oldPasswordHash === new_passwordHash) {
         return {
           statusCode: 400,
@@ -54,18 +54,14 @@ exports.handler = async (event) => {
         };
       }
 
-      // Insert into Password_History
       await connection.execute(
         `INSERT INTO Password_History (user_id, current_password, previous_password)
          VALUES (?, ?, ?)`,
         [userId, new_passwordHash, oldPasswordHash]
       );
 
-      // Update Users with new password
       await connection.execute(
-        `UPDATE Users
-         SET password_hash = ?
-         WHERE id = ?`,
+        `UPDATE Users SET password_hash = ? WHERE id = ?`,
         [new_passwordHash, userId]
       );
 
@@ -75,18 +71,18 @@ exports.handler = async (event) => {
       };
     }
 
-    // 2) FIRST-TIME LOGIN SETUP (type == 2)
+    // FIRST-TIME LOGIN SETUP
     if (type == 2) {
-      // Insert into Password_History
       await connection.execute(
         `INSERT INTO Password_History (user_id, current_password, previous_password)
          VALUES (?, ?, ?)`,
         [userId, new_passwordHash, oldPasswordHash]
       );
 
-      // Update Users table with new password + security Q & A
       await connection.execute(
-        `UPDATE Users SET password_hash = ?, security_question = ?, security_answer = ?WHERE id = ?`,
+        `UPDATE Users
+         SET password_hash = ?, security_question = ?, security_answer = ?
+         WHERE id = ?`,
         [new_passwordHash, security_question, security_answer, userId]
       );
 
@@ -96,7 +92,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // If type is neither 1 nor 2
+    // Invalid type
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Invalid type" }),
