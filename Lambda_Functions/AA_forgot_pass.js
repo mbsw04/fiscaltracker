@@ -1,4 +1,4 @@
-const mysql = require("mysql2/promise");
+import mysql from "mysql2/promise";
 
 const {
   RDS_HOST,
@@ -7,10 +7,26 @@ const {
   RDS_DB
 } = process.env;
 
-exports.handler = async (event) => {
-  const { type, email, new_passwordHash, security_question, security_answer } = event;
+export const handler = async (event) => {
+  // Handle proxy integration (event.body as JSON string)
+  let body = event;
+  if (typeof event.body === "string") {
+    try {
+      body = JSON.parse(event.body);
+    } catch {
+      body = {};
+    }
+  }
 
-  // Validate at the top and return properly
+  const {
+    type,
+    email,
+    new_passwordHash,
+    security_question,
+    security_answer
+  } = body;
+
+  // Required fields
   if (!type || !email || !new_passwordHash || !security_question || !security_answer) {
     return {
       statusCode: 400,
@@ -28,7 +44,7 @@ exports.handler = async (event) => {
       database: RDS_DB,
     });
 
-    // Find the user by email
+    // Lookup user
     const [userRows] = await connection.execute(
       "SELECT id, password_hash FROM Users WHERE email = ?",
       [email]
@@ -45,12 +61,14 @@ exports.handler = async (event) => {
     const userId = user.id;
     const oldPasswordHash = user.password_hash;
 
-    // FORGOT PASSWORD
+    // 1) Forgot Password
     if (type == 1) {
       if (oldPasswordHash === new_passwordHash) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "New password cannot be the same as the old password" }),
+          body: JSON.stringify({
+            error: "New password cannot be the same as the old password"
+          }),
         };
       }
 
@@ -67,11 +85,13 @@ exports.handler = async (event) => {
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ message: "Password updated successfully (forgot password)" }),
+        body: JSON.stringify({
+          message: "Password updated successfully (forgot password)"
+        }),
       };
     }
 
-    // FIRST-TIME LOGIN SETUP
+    // 2) First-Time Login Setup
     if (type == 2) {
       await connection.execute(
         `INSERT INTO Password_History (user_id, current_password, previous_password)
@@ -88,7 +108,9 @@ exports.handler = async (event) => {
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ message: "First-time login setup complete" }),
+        body: JSON.stringify({
+          message: "First-time login setup complete"
+        }),
       };
     }
 
