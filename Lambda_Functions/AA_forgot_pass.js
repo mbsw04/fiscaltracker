@@ -1,4 +1,5 @@
 import mysql from "mysql2/promise";
+import bcrypt from "bcryptjs";
 
 const {
   RDS_HOST,
@@ -21,18 +22,21 @@ export const handler = async (event) => {
   const {
     type,
     email,
-    new_passwordHash,
+    new_password,     
     security_question,
     security_answer
   } = body;
 
   // Required fields
-  if (!type || !email || !new_passwordHash || !security_question || !security_answer) {
+  if (!type || !email || !new_password || !security_question || !security_answer) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Missing required fields" }),
     };
   }
+
+  // Hash password here
+  const new_passwordHash = await bcrypt.hash(new_password, 10);
 
   let connection;
 
@@ -63,7 +67,9 @@ export const handler = async (event) => {
 
     // 1) Forgot Password
     if (type == 1) {
-      if (oldPasswordHash === new_passwordHash) {
+      // Compare old and new hashes
+      const isSame = await bcrypt.compare(new_password, oldPasswordHash);
+      if (isSame) {
         return {
           statusCode: 400,
           body: JSON.stringify({
@@ -114,7 +120,6 @@ export const handler = async (event) => {
       };
     }
 
-    // Invalid type
     return {
       statusCode: 400,
       body: JSON.stringify({ error: "Invalid type" }),
