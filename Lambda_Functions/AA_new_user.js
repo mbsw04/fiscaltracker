@@ -1,17 +1,30 @@
-const mysql = require("mysql2/promise");
-const nodemailer = require("nodemailer");
+import mysql from "mysql2/promise";
+import nodemailer from "nodemailer";
 
 const {
-  RDS_HOST,
+  RDS_HOST,      // Public endpoint of your RDS
   RDS_USER,
   RDS_PASSWORD,
   RDS_DB,
-  GMAIL_USER,
-  GMAIL_PASS
+  GMAIL_USER,    // fiscaltracker@gmail.com
+  GMAIL_PASS     // Gmail App Password (no spaces)
 } = process.env;
 
-exports.handler = async (event) => {
-  const { first_name, last_name, email, dob } = event;
+export const handler = async (event) => {
+  // Parse request body
+  let body = event;
+  if (event.body) {
+    try {
+      body = JSON.parse(event.body);
+    } catch (e) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid JSON body" }),
+      };
+    }
+  }
+
+  const { first_name, last_name, email, dob } = body;
 
   if (!first_name || !last_name || !email || !dob) {
     return {
@@ -23,7 +36,7 @@ exports.handler = async (event) => {
   let connection;
 
   try {
-    // connect to RDS
+    // Connect to public RDS
     connection = await mysql.createConnection({
       host: RDS_HOST,
       user: RDS_USER,
@@ -31,22 +44,18 @@ exports.handler = async (event) => {
       database: RDS_DB,
     });
 
-    // insert the new request
+    // Insert new user request
     const sql = `
-      INSERT INTO User_Requests 
-        (first_name, last_name, email, dob)
+      INSERT INTO User_Requests (first_name, last_name, email, dob)
       VALUES (?, ?, ?, ?)
     `;
-    await connection.execute(sql, [
-      first_name,
-      last_name,
-      email,
-      dob,
-    ]);
+    await connection.execute(sql, [first_name, last_name, email, dob]);
 
-    // Send email using Gmail
+    // Send email via Gmail SMTP
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
         user: GMAIL_USER,
         pass: GMAIL_PASS,
@@ -59,12 +68,11 @@ exports.handler = async (event) => {
       subject: "Your User Request Has Been Received",
       text: `Hello ${first_name},
 
-      Your registration request has been submitted successfully.
-      We will review it and get back to you soon!
+Your registration request has been submitted successfully.
+We will review it and get back to you soon!
 
-      Thanks,
-      Support Team at Fiscal Tracker
-      `,
+Thanks,
+Support Team at Fiscal Tracker`,
     };
 
     await transporter.sendMail(mailOptions);
@@ -83,8 +91,6 @@ exports.handler = async (event) => {
     };
 
   } finally {
-    if (connection) {
-      await connection.end();
-    }
+    if (connection) await connection.end();
   }
 };
