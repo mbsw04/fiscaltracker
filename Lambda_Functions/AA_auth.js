@@ -36,6 +36,7 @@ export const handler = async (event) => {
       database: RDS_DB,
     });
 
+    //Updated query to match email instead of username 09/30
     const [rows] = await connection.execute(
       "SELECT * FROM Users WHERE username = ?",
       [username]

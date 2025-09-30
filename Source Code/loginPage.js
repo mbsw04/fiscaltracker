@@ -4,7 +4,7 @@ const box = document.querySelector(".box");
 const forgotlink = document.getElementById("ForgotPassword");
 
 //Event listener for logging in
-loginForm.addEventListener("submit", (e) => {
+loginForm.addEventListener("submit", async(e) => {
     e.preventDefault();
 
     //Variables for the input of email and password
@@ -18,27 +18,51 @@ loginForm.addEventListener("submit", (e) => {
         return;
     }
 
-    //Will call api below after online
+    //Will call api
+    try{
+      const response = await fetch("https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_auth",{
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+          username: emailInput,
+          password: passwordInput
+      })
+      });
 
+      const data = await response.json();
+
+      if(!response.ok){
+        alert(data.error || "Login failed");
+        return;
+      }
+
+    }
+    catch(error){
+      console.error("Error during login:", error);
+      alert("An error occurred during login. Please try again.");
+      return;
+    }
 });
 
 forgotlink.addEventListener("click", (event) => {
 event.preventDefault();
 box.classList.add("small");
 box.innerHTML = `
-<label id="resetTitle">Reset Password</label>
-<form id="resetForm">
-<label class="resetEmail">Email</label>
-<input type="text" id="resetField" placeholder="Enter your email">
-<input type="submit" value="Send Reset Link" id="resetButton">
-</form>
+  <label id="resetTitle">Reset Password</label>
+  <form id="resetForm">
+  <label class="resetEmail">Email</label>
+  <input type="text" id="resetField" placeholder="Enter your email">
+  <input type="submit" value="Send Reset Link" id="resetButton">
+  </form>
 `;
 
 const resetForm = document.getElementById("resetForm");
 resetForm.addEventListener("submit", (e) => {
-e.preventDefault();
-alert("Reset link submitted!");
+    e.preventDefault();
+    alert("Reset link submitted!");
 
-window.location.href = "index.html";
+    window.location.href = "index.html";
   });
 });
