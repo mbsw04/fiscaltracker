@@ -30,7 +30,9 @@ box.innerHTML = `
 <form id="resetForm">
 <label class="resetEmail">Email</label>
 <input type="text" id="resetField" placeholder="Enter your email">
-<input type="submit" value="Send Reset Link" id="resetButton">
+<input type="submit" value="Submit" id="resetButton">
+<label class="question1">What city/town did your parent's meet?</label>
+<input type="text" id="question1">
 </form>
 `;
 
