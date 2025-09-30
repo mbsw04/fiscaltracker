@@ -1,6 +1,6 @@
-const mysql = require("mysql2/promise");
-const nodemailer = require("nodemailer");
-const bcrypt = require("bcryptjs");
+import mysql from "mysql2/promise";
+import nodemailer from "nodemailer";
+import bcrypt from "bcryptjs";
 
 const {
   RDS_HOST,
@@ -11,8 +11,21 @@ const {
   GMAIL_PASS
 } = process.env;
 
-exports.handler = async (event) => {
-  const { admin_id, request_id, role } = event;
+export const handler = async (event) => {
+  // Parse body
+  let body = event;
+  if (event.body) {
+    try {
+      body = JSON.parse(event.body);
+    } catch (e) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid JSON body" }),
+      };
+    }
+  }
+
+  const { admin_id, request_id, role } = body;
 
   if (!admin_id || !request_id || !role) {
     return {
@@ -39,7 +52,7 @@ exports.handler = async (event) => {
       database: RDS_DB,
     });
 
-    // get the request
+    // Get the user request
     const [rows] = await connection.execute(
       "SELECT * FROM User_Requests WHERE id = ?",
       [request_id]
@@ -54,8 +67,7 @@ exports.handler = async (event) => {
 
     const request = rows[0];
 
-    // Generate username
-    // first letter of first name + full last name + MMYY (from dob)
+    // Generate username: first letter of first name + last name + MMYY
     const dobDate = new Date(request.dob);
     const mm = String(dobDate.getMonth() + 1).padStart(2, "0");
     const yy = String(dobDate.getFullYear()).slice(-2);
@@ -65,42 +77,31 @@ exports.handler = async (event) => {
       mm +
       yy;
 
-    // Generate temporary plaintext password
+    // Generate temporary password
     const tempPassword = "temp_" + Math.random().toString().slice(2, 10); // 8 digits
 
-    // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(tempPassword, salt);
+    // Hash password
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
 
-    // Insert into Users
-    const insertSql = `
-      INSERT INTO Users 
-        (username, first_name, last_name, email, dob, role, password_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    const [result] = await connection.execute(insertSql, [
-      username,
-      request.first_name,
-      request.last_name,
-      request.email,
-      request.dob,
-      role,
-      passwordHash,
-    ]);
+    // Insert new user
+    await connection.execute(
+      `INSERT INTO Users (username, first_name, last_name, email, dob, role, password_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [username, request.first_name, request.last_name, request.email, request.dob, role, passwordHash]
+    );
 
-    // Update User_Requests
+    // Update request status
     await connection.execute(
       "UPDATE User_Requests SET status = 'approved', resolved_by = ?, resolved_at = NOW() WHERE id = ?",
       [admin_id, request_id]
     );
 
-    // Send email with username + temp password
+    // Send email
     const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: GMAIL_USER,
-        pass: GMAIL_PASS,
-      },
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user: GMAIL_USER, pass: GMAIL_PASS },
     });
 
     const mailOptions = {
@@ -109,16 +110,16 @@ exports.handler = async (event) => {
       subject: "Your Account Has Been Approved",
       text: `Hello ${request.first_name},
 
-      Your account has been approved. Here are your login credentials:
+        Your account has been approved. Here are your login credentials:
 
-      Username: ${username}
-      Temporary Password: ${tempPassword}
+        Username: ${username}
+        Temporary Password: ${tempPassword}
 
-      Please log in and change your password and add a security question and answer as soon as possible.
+        Please log in and change your password and add a security question and answer as soon as possible.
+        Link to login page
 
-      Thanks,
-      Admin Team at Fiscal Tracker
-      `,
+        Thanks,
+        Admin Team at Fiscal Tracker`,
     };
 
     await transporter.sendMail(mailOptions);
@@ -133,7 +134,6 @@ exports.handler = async (event) => {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
     };
-
   } finally {
     if (connection) await connection.end();
   }
