@@ -50,12 +50,14 @@ forgotlink.addEventListener("click", (event) => {
 event.preventDefault();
 box.classList.add("small");
 box.innerHTML = `
-  <label id="resetTitle">Reset Password</label>
-  <form id="resetForm">
-  <label class="resetEmail">Email</label>
-  <input type="text" id="resetField" placeholder="Enter your email">
-  <input type="submit" value="Send Reset Link" id="resetButton">
-  </form>
+<label id="resetTitle">Reset Password</label>
+<form id="resetForm">
+<label class="resetEmail">Email</label>
+<input type="text" id="resetField" placeholder="Enter your email">
+<input type="submit" value="Submit" id="resetButton">
+<label class="question1">What city/town did your parent's meet?</label>
+<input type="text" id="question1">
+</form>
 `;
 
 const resetForm = document.getElementById("resetForm");

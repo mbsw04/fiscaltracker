@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB } = process.env;
 
 export const handler = async (event) => {
+
   
   let body = event;
   if (event.body) {
