@@ -56,7 +56,8 @@ AA_new_user:
 AA_reg_user:
     input:
         {
-            "request_id": 5001,
+            "admin_id": "1001"
+            "request_id": "5001",
             "role": "manager"
         }
 
@@ -64,9 +65,25 @@ AA_reg_user:
         {
             "statusCode": 201,
             "body": {
-                "message": "User registered successfully",
-                "user_id": 1001,
-                "request_id": 5001,
-                "role": "manager"
+                "message": "User registered successfully"
+            }
+        }
+
+AA_forgot_pass (type 1 forgot pass, type 2 first login):
+    
+    input:
+        {
+            "type": "1"
+            "email": "fiscaltracker@gmail.com",
+            "new_password": "password"
+            "security_question": "fav color?"
+            "security_answer": "Green"
+        }
+
+    output:
+        {
+            "statusCode": 201,
+            "body": {
+                "message": "Password reset successfully"
             }
         }
