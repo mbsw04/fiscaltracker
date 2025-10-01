@@ -34,7 +34,7 @@ body {
 }
 .box.small{
   width: 450px;
-  height: 610px;
+  height: 420px;
 }
 
 #LoginBox{
@@ -79,7 +79,7 @@ body {
   position: relative;
   margin-left: 35px;
 
-  top: 60px;
+  top: 40px;
   font-size: 30px;
   text-align: left;
 }
@@ -88,7 +88,7 @@ body {
   position: relative;
   margin-left: 35px;
 
-  top: 70px;
+  top: 50px;
   font-size: 30px;
   text-align: left;
   border: 2px solid;
@@ -163,7 +163,7 @@ body {
     display: block;
     position: relative;
     margin-left: 130px;
-    top: 190px;
+    top: 210px;
     text-align: left;
     color: black;
     height: 40px;
@@ -226,7 +226,7 @@ body {
   position: relative;
   margin-left: 35px;
 
-  top: 90px;
+  top: 30px;
   font-size: 25px;
   text-align: left;
 }
@@ -236,53 +236,10 @@ body {
   position: relative;
   margin-left: 35px;
 
-  top: 100px;
+  top: 40px;
   font-size: 30px;
   text-align: left;
   border: 2px solid;
   border-radius: 10px;
 }
 
-.question2{
-  display: block;
-  position: relative;
-  margin-left: 35px;
-
-  top: 120px;
-  font-size: 23px;
-  text-align: left;
-}
-
-#question2{
-  display: block;
-  position: relative;
-  margin-left: 35px;
-
-  top: 130px;
-  font-size: 30px;
-  text-align: left;
-  border: 2px solid;
-  border-radius: 10px;
-}
-
-.question3{
-  display: block;
-  position: relative;
-  margin-left: 35px;
-
-  top: 150px;
-  font-size: 23px;
-  text-align: left;
-}
-
-#question3{
-  display: block;
-  position: relative;
-  margin-left: 35px;
-
-  top: 160px;
-  font-size: 30px;
-  text-align: left;
-  border: 2px solid;
-  border-radius: 10px;
-}

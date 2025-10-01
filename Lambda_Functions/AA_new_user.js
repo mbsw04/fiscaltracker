@@ -1,39 +1,42 @@
-const mysql = require("mysql2/promise");
+import mysql from "mysql2/promise";
+import nodemailer from "nodemailer";
 
-const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB } = process.env;
+const {
+  RDS_HOST,      // Public endpoint of your RDS
+  RDS_USER,
+  RDS_PASSWORD,
+  RDS_DB,
+  GMAIL_USER,    // fiscaltracker@gmail.com
+  GMAIL_PASS     // Gmail App Password (no spaces)
+} = process.env;
 
-exports.handler = async (event) => {
-  const {
-    username,
-    first_name,
-    last_name,
-    email,
-    dob,
-    password_hash,
-    security_question,
-    security_answer,
-  } = event;
+export const handler = async (event) => {
+  // Parse request body
+  let body = event;
+  if (event.body) {
+    try {
+      body = JSON.parse(event.body);
+    } catch (e) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid JSON body" }),
+      };
+    }
+  }
 
-  if (
-    !username ||
-    !first_name ||
-    !last_name ||
-    !email ||
-    !dob ||
-    !password_hash ||
-    !security_question ||
-    !security_answer
-  ) {
+  const { first_name, last_name, email, dob } = body;
+
+  if (!first_name || !last_name || !email || !dob) {
     return {
       statusCode: 400,
-      body: { error: "Missing required fields" },
+      body: JSON.stringify({ error: "Missing required fields" }),
     };
   }
 
   let connection;
 
   try {
-    // connect to RDS
+    // Connect to public RDS
     connection = await mysql.createConnection({
       host: RDS_HOST,
       user: RDS_USER,
@@ -41,36 +44,52 @@ exports.handler = async (event) => {
       database: RDS_DB,
     });
 
-    // add request to db
+    // Insert new user request
     const sql = `
-      INSERT INTO User_Requests 
-        (username, first_name, last_name, email, dob, password_hash, security_question, security_answer) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO User_Requests (first_name, last_name, email, dob)
+      VALUES (?, ?, ?, ?)
     `;
-    const [result] = await connection.execute(sql, [
-      username,
-      first_name,
-      last_name,
-      email,
-      dob,
-      password_hash,
-      security_question,
-      security_answer,
-    ]);
+    await connection.execute(sql, [first_name, last_name, email, dob]);
 
-    // return confirmation
+    // Send email via Gmail SMTP
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: GMAIL_USER,
+        pass: GMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: GMAIL_USER,
+      to: email,
+      subject: "Your User Request Has Been Received",
+      text: `Hello ${first_name},
+
+Your registration request has been submitted successfully.
+We will review it and get back to you soon!
+
+Thanks,
+Support Team at Fiscal Tracker`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
     return {
       statusCode: 201,
-      body: {
-        message: "User request submitted successfully",
-        status: "pending",
-      },
+      body: JSON.stringify({
+        message: "User request submitted successfully and email sent",
+      }),
     };
+
   } catch (err) {
     return {
       statusCode: 500,
-      body: { error: err.message },
+      body: JSON.stringify({ error: err.message }),
     };
+
   } finally {
     if (connection) await connection.end();
   }

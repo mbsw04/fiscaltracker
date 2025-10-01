@@ -4,7 +4,21 @@ import bcrypt from "bcryptjs";
 const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB } = process.env;
 
 export const handler = async (event) => {
-  const { username, password } = event;
+
+  
+  let body = event;
+  if (event.body) {
+    try {
+      body = JSON.parse(event.body);
+    } catch (e) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid JSON body" }),
+      };
+    }
+  }
+
+  const { username, password } = body;
 
   if (!username || !password) {
     return {
@@ -23,6 +37,7 @@ export const handler = async (event) => {
       database: RDS_DB,
     });
 
+    //Updated query to match email instead of username 09/30
     const [rows] = await connection.execute(
       "SELECT * FROM Users WHERE username = ?",
       [username]
