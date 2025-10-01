@@ -1,12 +1,14 @@
 import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 
+
 const {
   RDS_HOST,
   RDS_USER,
   RDS_PASSWORD,
   RDS_DB
 } = process.env;
+
 
 export const handler = async (event) => {
   // Handle proxy integration (event.body as JSON string)
@@ -35,9 +37,9 @@ export const handler = async (event) => {
     };
   }
 
+
   // Hash password here
   const new_passwordHash = await bcrypt.hash(new_password, 10);
-
   let connection;
 
   try {
@@ -64,6 +66,7 @@ export const handler = async (event) => {
     const user = userRows[0];
     const userId = user.id;
     const oldPasswordHash = user.password_hash;
+
 
     // 1) Forgot Password
     if (type == 1) {
@@ -135,4 +138,5 @@ export const handler = async (event) => {
       await connection.end();
     }
   }
+
 };
