@@ -41,7 +41,7 @@ CREATE TABLE User_Requests (
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL,
     dob DATE NOT NULL,
-    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    status ENUM('pending', 'approved') DEFAULT 'pending',
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     resolved_by INT,
     resolved_at DATETIME,
