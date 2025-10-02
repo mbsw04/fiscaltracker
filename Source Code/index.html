@@ -1,32 +1,80 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Fiscal Tracker</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Fiscal Tracker</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="text/javascript">
+        var newUser = function (event) {
+            document.getElementById("LoginBox").style.display = "none";
+            document.getElementById("newAccountForm").style.display = "grid";
+        }
+    </script>
 </head>
 <body>
-  <label id="Fiscal">Fiscal</label>
-  <img src="../images/logo.png" id="logoImage">
-  <label id="fTracker">Tracker</label>
-  <div class="stage">
-     <div class="container">
-      <div class="box" id="LoginBox">
-        <label id="LoginText">Login</label>
-        <form id="LoginForm" onsubmit="">
-          <label id="EmailText">Email</label>
-          <input type="text" id="EmailBox" placeholder="example@gmail.com">
-          <label id="PasswordText">Password</label>
-          <input type="password" id="PasswordBox">
-          <a href="#" id="ForgotPassword">Forgot Password?</a>
-          <input type="submit" value="Login" id="submitButton">
-        </form>
-        <label id="noAccount">Don't have Account?</label>
-        <a href="newAccount.html" id="Registration">Register Here!</a>
-      </div>
+    <label id="Fiscal">Fiscal</label>
+    <img src="../images/logo.png" id="logoImage">
+    <label id="fTracker">Tracker</label>
+    <div class="stage">
+        <div class="container" >
+            <div class="box" id="LoginBox">
+                <h1>Login</h1>
+                <form id="LoginForm" onsubmit="">
+                    <label id="EmailText">Email</label>
+                    <input type="text" id="EmailBox" placeholder="example@gmail.com">
+                    <label id="PasswordText">Password</label>
+                    <input type="password" id="PasswordBox">
+                    <a href="#" id="ForgotPassword">Forgot Password?</a>
+                    <input type="submit" value="Login" id="submitButton">
+                </form>
+                <label id="noAccount">Don't have Account?</label>
+                <a href="#" onclick="newUser()" id="Registration">Register Here!</a>
+            </div>
+        </div>
     </div>
-  </div>
-  <script src="loginPage.js"></script>
+    <div class="stage" id="newAccountForm" style="display:none;">
+        <h1>New User Form</h1>
+        <form action="#">
+            <div class="container">
+                <div class="name1">
+                    <label for="fname">First name:</label><br>
+                    <input type="text" id="fname" name="fname">
+                </div>
+                <div class="name2">
+                    <label for="lname">Last name:</label><br>
+                    <input type="text" id="lname" name="lname">
+                </div>
+                <div class="em">
+                    <label for="email">Email:</label><br>
+                    <input type="text" id="email" name="email">
+                </div>
+                <div class="add">
+                    <label for="address">Address:</label><br>
+                    <input type="text" id="address" name="address">
+                </div>
+                <div class="ct">
+                    <label for="city">City:</label><br>
+                    <input type="text" id="city" name="city">
+                </div>
+                <div>
+                    <label for="state">State:</label><br>
+                    <input type="text" id="state" name="state">
+                </div>
+                <div>
+                    <label for="zip">Zipcode:</label><br>
+                    <input type="text" id="zip" name="zip">
+                </div>
+                <div>
+                    <label for="dob">Date of Birth:</label><br>
+                    <input type="date" id="dob" name="dob">
+                </div>
+                <div class="sub">
+                    <input type="submit" value="Submit">
+                </div>
+            </div>
+        </form>
+    </div>
+    <script src="loginPage.js"></script>
 </body>
 </html>
