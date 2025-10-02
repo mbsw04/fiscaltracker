@@ -19,7 +19,6 @@ newForm.addEventListener("submit", async(e) => {
         return;
     }
 
-    //Will call api below after online
     try{
         const response = await fetch("https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_new_user",{
             method: "POST",

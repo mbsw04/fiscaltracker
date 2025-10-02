@@ -1,24 +1,19 @@
-//variables for event handling
 const loginForm = document.getElementById("LoginForm");
 const box = document.querySelector(".box");
 const forgotlink = document.getElementById("ForgotPassword");
 
-//Event listener for logging in
 loginForm.addEventListener("submit", async(e) => {
     e.preventDefault();
 
-    //Variables for the input of email and password
     const emailInput = document.getElementById("EmailBox").value.trim();
     const passwordInput = document.getElementById("PasswordBox").value.trim();
 
 
-    //Check if email and password have been entered
     if(! emailInput || ! passwordInput){
         alert("Make sure all fields are filled");
         return;
     }
 
-    //Will call api
     try{
       const response = await fetch("https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_auth",{
         method: "POST",
@@ -38,7 +33,6 @@ loginForm.addEventListener("submit", async(e) => {
         return;
       }
 
-      //Saving user data to local storage
       localStorage.setItem("user", JSON.stringify(data.body));
 
       window.location.href = "adminpng.html";
