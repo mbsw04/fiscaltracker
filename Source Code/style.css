@@ -24,6 +24,28 @@ h1 {
     z-index: 10;
     background-color: rgb(255, 255, 255, 0.5);
     border-radius: 15px;
+    transition: all 0.3s ease;
+}
+
+label {
+    display: block;
+    position: relative;
+    margin-left: 35px;
+    top: 60px;
+    font-size: 30px;
+    text-align: left;
+}
+input[type=text], input[type=password] {
+    display: block;
+    position: relative;
+    margin-left: 35px;
+    width: 300px;
+    height: 30px;
+    top: 70px;
+    font-size: 20px;
+    text-align: left;
+    border: 2px solid;
+    border-radius: 10px;
 }
 
 .container.top {
@@ -73,6 +95,15 @@ h1 {
     text-align: left;
 }
 
+#PasswordText {
+    display: block;
+    position: relative;
+    margin-left: 35px;
+    top: 80px;
+    font-size: 30px;
+    text-align: left;
+}
+
 .resetEmail {
     display: block;
     position: relative;
@@ -93,14 +124,7 @@ h1 {
     border-radius: 10px;
 }
 
-#PasswordText {
-    display: block;
-    position: relative;
-    margin-left: 35px;
-    top: 80px;
-    font-size: 30px;
-    text-align: left;
-}
+
 
 #ForgotPassword {
     display: block;
@@ -109,32 +133,6 @@ h1 {
     top: 100px;
     font-size: 15px;
     text-align: left;
-}
-
-#EmailBox {
-    display: block;
-    position: relative;
-    margin-left: 35px;
-    width: 300px;
-    height: 30px;
-    top: 70px;
-    font-size: 20px;
-    text-align: left;
-    border: 2px solid;
-    border-radius: 10px;
-}
-
-#PasswordBox {
-    display: block;
-    position: relative;
-    margin-left: 35px;
-    width: 300px;
-    height: 30px;
-    top: 90px;
-    font-size: 20px;
-    text-align: left;
-    border: 2px solid;
-    border-radius: 10px;
 }
 
 #submitButton {

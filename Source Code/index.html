@@ -23,7 +23,7 @@
                 <form id="LoginForm" onsubmit="">
                     <label id="EmailText">Email</label>
                     <input type="text" id="EmailBox" placeholder="example@gmail.com">
-                    <label id="PasswordText">Password</label>
+                    <label for="PasswordBox" id="PasswordText">Password</label>
                     <input type="password" id="PasswordBox">
                     <a href="#" id="ForgotPassword">Forgot Password?</a>
                     <input type="submit" value="Login" id="submitButton">
@@ -35,7 +35,7 @@
     </div>
     <div class="stage" id="newAccountForm" style="display:none;">
         <h1>New User Form</h1>
-        <form action="#">
+        <form action="../Lambda_Functions/AA_new_user.js" method="get">
             <div class="container">
                 <div class="name1">
                     <label for="fname">First name:</label><br>
@@ -48,22 +48,6 @@
                 <div class="em">
                     <label for="email">Email:</label><br>
                     <input type="text" id="email" name="email">
-                </div>
-                <div class="add">
-                    <label for="address">Address:</label><br>
-                    <input type="text" id="address" name="address">
-                </div>
-                <div class="ct">
-                    <label for="city">City:</label><br>
-                    <input type="text" id="city" name="city">
-                </div>
-                <div>
-                    <label for="state">State:</label><br>
-                    <input type="text" id="state" name="state">
-                </div>
-                <div>
-                    <label for="zip">Zipcode:</label><br>
-                    <input type="text" id="zip" name="zip">
                 </div>
                 <div>
                     <label for="dob">Date of Birth:</label><br>
