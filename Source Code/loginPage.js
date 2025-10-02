@@ -38,9 +38,13 @@ loginForm.addEventListener("submit", async(e) => {
         return;
       }
 
+      //Saving user data to local storage
+      localStorage.setItem("user", JSON.stringify(data.body));
+
+      window.location.href = "adminpng.html";
     }
-    catch(error){
-      console.error("Error during login:", error);
+    catch(err){
+      console.error("Error during login:", err);
       alert("An error occurred during login. Please try again.");
       return;
     }
