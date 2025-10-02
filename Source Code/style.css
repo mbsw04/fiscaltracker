@@ -1,5 +1,6 @@
 html, body {
     height: 100%;
+    font-size:18px;
 }
 
 body {
@@ -21,6 +22,8 @@ h1 {
     position: absolute;
     left: 800px;
     top: 200px;
+    width: 450px;
+    height:fit-content;
     z-index: 10;
     background-color: rgb(255, 255, 255, 0.5);
     border-radius: 15px;
@@ -30,22 +33,34 @@ h1 {
 label {
     display: block;
     position: relative;
-    margin-left: 35px;
-    top: 60px;
+    margin: 8px 35px 2px;
     font-size: 30px;
     text-align: left;
 }
-input[type=text], input[type=password] {
+input[type=text], input[type=password], input[type=date] {
     display: block;
     position: relative;
-    margin-left: 35px;
+    margin: 3px 35px 10px;
     width: 300px;
     height: 30px;
-    top: 70px;
     font-size: 20px;
     text-align: left;
     border: 2px solid;
     border-radius: 10px;
+}
+input[type=submit] {
+    display: block;
+    position: relative;
+    margin:12px auto;
+    text-align: left;
+    color: black;
+    height: 40px;
+    width: 150px;
+    font-size: 25px;
+    font-weight: bold;
+    border: 2px solid;
+    border-radius: 10px;
+    text-align: center;
 }
 
 .container.top {
@@ -65,7 +80,7 @@ input[type=text], input[type=password] {
 
 #LoginBox {
 }
-
+/*
 #LoginText {
     display: block;
     position: relative;
@@ -85,12 +100,11 @@ input[type=text], input[type=password] {
     font-size: 45px;
     font-weight: bold;
 }
-
+    
 #EmailText {
     display: block;
     position: relative;
     margin-left: 35px;
-    top: 60px;
     font-size: 30px;
     text-align: left;
 }
@@ -99,7 +113,6 @@ input[type=text], input[type=password] {
     display: block;
     position: relative;
     margin-left: 35px;
-    top: 80px;
     font-size: 30px;
     text-align: left;
 }
@@ -123,18 +136,18 @@ input[type=text], input[type=password] {
     border: 2px solid;
     border-radius: 10px;
 }
-
+    */
 
 
 #ForgotPassword {
     display: block;
     position: relative;
     margin-left: 215px;
-    top: 100px;
+
     font-size: 15px;
     text-align: left;
 }
-
+/*
 #submitButton {
     display: block;
     position: relative;
@@ -185,7 +198,7 @@ input[type=text], input[type=password] {
     font-size: 20px;
     text-align: left;
 }
-
+    */
 #logoImage {
     position: relative;
     right: 300px;
@@ -198,6 +211,7 @@ input[type=text], input[type=password] {
     top: -150px;
     font-size: 50px;
     font-weight: bold;
+    margin: 0px
 }
 
 #fTracker {
@@ -206,8 +220,9 @@ input[type=text], input[type=password] {
     right: 500px;
     font-size: 50px;
     font-weight: bold;
+    margin-left: 0px;
 }
-
+/*
 .question1 {
     display: block;
     position: relative;
@@ -227,3 +242,4 @@ input[type=text], input[type=password] {
     border: 2px solid;
     border-radius: 10px;
 }
+    */

@@ -8,7 +8,19 @@
     <script type="text/javascript">
         var newUser = function (event) {
             document.getElementById("LoginBox").style.display = "none";
-            document.getElementById("newAccountForm").style.display = "grid";
+            document.getElementById("newAccountForm").style.display = "block";
+        }
+        var hideFromUser = function (event) {
+            document.getElementById("newAccountForm").style.display = "none";
+            document.getElementById("LoginBox").style.display = "block";
+        }
+        var newPass = function (event) {
+            document.getElementById("LoginBox").style.display = "none";
+            document.getElementById("forgotPasswordForm").style.display = "block";
+        }
+        var hideFromPass = function(event) {
+            document.getElementById("forgotPasswordForm").style.display = "none";
+            document.getElementById("LoginBox").style.display = "block";
         }
     </script>
 </head>
@@ -21,42 +33,56 @@
             <div class="box" id="LoginBox">
                 <h1>Login</h1>
                 <form id="LoginForm" onsubmit="">
-                    <label id="EmailText">Email</label>
+                    <label for="EmailBox" id="EmailText">Email</label>
                     <input type="text" id="EmailBox" placeholder="example@gmail.com">
                     <label for="PasswordBox" id="PasswordText">Password</label>
                     <input type="password" id="PasswordBox">
-                    <a href="#" id="ForgotPassword">Forgot Password?</a>
+                    
                     <input type="submit" value="Login" id="submitButton">
                 </form>
-                <label id="noAccount">Don't have Account?</label>
-                <a href="#" onclick="newUser()" id="Registration">Register Here!</a>
+                <a href="#" onclick="newPass()" id="ForgotPassword">Forgot Password?</a>
+                <p id="noAccount">Don't have Account? <a href="#" onclick="newUser()" id="Registration">Register Here!</a></p>      
             </div>
         </div>
     </div>
     <div class="stage" id="newAccountForm" style="display:none;">
+        <a href="#" onclick="hideFromUser()">Back</a>
         <h1>New User Form</h1>
         <form action="../Lambda_Functions/AA_new_user.js" method="get">
             <div class="container">
                 <div class="name1">
-                    <label for="fname">First name:</label><br>
+                    <label for="fname">First name:</label>
                     <input type="text" id="fname" name="fname">
                 </div>
                 <div class="name2">
-                    <label for="lname">Last name:</label><br>
+                    <label for="lname">Last name:</label>
                     <input type="text" id="lname" name="lname">
                 </div>
                 <div class="em">
-                    <label for="email">Email:</label><br>
+                    <label for="email">Email:</label>
                     <input type="text" id="email" name="email">
                 </div>
                 <div>
-                    <label for="dob">Date of Birth:</label><br>
+                    <label for="dob">Date of Birth:</label>
                     <input type="date" id="dob" name="dob">
                 </div>
                 <div class="sub">
                     <input type="submit" value="Submit">
                 </div>
             </div>
+        </form>
+    </div>
+    <div class="stage" id="forgotPasswordForm" style="display:none;">
+        <a href="#" onclick="hideFromPass()">Back</a>
+        <h1 id="resetTitle">Reset Password</h1>
+        <form id="resetForm">
+            <label class="resetEmail">Email</label>
+            <input type="text" id="resetField" placeholder="Enter your email">
+            <label class="question1">What city/town did your parent's meet?</label>
+            <input type="text" id="question1">
+            <label for="newPass">Enter new password:</label>
+            <input type="password" id="newPass">
+            <input type="submit" value="Submit" id="resetButton">
         </form>
     </div>
     <script src="loginPage.js"></script>
