@@ -167,3 +167,20 @@ AA_user_list:
                 }
             ]
         }
+
+AA_user_action:
+    input:
+        {
+            "user_id": "1001"
+            "action": "suspend",
+            "suspended_from": "2025-01-15T10:00:00.000Z",
+            "suspended_to": "2025-02-15T10:00:00.000Z"
+        }
+
+    output:
+        {
+            "statusCode": 200,
+            "body": {
+                "message": "User suspended successfully"
+            }
+        }
