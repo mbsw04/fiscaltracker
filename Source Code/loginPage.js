@@ -1,7 +1,7 @@
 //variables for event handling
 const loginForm = document.getElementById("LoginForm");
 const box = document.querySelector(".box");
-const forgotlink = document.getElementById("ForgotPassword");
+//const forgotlink = document.getElementById("ForgotPassword");
 
 //Event listener for logging in
 loginForm.addEventListener("submit", async(e) => {
@@ -54,13 +54,15 @@ forgotlink.addEventListener("click", (event) => {
 event.preventDefault();
 box.classList.add("small");
 box.innerHTML = `
-<label id="resetTitle">Reset Password</label>
+<h1 id="resetTitle">Reset Password</h1>
 <form id="resetForm">
 <label class="resetEmail">Email</label>
 <input type="text" id="resetField" placeholder="Enter your email">
-<input type="submit" value="Submit" id="resetButton">
 <label class="question1">What city/town did your parent's meet?</label>
 <input type="text" id="question1">
+<label for="newPass">Enter new password:</label>
+<input type="password" id="newPass">
+<input type="submit" value="Submit" id="resetButton">
 </form>
 `;
 
