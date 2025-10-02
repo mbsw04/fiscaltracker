@@ -20,8 +20,34 @@ newForm.addEventListener("submit", async(e) => {
     }
 
     //Will call api below after online
-}); 
+    try{
+        const response = await fetch("https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_new_user",{
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                first_name: fName,
+                last_name: lName,
+                email: email,
+                dob: dob
+            })
 
+        });
 
+        const data = await response.json();
+
+        if(!response.ok){
+            alert(data.error || "Account creation failed");
+            return;
+        }
+        alert("Request created successfully! Please check your email for further instructions.");
+        newForm.reset();
+    }
+    catch(err){
+        console.error("Error during account creation:", err);
+        alert("An error occurred during account creation. Please try again.");
+        return;
+    }
     
-    
+});
