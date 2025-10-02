@@ -2,7 +2,7 @@ AA_auth:
     input:
         {
             "username": "jdoe",
-            "password_hash": "abcd1234hash"
+            "password": "abcd@123"
         }
     
     output:
