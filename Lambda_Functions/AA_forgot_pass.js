@@ -1,14 +1,12 @@
 import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 
-
 const {
   RDS_HOST,
   RDS_USER,
   RDS_PASSWORD,
   RDS_DB
 } = process.env;
-
 
 export const handler = async (event) => {
   // Handle proxy integration (event.body as JSON string)
@@ -24,7 +22,7 @@ export const handler = async (event) => {
   const {
     type,
     email,
-    new_password,     
+    new_password,
     security_question,
     security_answer
   } = body;
@@ -36,7 +34,6 @@ export const handler = async (event) => {
       body: JSON.stringify({ error: "Missing required fields" }),
     };
   }
-
 
   // Hash password here
   const new_passwordHash = await bcrypt.hash(new_password, 10);
@@ -52,7 +49,7 @@ export const handler = async (event) => {
 
     // Lookup user
     const [userRows] = await connection.execute(
-      "SELECT id, password_hash FROM Users WHERE email = ?",
+      "SELECT id, password_hash, security_question, security_answer FROM Users WHERE email = ?",
       [email]
     );
 
@@ -67,9 +64,17 @@ export const handler = async (event) => {
     const userId = user.id;
     const oldPasswordHash = user.password_hash;
 
-
     // 1) Forgot Password
     if (type == 1) {
+
+      // Check security answer
+      if (user.security_answer !== security_answer) {
+        return {
+          statusCode: 401,
+          body: JSON.stringify({ error: "Incorrect security answer" }),
+        };
+      }
+
       // Compare old and new hashes
       const isSame = await bcrypt.compare(new_password, oldPasswordHash);
       if (isSame) {
@@ -138,5 +143,4 @@ export const handler = async (event) => {
       await connection.end();
     }
   }
-
 };
