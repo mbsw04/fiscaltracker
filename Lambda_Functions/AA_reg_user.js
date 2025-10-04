@@ -67,10 +67,10 @@ export const handler = async (event) => {
 
     const request = rows[0];
 
-    // Generate username: first letter of first name + last name + MMYY
-    const dobDate = new Date(request.dob);
-    const mm = String(dobDate.getMonth() + 1).padStart(2, "0");
-    const yy = String(dobDate.getFullYear()).slice(-2);
+    // Generate username based on current creation date: first letter + last name + MMYY
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const yy = String(now.getFullYear()).slice(-2);
     const username =
       request.first_name.charAt(0).toLowerCase() +
       request.last_name.toLowerCase() +
@@ -110,16 +110,16 @@ export const handler = async (event) => {
       subject: "Your Account Has Been Approved",
       text: `Hello ${request.first_name},
 
-        Your account has been approved. Here are your login credentials:
-
-        Username: ${username}
-        Temporary Password: ${tempPassword}
-
-        Please log in and change your password and add a security question and answer as soon as possible.
-        Link to login page
-
-        Thanks,
-        Admin Team at Fiscal Tracker`,
+      Your account has been approved. Here are your login credentials:
+      
+      Username: ${username}
+      Temporary Password: ${tempPassword}
+      
+      Please log in and change your password and add a security question and answer as soon as possible.
+      Link to login page
+      
+      Thanks,
+      Admin Team at Fiscal Tracker`,
     };
 
     await transporter.sendMail(mailOptions);
