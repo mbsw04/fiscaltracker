@@ -2,12 +2,12 @@ import mysql from "mysql2/promise";
 import nodemailer from "nodemailer";
 
 const {
-  RDS_HOST,      // Public endpoint of your RDS
+  RDS_HOST,    
   RDS_USER,
   RDS_PASSWORD,
   RDS_DB,
-  GMAIL_USER,    // fiscaltracker@gmail.com
-  GMAIL_PASS     // Gmail App Password (no spaces)
+  GMAIL_USER,
+  GMAIL_PASS
 } = process.env;
 
 export const handler = async (event) => {
@@ -36,7 +36,6 @@ export const handler = async (event) => {
   let connection;
 
   try {
-    // Connect to public RDS
     connection = await mysql.createConnection({
       host: RDS_HOST,
       user: RDS_USER,
@@ -44,12 +43,24 @@ export const handler = async (event) => {
       database: RDS_DB,
     });
 
-    // Insert new user request
-    const sql = `
-      INSERT INTO User_Requests (first_name, last_name, email, dob)
-      VALUES (?, ?, ?, ?)
-    `;
-    await connection.execute(sql, [first_name, last_name, email, dob]);
+    // Check for duplicate email in Users table (already registered)
+    const [existingUsers] = await connection.execute(
+      "SELECT id FROM Users WHERE email = ?",
+      [email]
+    );
+    if (existingUsers.length > 0) {
+      return {
+        statusCode: 409,
+        body: JSON.stringify({ error: "Email already registered as a user" }),
+      };
+    }
+
+    // ✅ Insert new user request (no check against User_Requests)
+    await connection.execute(
+      `INSERT INTO User_Requests (first_name, last_name, email, dob)
+       VALUES (?, ?, ?, ?)`,
+      [first_name, last_name, email, dob]
+    );
 
     // Send email via Gmail SMTP
     const transporter = nodemailer.createTransport({
@@ -68,11 +79,11 @@ export const handler = async (event) => {
       subject: "Your User Request Has Been Received",
       text: `Hello ${first_name},
 
-Your registration request has been submitted successfully.
-We will review it and get back to you soon!
-
-Thanks,
-Support Team at Fiscal Tracker`,
+      Your registration request has been submitted successfully.
+      We will review it and get back to you soon!
+      
+      Thanks,
+      Support Team at Fiscal Tracker`,
     };
 
     await transporter.sendMail(mailOptions);
