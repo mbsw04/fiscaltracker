@@ -52,7 +52,27 @@ export const handler = async (event) => {
       database: RDS_DB,
     });
 
-    // ✅ Check for duplicate email
+    // Validate admin_id BEFORE doing anything else
+    const [adminCheck] = await connection.execute(
+      "SELECT role FROM Users WHERE id = ?",
+      [admin_id]
+    );
+
+    if (adminCheck.length === 0) {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ error: "Invalid admin_id" }),
+      };
+    }
+
+    if (adminCheck[0].role !== "administrator") {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ error: "Only administrators can create users" }),
+      };
+    }
+
+    // Check for duplicate email
     const [existing] = await connection.execute(
       "SELECT id FROM Users WHERE email = ?",
       [email]
@@ -65,7 +85,7 @@ export const handler = async (event) => {
       };
     }
 
-    // Generate username based on current creation date: first letter + last name + MMYY
+    // Generate username based on current date
     const now = new Date();
     const mm = String(now.getMonth() + 1).padStart(2, "0");
     const yy = String(now.getFullYear()).slice(-2);
@@ -75,15 +95,13 @@ export const handler = async (event) => {
       mm +
       yy;
 
-    // Generate temporary password
+    // Generate & hash temporary password
     const tempPassword = "temp_" + Math.random().toString().slice(2, 10);
-
-    // Hash password
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
-    // Insert new user
+    // Insert user
     await connection.execute(
-      `INSERT INTO Users (username, first_name, last_name, email, dob, role, password_hash, created_by)
+      `INSERT INTO Users (username, first_name, last_name, email, dob, role, password_hash)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [username, first_name, last_name, email, dob, role, passwordHash, admin_id]
     );
@@ -102,15 +120,15 @@ export const handler = async (event) => {
       subject: "Your Account Has Been Created",
       text: `Hello ${first_name},
 
-      Your account has been created by an administrator. Here are your login credentials:
-      
-      Username: ${username}
-      Temporary Password: ${tempPassword}
-      
-      Please log in and change your password as soon as possible.
-      
-      Thanks,
-      Admin Team at Fiscal Tracker`,
+Your account has been created by an administrator. Here are your login credentials:
+
+Username: ${username}
+Temporary Password: ${tempPassword}
+
+Please log in and change your password as soon as possible.
+
+Thanks,
+Admin Team at Fiscal Tracker`,
     };
 
     await transporter.sendMail(mailOptions);
