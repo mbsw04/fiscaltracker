@@ -38,7 +38,6 @@ export const handler = async (event) => {
       "SELECT id FROM Users WHERE id = ?",
       [user_id]
     );
-
     if (users.length === 0) {
       return {
         statusCode: 404,
@@ -46,78 +45,63 @@ export const handler = async (event) => {
       };
     }
 
-    // ACTION: ACTIVATE
-    if (action === "activate") {
-      await connection.execute(
-        `UPDATE Users
-         SET is_active = 1,
-             is_suspended = 0,
-             suspended_from = NULL,
-             suspended_to = NULL,
-             locked_until = NULL,
-             failed_login_attempts = 0
-         WHERE id = ?`,
-        [user_id]
-      );
+    switch (action) {
+      case "activate":
+        await connection.execute(
+          `UPDATE Users
+           SET is_active = 1,
+               is_suspended = 0,
+               suspended_from = NULL,
+               suspended_to = NULL,
+               locked_until = NULL,
+               failed_login_attempts = 0
+           WHERE id = ?`,
+          [user_id]
+        );
+        return { statusCode: 200, body: JSON.stringify({ message: "User activated" }) };
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ message: "User activated" }),
-      };
+      case "deactivate":
+        await connection.execute(
+          `UPDATE Users
+           SET is_active = 0
+           WHERE id = ?`,
+          [user_id]
+        );
+        return { statusCode: 200, body: JSON.stringify({ message: "User deactivated" }) };
+
+      case "suspend":
+        if (!suspended_from || !suspended_to) {
+          return {
+            statusCode: 400,
+            body: JSON.stringify({ error: "Missing suspended_from or suspended_to" }),
+          };
+        }
+        await connection.execute(
+          `UPDATE Users
+           SET is_suspended = 1,
+               suspended_from = ?,
+               suspended_to = ?
+           WHERE id = ?`,
+          [suspended_from, suspended_to, user_id]
+        );
+        return { statusCode: 200, body: JSON.stringify({ message: "User suspended" }) };
+
+      case "unsuspend":
+        await connection.execute(
+          `UPDATE Users
+           SET is_suspended = 0,
+               suspended_from = NULL,
+               suspended_to = NULL
+           WHERE id = ?`,
+          [user_id]
+        );
+        return { statusCode: 200, body: JSON.stringify({ message: "User unsuspended" }) };
+
+      default:
+        return { statusCode: 400, body: JSON.stringify({ error: "Invalid action" }) };
     }
-
-    // ACTION: DEACTIVATE
-    if (action === "deactivate") {
-      await connection.execute(
-        `UPDATE Users
-         SET is_active = 0
-         WHERE id = ?`,
-        [user_id]
-      );
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ message: "User deactivated" }),
-      };
-    }
-
-    // ACTION: SUSPEND
-    if (action === "suspend") {
-      if (!suspended_from || !suspended_to) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({
-            error: "Missing suspended_from or suspended_to for suspension",
-          }),
-        };
-      }
-
-      await connection.execute(
-        `UPDATE Users
-         SET is_suspended = 1,
-             suspended_from = ?,
-             suspended_to = ?
-         WHERE id = ?`,
-        [suspended_from, suspended_to, user_id]
-      );
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ message: "User suspended" }),
-      };
-    }
-
-    // INVALID ACTION
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Invalid action" }),
-    };
-
   } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   } finally {
     if (connection) await connection.end();
   }
