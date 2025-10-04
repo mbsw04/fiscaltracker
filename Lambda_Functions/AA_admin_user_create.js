@@ -102,8 +102,8 @@ export const handler = async (event) => {
     // Insert user
     await connection.execute(
       `INSERT INTO Users (username, first_name, last_name, email, dob, role, password_hash)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [username, first_name, last_name, email, dob, role, passwordHash, admin_id]
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [username, first_name, last_name, email, dob, role, passwordHash]
     );
 
     // Send email
