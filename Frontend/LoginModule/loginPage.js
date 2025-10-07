@@ -15,9 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const backFromNewUser = document.getElementById("backFromNewUser");
     const backFromForgot = document.getElementById("backFromForgot");
 
-    // -----------------------
-    // Toggle Forms
-    // -----------------------
+    //Toggle Forms
     forgotLink.addEventListener("click", (e) => {
         e.preventDefault();
         loginBox.style.display = "none";
@@ -42,17 +40,13 @@ document.addEventListener("DOMContentLoaded", () => {
         loginBox.style.display = "block";
     });
 
-    // -----------------------
-    // Validate Password Strength - Works as intended
-    // -----------------------
+    // Validate Password
     function validatePassword(password) {
         const regex = /^(?=[A-Za-z])(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
         return regex.test(password);
     }
 
-    // -----------------------
-    // LOGIN FORM SUBMISSION - Works as intended
-    // -----------------------
+    // Login Form
     loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -88,7 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 userObj = data.body;
             }
 
-            // Handle error responses with double-encoded error
             if (!response.ok || !userObj || !userObj.id) {
                 let errorMsg = "Login failed";
                 if (typeof data.body === "string") {
@@ -101,7 +94,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Always clear previous user and set new user after successful auth
             localStorage.removeItem("user");
             localStorage.setItem("user", JSON.stringify(userObj));
 
@@ -117,9 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // -----------------------
-    // NEW USER FORM SUBMISSION - Works as intended
-    // -----------------------
+    // New User Forms
     newUserForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -167,9 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // -----------------------
-    // FORGOT PASSWORD FORM SUBMISSION - Works as intended
-    // -----------------------
+    // Forgot Password
     forgotFormInner.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -226,9 +214,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // -----------------------
-    // FIRST-TIME PASSWORD RESET - Works as intended
-    // -----------------------
+    //Temp Password
     function showFirstTimeResetForm(username) {
     loginBox.innerHTML = `
             <h1>Set Your New Password</h1>
@@ -261,7 +247,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Get authed user from localStorage
             let authedUser = null;
             try {
                 authedUser = JSON.parse(localStorage.getItem("user"));
