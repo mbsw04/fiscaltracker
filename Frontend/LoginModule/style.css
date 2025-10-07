@@ -72,14 +72,19 @@ input[type=submit] {
     font-size: 18px;
     font-weight: bold;
     border-radius: 8px;
-    border: 2px solid black;
+    border: 2px solid #2e7d32; /* dark green border */
     cursor: pointer;
-    background-color: white;
-    transition: 0.3s;
+    background-color: #4CAF50; /* green */
+    color: #fff;
+    transition: background-color 0.2s ease, transform 0.08s ease;
 }
 
 input[type=submit]:hover {
-    background-color: #ddd;
+    background-color: #3e8e41; /* slightly darker green */
+}
+
+input[type=submit]:active {
+    transform: translateY(1px);
 }
 
 a {
