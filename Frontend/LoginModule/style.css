@@ -49,9 +49,10 @@ body {
 
 label {
     display: block;
-    margin: 10px 0 5px;
-    font-size: 16px;
+    margin: 8px 0 5px;
+    font-size: 17px;
     text-align: left;
+    font-weight: bold;
 }
 
 input[type=text],
@@ -67,19 +68,19 @@ input[type=date] {
 }
 
 input[type=submit] {
-    width: 100%;
+    width: 30%;
     padding: 10px;
     font-size: 18px;
     font-weight: bold;
     border-radius: 8px;
     border: 2px solid black;
     cursor: pointer;
-    background-color: white;
+    background-color: #3187ff;
     transition: 0.3s;
 }
 
 input[type=submit]:hover {
-    background-color: #ddd;
+    background-color: #0d016d;
 }
 
 a {
@@ -87,5 +88,8 @@ a {
     color: blue;
     text-decoration: underline;
     display: block;
-    margin-top: 10px;
+}
+
+#ForgotPasswordLink{
+    text-align: right;
 }
