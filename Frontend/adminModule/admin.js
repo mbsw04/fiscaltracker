@@ -80,7 +80,7 @@ function showSuspendModal(userId) {
                 </div>
                 <div id="suspendError" style="color:#c00; min-height:18px; margin-top:10px; text-align:center;"></div>
                 <div class="modal-actions" style="margin-top:10px;">
-                    <button id="confirmSuspendBtn" class="confirm-btn">Suspend</button>
+                    <button id="confirmSuspendBtn" class="confirm-btn warn-yellow">Suspend</button>
                     <button id="cancelSuspendBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
@@ -583,8 +583,8 @@ function showEmailUserModal(user) {
                     </label>
                     <div id="emailUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
-                        <button type="submit" style="background:#1976d2; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Send Email</button>
-                        <button type="button" id="cancelEmailUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                        <button type="submit" class="confirm-btn primary-green action-btn">Send Email</button>
+                        <button type="button" id="cancelEmailUser" class="cancel-btn action-btn">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -724,8 +724,8 @@ function showEditUserModal(user) {
                     </label>
                     <div id="editUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
-                        <button type="submit" style="background:#1976d2; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Update Info</button>
-                        <button type="button" id="cancelEditUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                        <button type="submit" class="confirm-btn primary-green action-btn">Update Info</button>
+                        <button type="button" id="cancelEditUser" class="cancel-btn action-btn">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -786,13 +786,13 @@ function attachUserActionListeners() {
     document.querySelectorAll('.activate-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const userId = btn.closest('tr').dataset.userId;
-            await performUserAction(userId, 'activate');
+            showActivateModal(userId);
         });
     });
     document.querySelectorAll('.deactivate-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const userId = btn.closest('tr').dataset.userId;
-            await performUserAction(userId, 'deactivate');
+            showDeactivateModal(userId);
         });
     });
     document.querySelectorAll('.suspend-btn').forEach(btn => {
@@ -804,8 +804,7 @@ function attachUserActionListeners() {
     document.querySelectorAll('.unsuspend-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const userId = btn.closest('tr').dataset.userId;
-            // When unsuspending, explicitly set suspended_from and suspended_to to null
-            await performUserAction(userId, 'unsuspend', null, null);
+            showUnsuspendModal(userId);
         });
     });
 }
@@ -885,4 +884,107 @@ async function loadExpiredPasswordsReport() {
     } catch (err) {
         reportDiv.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
     }
+}
+
+// Create and show deactivate confirmation modal
+function showDeactivateModal(userId) {
+    let modal = document.getElementById('deactivateConfirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'deactivateConfirmModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Confirm Deactivation</h3>
+                <p>Are you sure you want to deactivate this user?</p>
+                <p>They will lose access until reactivated.</p>
+                <div class="modal-actions">
+                    <button id="confirmDeactivateBtn" class="confirm-btn">Deactivate</button>
+                    <button id="cancelDeactivateBtn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cancelDeactivateBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmDeactivateBtn').addEventListener('click', async () => {
+            try {
+                await performUserAction(userId, 'deactivate');
+                modal.style.display = 'none';
+            } catch (e) {
+                alert(e.message || 'Failed to deactivate user.');
+            }
+        });
+    }
+    modal.style.display = 'flex';
+}
+
+// Create and show activate confirmation modal
+function showActivateModal(userId) {
+    let modal = document.getElementById('activateConfirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'activateConfirmModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Confirm Activation</h3>
+                <p>Are you sure you want to activate this user? They will regain access.</p>
+                <div class="modal-actions">
+                    <button id="confirmActivateBtn" class="confirm-btn primary-green">Activate</button>
+                    <button id="cancelActivateBtn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cancelActivateBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmActivateBtn').addEventListener('click', async () => {
+            try {
+                await performUserAction(userId, 'activate');
+                modal.style.display = 'none';
+            } catch (e) {
+                alert(e.message || 'Failed to activate user.');
+            }
+        });
+    }
+    modal.style.display = 'flex';
+}
+
+// Create and show unsuspend confirmation modal
+function showUnsuspendModal(userId) {
+    let modal = document.getElementById('unsuspendConfirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'unsuspendConfirmModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Confirm Unsuspend</h3>
+                <p>Are you sure you want to unsuspend this user? They will regain access immediately.</p>
+                <div class="modal-actions">
+                    <button id="confirmUnsuspendBtn" class="confirm-btn primary-green">Unsuspend</button>
+                    <button id="cancelUnsuspendBtn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cancelUnsuspendBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmUnsuspendBtn').addEventListener('click', async () => {
+            try {
+                await performUserAction(userId, 'unsuspend', null, null);
+                modal.style.display = 'none';
+            } catch (e) {
+                alert(e.message || 'Failed to unsuspend user.');
+            }
+        });
+    }
+    modal.style.display = 'flex';
 }

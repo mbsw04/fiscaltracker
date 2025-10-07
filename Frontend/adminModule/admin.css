@@ -110,6 +110,22 @@ body {
     cursor: pointer;
 }
 .confirm-btn:hover { background: #8e0f0f; }
+
+/* Primary green variant for confirm buttons (used for Activate/Unsuspend) */
+.confirm-btn.primary-green {
+    background: #4CAF50;
+    border: 2px solid #2e7d32;
+    padding: 8px 14px;
+}
+.confirm-btn.primary-green:hover { background: #3e8e41; }
+
+/* Yellow warning variant for suspend confirm */
+.confirm-btn.warn-yellow {
+    background: #f4c542;
+    color: #000;
+    border: 2px solid #d4a017;
+}
+.confirm-btn.warn-yellow:hover { background: #e0b231; }
 .cancel-btn {
     background: #eee;
     color: #333;
