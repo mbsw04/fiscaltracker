@@ -1,0 +1,163 @@
+/* General Reset */
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    height: 100%;
+    background: linear-gradient(135deg, red 0%, black 50%, green 100%);
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Top bar with logo and profile */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: rgba(255, 255, 255, 0.200);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    flex-shrink: 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.logo img {
+    width: 80px;
+}
+
+.logo span {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile img {
+    border-radius: 50%;
+}
+
+.profile span {
+    font-weight: bold;
+}
+
+.profile a {
+    cursor: pointer;
+    color: blue;
+    text-decoration: underline;
+}
+
+/* Main container */
+.container {
+    padding: 20px;
+    flex: 1;
+}
+
+/* Stage style */
+.stage {
+    background-color: rgba(255,255,255,0.95);
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    text-align: left;
+}
+
+/* Tabs */
+.tab-btn {
+    padding: 10px 15px;
+    border: none;
+    background-color: #fff;
+    cursor: pointer;
+    margin-right: 5px;
+    border-radius: 8px;
+    transition: 0.3s;
+    font-weight: bold;
+}
+
+.tab-btn.active {
+    background-color: #ddd;
+}
+
+.tab-btn:hover {
+    background-color: #eee;
+}
+
+/* Table style */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+table, th, td {
+    border: 1px solid black;
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+}
+
+/* Approve/Reject buttons */
+.approve-btn, .reject-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    margin-right: 5px;
+    transition: 0.2s;
+}
+.approve-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+.approve-btn:hover {
+    background-color: #388e3c;
+}
+.reject-btn {
+    background-color: #f44336;
+    color: white;
+}
+.reject-btn:hover {
+    background-color: #b71c1c;
+}
+
+/* Inputs and forms */
+input[type=text], input[type=email], input[type=password], input[type=date], textarea {
+    width: 100%;
+    padding: 8px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 2px solid black;
+    margin-bottom: 15px;
+    box-sizing: border-box;
+}
+
+button.sendEmailbtn {
+    width: 100%;
+    padding: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 2px solid black;
+    cursor: pointer;
+    background-color: white;
+    transition: 0.3s;
+}
+
+button.sendEmailbtn:hover {
+    background-color: #ddd;
+}
