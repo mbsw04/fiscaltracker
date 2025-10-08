@@ -9,20 +9,21 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="../images/logo.png" id="logoImage" alt="Logo">
+            
             <div id="titleText">
                 <span id="Fiscal">Fiscal</span>
                 <span id="fTracker">Tracker</span>
             </div>
+            <img src="../images/logo.png" id="logoImage" alt="Logo">
         </div>
 
         <!-- Login Stage -->
         <div class="stage" id="LoginBox">
             <h1>Login</h1>
             <form id="LoginForm">
-                <label for="UsernameBox">Username</label>
+                <label for="UsernameBox">Username:</label>
                 <input type="text" id="UsernameBox" placeholder="Enter username">
-                <label for="PasswordBox">Password</label>
+                <label for="PasswordBox">Password:</label>
                 <input type="password" id="PasswordBox" placeholder="Enter password">
                 <input type="submit" value="Login">
             </form>
@@ -31,7 +32,7 @@
         </div>
 
         <!-- New User Stage -->
-        <div class="stage" id="newAccountForm" style="display:none;">
+        <div class="stage" id="newAccountForm" style="display:none; position: relative;">
             <a href="#" id="backFromNewUser">Back</a>
             <h1>New User Form</h1>
             <form id="newUserForm">
@@ -48,7 +49,7 @@
         </div>
 
         <!-- Forgot Password Stage -->
-        <div class="stage" id="forgotPasswordForm" style="display:none;">
+        <div class="stage" id="forgotPasswordForm" style="display:none;position: relative;">
             <a href="#" id="backFromForgot">Back</a>
             <h1>Reset Password</h1>
             <form id="forgotPasswordFormInner">

@@ -1,27 +1,62 @@
+:root {
+    
+  --topbar-bg: linear-gradient(
+    135deg,
+    red 0%,
+    black 50%,
+    green 100%
+  ); 
+  --topbar-height: 70px;    
+  --topbar-border: #e6e6e6; 
+}
 /* General Reset */
 html, body {
     margin: 0;
     padding: 0;
     font-family: Arial, sans-serif;
     height: 100%;
-    background: linear-gradient(135deg, red 0%, black 50%, green 100%);
+
 }
 
 body {
     display: flex;
     flex-direction: column;
 }
-
-/* Top bar with logo and profile */
 .topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    background-color: rgba(255, 255, 255, 0.200);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--topbar-bg);
+  border-bottom: 1px solid var(--topbar-border);
+  z-index: 1000;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  padding-top: env(safe-area-inset-top);
 }
+.topbar .logo {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  font-weight: 1000;
+  font: 1em sans-serif;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 80px;
+}
+
+#profileName {
+    font-weight: bold;
+    font-size: 1.1em;
+    color: White;
+    margin-right: 15px;
+}
+
 
 .logo {
     display: flex;
@@ -30,11 +65,13 @@ body {
 }
 
 .logo img {
-    width: 80px;
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
 }
 
 .logo span {
-    font-size: 24px;
+    font-size: 40px;
     font-weight: bold;
 }
 
@@ -321,3 +358,16 @@ input[type=submit]:active, button[type=submit]:active, button.sendEmailbtn:activ
 .email-user-btn:hover {
     background-color: #8e8e8e;
 }
+/* .profile-pic {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 10px;
+}
+.profile-name {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: White;
+  margin-right: 15px;
+} */

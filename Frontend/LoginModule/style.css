@@ -67,7 +67,7 @@ input[type=date] {
 }
 
 input[type=submit] {
-    width: 100%;
+    width: 40%;
     padding: 10px;
     font-size: 18px;
     font-weight: bold;
@@ -93,4 +93,28 @@ a {
     text-decoration: underline;
     display: block;
     margin-top: 10px;
+}
+#backFromNewUser {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  text-decoration: none;
+  font-weight: bold;
+  color: #007bff;
+}
+
+#backFromNewUser:hover {
+  text-decoration: underline;
+}
+
+#backFromForgot {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  text-decoration: none;
+  font-weight: bold;
+  color: #007bff;
+}
+#backFromForgot:hover {
+  text-decoration: underline;
 }
