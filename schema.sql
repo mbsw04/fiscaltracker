@@ -70,8 +70,8 @@ CREATE TABLE Accounts (
     FOREIGN KEY (added_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 6001;
 
-CREATE TABLE Transaction (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE Transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     credit_account_id INT NOT NULL,
     debit_account_id INT NOT NULL,
     entry_date DATETIME,
@@ -88,7 +88,7 @@ CREATE TABLE Transaction (
     FOREIGN KEY (approved_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 7001;
 
-CREATE TABLE Event_Log (
+CREATE TABLE Event_Logs (
     event_id INT AUTO_INCREMENT PRIMARY KEY,
     table_name VARCHAR(100) NOT NULL,
     record_id INT,
