@@ -74,7 +74,6 @@ CREATE TABLE Transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     credit_account_id INT NOT NULL,
     debit_account_id INT NOT NULL,
-    entry_date DATETIME,
     reference VARCHAR(100),
     description TEXT,
     debit DECIMAL(15,2) DEFAULT 0.00,
@@ -82,8 +81,9 @@ CREATE TABLE Transactions (
     created_by INT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     approved_by INT,
+    approved_date DATETIME,
     FOREIGN KEY (credit_account_id) REFERENCES Accounts(id),
-    FOREIGN KEY (credit_account_id) REFERENCES Accounts(id),
+    FOREIGN KEY (debit_account_id) REFERENCES Accounts(id),
     FOREIGN KEY (created_by) REFERENCES Users(id),
     FOREIGN KEY (approved_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 7001;
@@ -92,9 +92,9 @@ CREATE TABLE Event_Logs (
     event_id INT AUTO_INCREMENT PRIMARY KEY,
     table_name VARCHAR(100) NOT NULL,
     record_id INT,
-    action ENUM('CREATE ACCOUNT', 'UPDATE ACCOUNT', 'DEACTIVATE ACCOUNT', 'CREATE TRANSACTION', 'UPDATE TRANSACTION', 'APPOROVE TRANSACTION') NOT NULL,
+    action ENUM('CREATE ACCOUNT', 'UPDATE ACCOUNT', 'DEACTIVATE ACCOUNT', 'CREATE TRANSACTION', 'UPDATE TRANSACTION', 'APPROVE TRANSACTION') NOT NULL,
     before_image JSON,
-    after_image JSON,
+    after_image JSON NOT NULL,
     changed_by INT NOT NULL,
     changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (changed_by) REFERENCES Users(id)
