@@ -70,16 +70,17 @@ CREATE TABLE Accounts (
     FOREIGN KEY (added_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 6001;
 
+
 CREATE TABLE Transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     credit_account_id INT NOT NULL,
-    debit_account_id INT NOT NULL,
-    reference VARCHAR(100),
-    description TEXT,
-    debit DECIMAL(15,2) DEFAULT 0.00,
     credit DECIMAL(15,2) DEFAULT 0.00,
+    debit_account_id INT NOT NULL,
+    debit DECIMAL(15,2) DEFAULT 0.00,
+    description TEXT,
     created_by INT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     approved_by INT,
     approved_date DATETIME,
     FOREIGN KEY (credit_account_id) REFERENCES Accounts(id),
@@ -99,3 +100,17 @@ CREATE TABLE Event_Logs (
     changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (changed_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 8001;
+
+/*
+CREATE TABLE Ledger (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    account_id INT NOT NULL,
+    credit_transaction_ids JSON,
+    debit_transaction_ids JSON,
+    debit DECIMAL(15,2) DEFAULT 0.00,
+    credit DECIMAL(15,2) DEFAULT 0.00,
+    balance DECIMAL(15,2) NOT NULL,
+    FOREIGN KEY (account_id) REFERENCES Accounts(id),
+    FOREIGN KEY (transaction_id) REFERENCES Transactions(id)
+) AUTO_INCREMENT = 9001;
+*/
