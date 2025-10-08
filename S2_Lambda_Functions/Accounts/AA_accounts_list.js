@@ -8,12 +8,15 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
+  let conn;
   try {
-    const conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
+    conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
     const [rows] = await conn.execute(`SELECT * FROM Accounts WHERE is_active = TRUE ORDER BY \`order\``);
-    await conn.end();
     return { statusCode: 200, body: JSON.stringify(rows) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error('Error in AA_accounts_list:', err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message, stack: err.stack }) };
+  } finally {
+    if (conn) try { await conn.end(); } catch (e) { console.warn('Error closing connection', e); }
   }
 };

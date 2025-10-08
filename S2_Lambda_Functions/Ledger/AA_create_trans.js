@@ -10,8 +10,9 @@ export const handler = async (event) => {
 
   const { user_id, credit_account_id, credit, debit_account_id, debit, reference, description } = body;
 
+  let conn;
   try {
-    const conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
+    conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
     const [result] = await conn.execute(
       `INSERT INTO Transactions (credit_account_id, debit_account_id, credit, debit, reference, description, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -24,9 +25,12 @@ export const handler = async (event) => {
       [result.insertId, reference, credit, debit, user_id]
     );
 
-    await conn.end();
-    return { statusCode: 201, body: JSON.stringify({ message: "Transaction created successfully" }) };
+  // created - event logged to DB
+  return { statusCode: 201, body: JSON.stringify({ message: "Transaction created successfully" }) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error('Error in AA_create_trans:', err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message, stack: err.stack }) };
+  } finally {
+    if (conn) try { await conn.end(); } catch (e) { console.warn('Error closing connection', e); }
   }
 };

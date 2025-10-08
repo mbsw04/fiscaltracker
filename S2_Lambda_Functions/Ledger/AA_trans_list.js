@@ -8,8 +8,9 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
+  let conn;
   try {
-    const conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
+    conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
     const [rows] = await conn.execute(`
       SELECT t.*, ca.account_name AS credit_account, da.account_name AS debit_account 
       FROM Transactions t
@@ -17,9 +18,12 @@ export const handler = async (event) => {
       JOIN Accounts da ON t.debit_account_id = da.id
       ORDER BY t.created_at DESC
     `);
-    await conn.end();
+  // completed - returning transaction rows
     return { statusCode: 200, body: JSON.stringify(rows) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error('Error in AA_trans_list:', err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message, stack: err.stack }) };
+  } finally {
+    if (conn) try { await conn.end(); } catch (e) { console.warn('Error closing connection', e); }
   }
 };

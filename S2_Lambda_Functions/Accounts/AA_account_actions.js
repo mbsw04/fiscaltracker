@@ -10,8 +10,13 @@ export const handler = async (event) => {
 
   const { admin_id, action, account_number } = body;
 
+  if (!action || !account_number) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Missing action or account_number' }) };
+  }
+
+  let conn;
   try {
-    const conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
+    conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
 
     if (action === "DEACTIVATE ACCOUNT") {
       await conn.execute(`UPDATE Accounts SET is_active = FALSE WHERE account_number = ?`, [account_number]);
@@ -22,9 +27,12 @@ export const handler = async (event) => {
       );
     }
 
-    await conn.end();
+  // completed - event logged to DB
     return { statusCode: 200, body: JSON.stringify({ message: `Action ${action} executed successfully.` }) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error('Error in AA_account_actions:', err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message, stack: err.stack }) };
+  } finally {
+    if (conn) try { await conn.end(); } catch (e) { console.warn('Error closing connection', e); }
   }
 };

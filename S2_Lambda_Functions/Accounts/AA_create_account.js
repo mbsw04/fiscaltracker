@@ -11,8 +11,10 @@ export const handler = async (event) => {
 
   const { admin_id, account_number, account_name, description, normal_side, category, subcategory, initial_balance, order, statement, comment } = body;
 
+  // perform DB work and record event log (only log after creation)
+  let conn;
   try {
-    const conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
+    conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
     const [result] = await conn.execute(
       `INSERT INTO Accounts (account_number, account_name, description, normal_side, category, subcategory, initial_balance, order, statement, comment, added_by, balance)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -23,9 +25,12 @@ export const handler = async (event) => {
        VALUES ('Accounts', ?, 'CREATE ACCOUNT', JSON_OBJECT('account_number', ?, 'account_name', ?, 'initial_balance', ?), ?)`,
       [result.insertId, account_number, account_name, initial_balance, admin_id]
     );
-    await conn.end();
+  // creation completed; event log written to DB
     return { statusCode: 201, body: JSON.stringify({ message: "Account created successfully" }) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error('Error in AA_create_account:', err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message, stack: err.stack }) };
+  } finally {
+    if (conn) try { await conn.end(); } catch (e) { console.warn('Error closing connection', e); }
   }
 };

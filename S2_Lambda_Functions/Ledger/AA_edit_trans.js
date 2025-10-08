@@ -10,23 +10,29 @@ export const handler = async (event) => {
 
   const { user_id, trans_id, credit, debit, reference, description } = body;
 
+  let conn;
   try {
-    const conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
-    const [before] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
+    conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
+    const [beforeRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
+    const before = beforeRows && beforeRows[0] ? beforeRows[0] : null;
     await conn.execute(
       `UPDATE Transactions SET credit=?, debit=?, reference=?, description=? WHERE id=?`,
       [credit, debit, reference, description, trans_id]
     );
-    const [after] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
+    const [afterRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
+    const after = afterRows && afterRows[0] ? afterRows[0] : null;
     await conn.execute(
       `INSERT INTO Event_Logs (table_name, record_id, action, before_image, after_image, changed_by)
        VALUES ('Transactions', ?, 'UPDATE TRANSACTION', ?, ?, ?)`,
-      [trans_id, JSON.stringify(before[0]), JSON.stringify(after[0]), user_id]
+      [trans_id, JSON.stringify(before || {}), JSON.stringify(after || {}), user_id]
     );
 
-    await conn.end();
+  // completed - event logged to DB
     return { statusCode: 200, body: JSON.stringify({ message: "Transaction updated successfully" }) };
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error('Error in AA_edit_trans:', err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message, stack: err.stack }) };
+  } finally {
+    if (conn) try { await conn.end(); } catch (e) { console.warn('Error closing connection', e); }
   }
 };
