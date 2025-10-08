@@ -34,7 +34,7 @@ CREATE TABLE Password_History (
 ) AUTO_INCREMENT = 4001;
 
 
--- Stores new user registration requests pending administrator approval
+-- Stores new user registration requests
 CREATE TABLE User_Requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
