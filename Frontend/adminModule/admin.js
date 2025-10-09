@@ -8,7 +8,112 @@ window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('profileName').textContent = user.first_name;
         }
     } catch (e) {}
+    // Attach logout handler to clear user and redirect to login
+    try {
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (ev) => {
+                showLogoutModal();
+            });
+        }
+    } catch (e) {}
 });
+
+// Create and show logout confirmation modal
+function showLogoutModal() {
+    let modal = document.getElementById('logoutConfirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'logoutConfirmModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Confirm Logout</h3>
+                <p>Are you sure you want to log out?</p>
+                <div class="modal-actions">
+                    <button id="confirmLogoutBtn" class="confirm-btn">Log Out</button>
+                    <button id="cancelLogoutBtn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Attach handlers
+        modal.querySelector('#cancelLogoutBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmLogoutBtn').addEventListener('click', () => {
+            try { localStorage.removeItem('user'); } catch (e) {}
+            window.location.href = '../LoginModule/index.html';
+        });
+    }
+    modal.style.display = 'flex';
+}
+
+// Show suspend modal with date pickers for suspension range
+function showSuspendModal(userId) {
+    let modal = document.getElementById('suspendModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'suspendModal';
+        modal.className = 'modal-overlay';
+        // default from = today, to = today + 7 days
+        const today = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const format = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+        const defaultFrom = format(today);
+        const defaultToDate = new Date(today.getTime() + 7*24*60*60*1000);
+        const defaultTo = format(defaultToDate);
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Suspend User</h3>
+                <p>Select suspension start and end dates:</p>
+                <div style="display:flex; gap:10px; justify-content:center; margin-top:8px;">
+                    <label style="display:flex; flex-direction:column; align-items:flex-start; font-weight:500; color:#222;">
+                        From
+                        <input id="suspendFrom" type="date" value="${defaultFrom}" style="margin-top:6px; padding:8px; border-radius:7px; border:1.5px solid #bbb;">
+                    </label>
+                    <label style="display:flex; flex-direction:column; align-items:flex-start; font-weight:500; color:#222;">
+                        To
+                        <input id="suspendTo" type="date" value="${defaultTo}" style="margin-top:6px; padding:8px; border-radius:7px; border:1.5px solid #bbb;">
+                    </label>
+                </div>
+                <div id="suspendError" style="color:#c00; min-height:18px; margin-top:10px; text-align:center;"></div>
+                <div class="modal-actions" style="margin-top:10px;">
+                    <button id="confirmSuspendBtn" class="confirm-btn warn-yellow">Suspend</button>
+                    <button id="cancelSuspendBtn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cancelSuspendBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmSuspendBtn').addEventListener('click', async () => {
+            const from = modal.querySelector('#suspendFrom').value;
+            const to = modal.querySelector('#suspendTo').value;
+            const errDiv = modal.querySelector('#suspendError');
+            errDiv.textContent = '';
+            if (!from || !to) {
+                errDiv.textContent = 'Both dates are required.';
+                return;
+            }
+            // Basic validation: from <= to
+            if (new Date(from) > new Date(to)) {
+                errDiv.textContent = 'Start date must be before or equal to end date.';
+                return;
+            }
+            try {
+                await performUserAction(userId, 'suspend', from, to);
+                modal.style.display = 'none';
+            } catch (e) {
+                errDiv.textContent = e.message || 'Failed to suspend user.';
+            }
+        });
+    }
+    modal.style.display = 'flex';
+}
 const actionContent = document.getElementById('actionContent');
 const tabs = document.querySelectorAll('.tab-btn');
 let ADMIN_ID = 1; // fallback default
@@ -29,12 +134,15 @@ tabs.forEach(tab => {
 });
 
 // Initial load
-updateContent('manageAccount');
+updateContent('chartOfAccounts');
 
 function updateContent(tab) {
     switch(tab) {
-        case 'manageAccount':
-            actionContent.innerHTML = '<h2>Manage Account</h2><p>Account management features coming soon.</p>';
+        case 'chartOfAccounts':
+            loadChartOfAccounts();
+            break;
+        case 'journal':
+            loadJournal();
             break;
         case 'manageUsers':
             loadManageUsers();
@@ -58,7 +166,23 @@ function updateContent(tab) {
 }
 
 // ----------------------
-// USER REQUEST TAB
+// Chart of Accounts TAB
+// ----------------------
+
+async function loadChartOfAccounts() {
+    actionContent.innerHTML = '<h2>Chart of Accounts</h2><p>Chart of accounts features coming soon.</p>';
+}
+
+// ----------------------
+// Journal TAB
+// ----------------------
+
+async function loadJournal() {
+    actionContent.innerHTML = '<h2>Journal</h2><p>Journal features coming soon.</p>';
+}
+
+// ----------------------
+// USER REQUEST TAB - working as intended
 // ----------------------
 async function loadUserRequest() {
     actionContent.innerHTML = '<h2>User Requests</h2><p>Loading requests...</p>';
@@ -103,8 +227,8 @@ async function loadUserRequest() {
                         </select>
                     </td>
                     <td>
-                        <button class="approve-btn">Approve</button>
-                        <button class="reject-btn">Reject</button>
+                        <button class="approve-btn action-btn">Approve</button>
+                        <button class="reject-btn action-btn">Reject</button>
                     </td>
                 </tr>`;
             });
@@ -226,7 +350,7 @@ async function rejectUserRequest(reqId) {
 }
 
 // ----------------------
-// MANAGE USERS TAB
+// MANAGE USERS TAB - working as intended
 // ----------------------
 async function loadManageUsers() {
     actionContent.innerHTML = `
@@ -347,10 +471,10 @@ async function loadManageUsers() {
                 <td>${u.role}</td>
                 <td class="status">Active</td>
                 <td>
-                    <button class="deactivate-btn">Deactivate</button>
-                    <button class="suspend-btn">Suspend</button>
-                    <button class="edit-info-btn">Edit Info</button>
-                    <button class="email-user-btn">Email</button>
+                    <button class="deactivate-btn action-btn">Deactivate</button>
+                    <button class="suspend-btn action-btn">Suspend</button>
+                    <button class="edit-info-btn action-btn">Edit Info</button>
+                    <button class="email-user-btn action-btn">Email</button>
                 </td>
             </tr>`;
         });
@@ -372,7 +496,7 @@ async function loadManageUsers() {
                 <td>${u.role}</td>
                 <td class="status">Inactive</td>
                 <td>
-                    <button class="activate-btn">Activate</button>
+                    <button class="activate-btn action-btn">Activate</button>
                 </td>
             </tr>`;
         });
@@ -396,7 +520,7 @@ async function loadManageUsers() {
                 <td>${u.suspended_to ? new Date(u.suspended_to).toLocaleDateString() : ''}</td>
                 <td class="status">Suspended</td>
                 <td>
-                    <button class="unsuspend-btn">Unsuspend</button>
+                    <button class="unsuspend-btn action-btn">Unsuspend</button>
                 </td>
             </tr>`;
         });
@@ -459,8 +583,8 @@ function showEmailUserModal(user) {
                     </label>
                     <div id="emailUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
-                        <button type="submit" style="background:#1976d2; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Send Email</button>
-                        <button type="button" id="cancelEmailUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                        <button type="submit" class="confirm-btn primary-green action-btn">Send Email</button>
+                        <button type="button" id="cancelEmailUser" class="cancel-btn action-btn">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -600,8 +724,8 @@ function showEditUserModal(user) {
                     </label>
                     <div id="editUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
-                        <button type="submit" style="background:#1976d2; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Update Info</button>
-                        <button type="button" id="cancelEditUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                        <button type="submit" class="confirm-btn primary-green action-btn">Update Info</button>
+                        <button type="button" id="cancelEditUser" class="cancel-btn action-btn">Cancel</button>
                     </div>
                 </form>
             </div>
@@ -662,28 +786,25 @@ function attachUserActionListeners() {
     document.querySelectorAll('.activate-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const userId = btn.closest('tr').dataset.userId;
-            await performUserAction(userId, 'activate');
+            showActivateModal(userId);
         });
     });
     document.querySelectorAll('.deactivate-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const userId = btn.closest('tr').dataset.userId;
-            await performUserAction(userId, 'deactivate');
+            showDeactivateModal(userId);
         });
     });
     document.querySelectorAll('.suspend-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const userId = btn.closest('tr').dataset.userId;
-            const from = prompt('Suspension From (YYYY-MM-DD)');
-            const to = prompt('Suspension To (YYYY-MM-DD)');
-            if (from && to) await performUserAction(userId, 'suspend', from, to);
+            showSuspendModal(userId);
         });
     });
     document.querySelectorAll('.unsuspend-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const userId = btn.closest('tr').dataset.userId;
-            // When unsuspending, explicitly set suspended_from and suspended_to to null
-            await performUserAction(userId, 'unsuspend', null, null);
+            showUnsuspendModal(userId);
         });
     });
 }
@@ -763,4 +884,107 @@ async function loadExpiredPasswordsReport() {
     } catch (err) {
         reportDiv.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
     }
+}
+
+// Create and show deactivate confirmation modal
+function showDeactivateModal(userId) {
+    let modal = document.getElementById('deactivateConfirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'deactivateConfirmModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Confirm Deactivation</h3>
+                <p>Are you sure you want to deactivate this user?</p>
+                <p>They will lose access until reactivated.</p>
+                <div class="modal-actions">
+                    <button id="confirmDeactivateBtn" class="confirm-btn">Deactivate</button>
+                    <button id="cancelDeactivateBtn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cancelDeactivateBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmDeactivateBtn').addEventListener('click', async () => {
+            try {
+                await performUserAction(userId, 'deactivate');
+                modal.style.display = 'none';
+            } catch (e) {
+                alert(e.message || 'Failed to deactivate user.');
+            }
+        });
+    }
+    modal.style.display = 'flex';
+}
+
+// Create and show activate confirmation modal
+function showActivateModal(userId) {
+    let modal = document.getElementById('activateConfirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'activateConfirmModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Confirm Activation</h3>
+                <p>Are you sure you want to activate this user? They will regain access.</p>
+                <div class="modal-actions">
+                    <button id="confirmActivateBtn" class="confirm-btn primary-green">Activate</button>
+                    <button id="cancelActivateBtn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cancelActivateBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmActivateBtn').addEventListener('click', async () => {
+            try {
+                await performUserAction(userId, 'activate');
+                modal.style.display = 'none';
+            } catch (e) {
+                alert(e.message || 'Failed to activate user.');
+            }
+        });
+    }
+    modal.style.display = 'flex';
+}
+
+// Create and show unsuspend confirmation modal
+function showUnsuspendModal(userId) {
+    let modal = document.getElementById('unsuspendConfirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'unsuspendConfirmModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h3>Confirm Unsuspend</h3>
+                <p>Are you sure you want to unsuspend this user? They will regain access immediately.</p>
+                <div class="modal-actions">
+                    <button id="confirmUnsuspendBtn" class="confirm-btn primary-green">Unsuspend</button>
+                    <button id="cancelUnsuspendBtn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#cancelUnsuspendBtn').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmUnsuspendBtn').addEventListener('click', async () => {
+            try {
+                await performUserAction(userId, 'unsuspend', null, null);
+                modal.style.display = 'none';
+            } catch (e) {
+                alert(e.message || 'Failed to unsuspend user.');
+            }
+        });
+    }
+    modal.style.display = 'flex';
 }
