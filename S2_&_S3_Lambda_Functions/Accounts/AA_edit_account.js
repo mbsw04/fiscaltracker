@@ -13,6 +13,17 @@ export const handler = async (event) => {
   let conn;
   try {
     conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
+    
+    // verify admin exists
+    const [adminRows] = await conn.execute(`SELECT id FROM Users WHERE id = ?`, [admin_id]);
+    const admin = adminRows && adminRows[0] ? adminRows[0] : null;
+    if (!admin) {
+      return { statusCode: 404, body: JSON.stringify({ error: 'Admin user not found' }) };
+    } else { if (String(admin.role).toLowerCase() !== 'administrator') {
+      return { statusCode: 403, body: JSON.stringify({ error: 'User not authorized to edit accounts' }) };
+      }
+    }
+    
     const [beforeRows] = await conn.execute(`SELECT * FROM Accounts WHERE account_number = ?`, [account_number]);
     const before = beforeRows && beforeRows[0] ? beforeRows[0] : null;
 
@@ -30,7 +41,7 @@ export const handler = async (event) => {
       [before ? before.id : null, JSON.stringify(before || {}), JSON.stringify(after || {}), admin_id]
     );
 
-  // completed - event logged to DB
+    // completed - event logged to DB
     return { statusCode: 200, body: JSON.stringify({ message: "Account updated successfully" }) };
   } catch (err) {
     console.error('Error in AA_edit_account:', err);

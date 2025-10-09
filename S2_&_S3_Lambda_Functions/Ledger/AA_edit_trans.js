@@ -8,16 +8,25 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
-  const { user_id, trans_id, credit, debit, reference, description } = body;
+  const { user_id, trans_id, credit, debit, description } = body;
+
+ 
 
   let conn;
   try {
     conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
+
+    const [userRows] = await conn.execute(`SELECT id, role FROM Users WHERE id = ?`, [user_id]);
+    const user = userRows && userRows[0] ? userRows[0] : null;
+    if (!user) {
+      return { statusCode: 404, body: JSON.stringify({ error: 'User not found' }) };
+    }
+
     const [beforeRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
     const before = beforeRows && beforeRows[0] ? beforeRows[0] : null;
     await conn.execute(
-      `UPDATE Transactions SET credit=?, debit=?, reference=?, description=? WHERE id=?`,
-      [credit, debit, reference, description, trans_id]
+      `UPDATE Transactions SET credit=?, debit=?, description=? WHERE id=?`,
+      [credit, debit, description, trans_id]
     );
     const [afterRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
     const after = afterRows && afterRows[0] ? afterRows[0] : null;

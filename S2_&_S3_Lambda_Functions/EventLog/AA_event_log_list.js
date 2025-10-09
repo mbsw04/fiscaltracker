@@ -9,12 +9,22 @@ export const handler = async (event) => {
   }
 
   let conn;
+
   try {
     conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
-    const [rows] = await conn.execute(`SELECT * FROM Accounts WHERE is_active = TRUE ORDER BY \`order\``);
+    
+    
+    
+    const [rows] = await conn.execute(`
+      SELECT e.*, u.username 
+      FROM Event_Logs e
+      JOIN Users u ON e.changed_by = u.id
+      ORDER BY e.changed_at DESC
+    `);
+  // completed - returning event rows
     return { statusCode: 200, body: JSON.stringify(rows) };
   } catch (err) {
-    console.error('Error in AA_accounts_list:', err);
+    console.error('Error in AA_event_log_list:', err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message, stack: err.stack }) };
   } finally {
     if (conn) try { await conn.end(); } catch (e) { console.warn('Error closing connection', e); }
