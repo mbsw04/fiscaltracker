@@ -110,7 +110,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            window.location.href = "../adminModule/admin.html";
+            if (userObj.role === "admin"){
+                window.location.href = "../adminModule/admin.html";
+            } else if (userObj.role === "manager"){
+                window.location.href = "../managerModule/manager.html";
+            }
+
+            
         } catch (err) {
             console.error("Error during login:", err);
             alert("An error occurred during login. Please try again.");
