@@ -170,7 +170,83 @@ function updateContent(tab) {
 // ----------------------
 
 async function loadChartOfAccounts() {
-    actionContent.innerHTML = '<h2>Chart of Accounts</h2><p>Chart of accounts features coming soon.</p>';
+    actionContent.innerHTML = `
+    <h2>Chart of Accounts</h2>
+    <button id="createChartBtn" style="margin-bottom:20px; font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New Chart</button>
+    `;
+
+    actionContent.insertAdjacentHTML("beforeend", `
+            <div id="createChartModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+            <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Create New Chart</h2>
+                <form id="createUserForm" style="display:flex; flex-direction:column; gap:14px;">
+                    <label style="font-weight:500; color:#222;">Account Name
+                        <input type="text" id="accountName" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
+                    </label>
+                    <label style="font-weight:500; color:#222;">Initial Balance
+                        <input type="text" id="initialBalance" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
+                    </label>
+                    <label style="font-weight:500; color:#222;">Account Category
+                        <select id="accountCategory" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
+                            <option value="">Select</option>
+                            <option value="assets">Asset</option>
+                            <option value="liabilities">Liabilities</option>
+                            <option value="ownerEquity">Owner Equity</option>
+                            <option value="revenue">Revenue</option>
+                            <option value="expenses">Expenses</option>
+                        </select>
+                    </label>
+                    <label style="font-weight:500; color:#222;">Account Subcategory
+                        <select id="accountSubcategory" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
+                            <option value="">Select</option>
+                        </select>
+                    </label>
+                    <label style="font-weight:500; color:#222; display:block;">
+                    Account Description
+                        <textarea id="accountDescription" required 
+                        style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em; height: 100px; width:100%; display:block;">
+                        </textarea>
+                    </label>
+                    <div id="createUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
+                    <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
+                        <button type="submit" style="background:#4CAF50; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Create</button>
+                        <button type="button" id="cancelCreateUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `);
+
+    const modal = document.getElementById('createChartModal');
+    document.getElementById('createChartBtn').onclick = () => { modal.style.display = 'flex'; };
+    document.getElementById('cancelCreateUser').onclick = () => { modal.style.display = 'none'; };
+
+    const accountCategory = document.getElementById("accountCategory");
+    const accountSubcategory = document.getElementById("accountSubcategory");
+
+    const subcategories = {
+        assets: ["Current Assets", "Non-Current Assets"],
+        liabilities: ["Current Liabilities", "Non-Current Liabilities"],
+        ownerEquity: ["Common Stock", "Preferred Stock","Capital", "Drawings", "Retained Earnings"],
+        revenue: ["Sales Revenue", "Service Revenue", "Interest Income", "Dividend Income", "Rental Income"],
+        expenses: ["Operating Expenses", "Non-Operating Expenses", "Administrative Expenses", "Miscellaneous Expenses"]
+    };
+
+    accountCategory.addEventListener("change", () => {
+        const selectedCategory = accountCategory.value;
+
+        accountSubcategory.innerHTML = '<option id="subSelect">Select</option>';
+
+        if (selectedCategory && subcategories[selectedCategory]) {
+        subcategories[selectedCategory].forEach(sub => {
+            const option = document.createElement("option");
+            option.value = sub.toLowerCase().replace(/\s+/g, "-");
+            option.textContent = sub;
+            accountSubcategory.appendChild(option);
+        });
+        }
+    });
+
 }
 
 // ----------------------
