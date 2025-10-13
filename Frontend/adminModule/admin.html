@@ -9,12 +9,15 @@
 <body>
     <header class="topbar">
         <div class="logo">
-            <img id="logoImage" src="../images/logo.png" alt="Fiscal Tracker Logo">
-            <span>FiscalTracker</span>
+            <a href="adminpng.html" class="logo">
+                    
+                    <img src="../images/logo.png" id="logoImage">
+                    <span class = "logo-txt">Fiscal Tracker</span>
+            </a>
         </div>
         <div class="profile">
-            <img id="profilePic" src="../images/logo.png" alt="Admin Profile" width="50">
-            <span id="profileName">Admin Name</span>
+            <img id="profilePic" src="../images/AdminProfilePic.png" alt="Admin Profile" width="50">
+            <span id="profileName" color="white">admin</span>
             <button id="logoutBtn" type="button">Log Out</button>
         </div>
     </header>
@@ -30,7 +33,9 @@
                 <button class="tab-btn" data-tab="userRequest">User Requests</button>
                 <button class="tab-btn" data-tab="generateReports">Generate Reports</button>
                 <!-- <button class="tab-btn" data-tab="emailUser">Email User</button> -->
+                 
             </div>
+
         </div>
         <div id="actionContent" class="stage">
             <!-- Content loaded by JS -->
