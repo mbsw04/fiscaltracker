@@ -63,7 +63,7 @@ CREATE TABLE Accounts (
     balance DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     added_by INT NOT NULL,                         -- FK → Users.id
-    order INT NOT NULL,                            -- e.g. '1'
+    order INT,                                     -- e.g. '1'
     statement ENUM('IS', 'BS', 'RE') NOT NULL,     -- Income Statement, Balance Sheet, etc.
     comment TEXT,
     is_active BOOLEAN DEFAULT TRUE,
