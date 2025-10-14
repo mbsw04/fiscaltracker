@@ -172,7 +172,7 @@ function updateContent(tab) {
 async function loadChartOfAccounts() {
     actionContent.innerHTML = `
     <h2>Chart of Accounts</h2>
-    <button id="createChartBtn" style="margin-bottom:20px; font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New Chart</button>
+    <button id="createChartBtn" style="margin-bottom:20px; font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New Account</button>
     `;
 
     actionContent.insertAdjacentHTML("beforeend", `
@@ -182,6 +182,9 @@ async function loadChartOfAccounts() {
                 <form id="createUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">Account Name
                         <input type="text" id="accountName" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
+                    </label>
+                    <label style="font-weight:500; color:#222;">Account ID Number
+                        <input type="text" id="accountIDNumber" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
                     </label>
                     <label style="font-weight:500; color:#222;">Initial Balance
                         <input type="text" id="initialBalance" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
