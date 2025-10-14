@@ -144,8 +144,11 @@ function updateContent(tab) {
         case 'journal':
             loadJournal();
             break;
-        case 'manageUsers':
-            loadManageUsers();
+        case 'viewUsers':
+            loadViewUsers();
+            break;
+        case 'viewEvents':
+            loadViewEvents();
             break;
         case 'userRequest':
             loadUserRequest();
@@ -260,6 +263,11 @@ async function loadJournal() {
     actionContent.innerHTML = '<h2>Journal</h2><p>Journal features coming soon.</p>';
 }
 
+//View Events Tab
+async function loadViewEvents() {
+    actionContent.innerHTML = '<h2>View Events</h2><p>Event viewing features coming soon.</p>';
+}
+
 // ----------------------
 // USER REQUEST TAB - working as intended
 // ----------------------
@@ -360,6 +368,8 @@ async function loadUserRequest() {
     }
 }
 
+
+
 function attachUserRequestListeners() {
     document.querySelectorAll('.approve-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -428,9 +438,9 @@ async function rejectUserRequest(reqId) {
 // ----------------------
 // MANAGE USERS TAB - working as intended
 // ----------------------
-async function loadManageUsers() {
+async function loadViewUsers() {
     actionContent.innerHTML = `
-        <h2>Manage Users</h2>
+        <h2>View Users</h2>
         
         <div id="createUserModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
@@ -503,7 +513,7 @@ async function loadManageUsers() {
             if (!res.ok) throw new Error(data.error || 'Failed to create user');
             alert(data.message || 'User created successfully.');
             modal.style.display = 'none';
-            loadManageUsers();
+            loadViewUsers();
         } catch (err) {
             errorDiv.textContent = err.message;
         }
@@ -845,7 +855,7 @@ function showEditUserModal(user) {
             if (!res.ok) throw new Error(data.error || 'Failed to update user info');
             alert(data.message || 'User info updated.');
             modal.style.display = 'none';
-            loadManageUsers();
+            loadViewUsers();
         } catch (err) {
             errorDiv.textContent = err.message;
         }
@@ -910,7 +920,7 @@ async function performUserAction(userId, action, suspended_from = null, suspende
             }
         }
         alert(msg);
-        loadManageUsers();
+        loadViewUsers();
     } catch (err) {
         alert(`Error: ${err.message}`);
     }
