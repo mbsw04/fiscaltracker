@@ -112,10 +112,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
             // Redirect based on role
-            if (userObj.role === "admin"){
+            if (userObj.role === "administrator") {
                 window.location.href = "../adminModule/admin.html";
             } else if (userObj.role === "manager"){
                 window.location.href = "../managerModule/manager.html";
+            }
+            else if (userObj.role === "accountant"){
+                window.location.href = "../accountantModule/accountant.html";
             }
 
 

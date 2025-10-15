@@ -264,71 +264,9 @@ async function loadJournal() {
 }
 
 //View Events Tab
-// ----------------------
-// View Events TAB
-// ----------------------
 async function loadViewEvents() {
-    actionContent.innerHTML = '<h2>View Events</h2><p>Loading event logs...</p>';
+    actionContent.innerHTML = '<h2>View Events</h2><p>Event viewing features coming soon.</p>';
 }
-/*
-    try {
-        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_event_log_list');
-        if (!res.ok) throw new Error('Failed to fetch event logs');
-
-        const logs = await res.json();
-
-        if (!logs || !logs.length) {
-            actionContent.innerHTML = '<h2>View Events</h2><p>No events found.</p>';
-            return;
-        }
-
-        const safeJSON = (str) => {
-            if (!str) return '';
-            try { return JSON.stringify(JSON.parse(str), null, 2); }
-            catch { return str; }
-        };
-
-        let tableHTML = `
-            <table style="width:100%; border-collapse: collapse; margin-top: 16px;">
-                <thead>
-                    <tr style="background:#f2f2f2;">
-                        <th>ID</th>
-                        <th>Table</th>
-                        <th>Record ID</th>
-                        <th>Action</th>
-                        <th>Changed By</th>
-                        <th>Changed At</th>
-                        <th>Before</th>
-                        <th>After</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
-        logs.forEach(log => {
-            tableHTML += `
-                <tr>
-                    <td>${log.event_id}</td>
-                    <td>${log.table_name}</td>
-                    <td>${log.record_id || ''}</td>
-                    <td>${log.action}</td>
-                    <td>${log.username} (ID: ${log.changed_by})</td>
-                    <td>${new Date(log.changed_at).toLocaleString()}</td>
-                    <td><pre>${safeJSON(log.before_image)}</pre></td>
-                    <td><pre>${safeJSON(log.after_image)}</pre></td>
-                </tr>
-            `;
-        });
-
-        tableHTML += '</tbody></table>';
-        actionContent.innerHTML = `<h2>View Events</h2>${tableHTML}`;
-
-    } catch (err) {
-        actionContent.innerHTML = `<h2>View Events</h2><p style="color:red;">Error loading logs: ${err.message}</p>`;
-        console.error('Error loading event logs:', err);
-    }
-}
-*/
 
 // ----------------------
 // USER REQUEST TAB - working as intended
