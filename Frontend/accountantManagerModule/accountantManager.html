@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiscal Tracker Accountant Panel</title>
+    <link rel="stylesheet" href="accountantManager.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="logo">
+            <button id="logoBtn" class="logo-btn" aria-label="Home / Logout" style="background:none;border:none;padding:0;display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <img id="logoImage" src="../images/logo.png" alt="Fiscal Tracker Logo">
+                <span>FiscalTracker</span>
+            </button>
+        </div>
+        <div class="topbar-center">
+            <span id="topbarDateTime"></span>
+        </div>
+        <div class="profile">
+            <img id="profilePic" src="../images/ManagerProfilePic.png" alt="Profile" width="50">
+            <span id="profileName">User Name</span>
+            <button id="logoutBtn" class="confirm-btn" style="padding:6px 10px; font-size:0.95em;">Log Out</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div class="tabs stage" style="justify-content: center;">
+                <h1 style="margin-top: 0; text-align: center;">Dashboard</h1>
+                <button class="tab-btn active" data-tab="chartOfAccounts">Chart Of Accounts</button>
+                <button class="tab-btn" data-tab="journal">Journal</button>
+                <button class="tab-btn" data-tab="eventLog">Event Log</button>
+            </div>
+        </div>
+        <div id="actionContent" class="stage">
+            <!-- Content loaded by JS -->
+        </div>
+    </main>
+
+    <script src="accountantManager.js"></script>
+</body>
+</html>

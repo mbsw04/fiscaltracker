@@ -1,0 +1,59 @@
+/* Copied from adminModule/admin.css as base styling for accountant/manager panel */
+:root {
+  --topbar-bg: linear-gradient(135deg, red 0%, black 50%, green 100%);
+  --topbar-height: 70px;
+  --topbar-border: #e6e6e6;
+}
+html, body { margin:0; padding:0; font-family: Arial, sans-serif; height:100%; }
+body { display:flex; flex-direction:column; }
+.topbar { position: sticky; top:0; left:0; right:0; height: 40%var(--topbar-height); display:flex; align-items:center; justify-content:space-between; padding:0 20px; background:var(--topbar-bg); border-bottom:1px solid var(--topbar-border); z-index:1000; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,0.06); padding-top: env(safe-area-inset-top); }
+.logo { display:flex; align-items:center; gap:10px; font-weight:1000; color:#fff; }
+.logo img { width:100px; height:100px; object-fit:cover; }
+.logo span { font-size:40px; font-weight:bold; }
+.profile { display:flex; align-items:center; gap:10px; }
+.profile img { border-radius:50%; }
+.profile span { font-weight:bold; }
+.profile a { cursor:pointer; color:blue; text-decoration:underline; }
+.modal-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:2000; }
+.modal-content { background:#fff; padding:24px 28px; border-radius:12px; min-width:300px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,0.25); text-align:center; }
+.confirm-btn { background:#b71c1c; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:bold; cursor:pointer; }
+.confirm-btn.primary-green { background:#4CAF50; border:2px solid #2e7d32; }
+.confirm-btn.warn-yellow { background:#f4c542; color:#000; border:2px solid #d4a017; }
+.cancel-btn { background:#eee; color:#333; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; }
+.action-btn { padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; transition: background-color .12s ease, transform .06s ease; display:inline-block; }
+.container { padding:20px; flex:1; }
+.stage { background-color: rgba(255,255,255,0.95); border-radius:15px; padding:25px; margin-bottom:20px; box-shadow:0 5px 15px rgba(0,0,0,0.3); text-align:left; }
+.tab-btn { padding:10px 15px; border:none; background-color:#fff; cursor:pointer; margin-right:5px; border-radius:8px; transition:.3s; font-weight:bold; }
+.tab-btn.active { background-color:#ddd; }
+.tab-btn:hover { background-color:#eee; }
+table { width:100%; border-collapse:collapse; margin-top:15px; }
+table, th, td { border:1px solid black; }
+th, td { padding:8px; text-align:left; }
+input[type=text], input[type=email], input[type=password], input[type=date], textarea { width:100%; padding:8px; font-size:16px; border-radius:8px; border:2px solid black; margin-bottom:15px; box-sizing:border-box; }
+input[type=submit], button[type=submit], button.sendEmailbtn, .approve-btn, .reject-btn { width:auto; padding:10px 14px; font-size:16px; font-weight:bold; border-radius:8px; border:2px solid #2e7d32; cursor:pointer; background-color:#4CAF50; color:#fff; }
+
+/* Topbar centered clock styling - absolute center so it's truly centered visually */
+.topbar { position: sticky; top:0; left:0; right:0; }
+.topbar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none; /* allow clicks to pass through to logo/profile */
+  z-index: 1001; /* above background but below any modals */
+}
+#topbarDateTime {
+  display: inline-block;
+  font-size: 20px; /* base size */
+  font-weight: 800;
+  color: #ffffff; /* white text */
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0px 0px 6px rgba(0,0,0,0.6);
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.12);
+  pointer-events: auto; /* allow interactions with the clock itself if needed */
+}
+
+@media (min-width: 900px) {
+  #topbarDateTime { font-size: 24px; padding:8px 14px; }
+}
