@@ -25,7 +25,10 @@
                 <input type="text" id="UsernameBox" placeholder="Enter username">
                 <label for="PasswordBox">Password:</label>
                 <input type="password" id="PasswordBox" placeholder="Enter password">
-                <input type="submit" value="Login">
+                <div class="form-actions">
+                    <input type="submit" value="Login">
+                    <button type="button" id="clearLoginForm" class="clear-btn">Clear</button>
+                </div>
             </form>
             <a href="#" id="ForgotPasswordLink">Forgot Password?</a>
             <p id="noAccount">Don't have an account? <a href="#" id="RegistrationLink">Register Here!</a></p>
@@ -44,7 +47,10 @@
                 <input type="text" id="email" name="email">
                 <label for="dob">Date of Birth:</label>
                 <input type="date" id="dob" name="dob">
-                <input type="submit" value="Submit">
+                <div class="form-actions">
+                    <input type="submit" value="Submit">
+                    <button type="button" id="clearNewUserForm" class="clear-btn">Clear</button>
+                </div>
             </form>
         </div>
 
@@ -59,7 +65,10 @@
                 <input type="text" id="forgotAnswer">
                 <label for="forgotNewPass">New Password</label>
                 <input type="password" id="forgotNewPass">
-                <input type="submit" value="Reset Password">
+                <div class="form-actions">
+                    <input type="submit" value="Reset Password">
+                    <button type="button" id="clearForgotPasswordForm" class="clear-btn">Clear</button>
+                </div>
             </form>
         </div>
     </div>

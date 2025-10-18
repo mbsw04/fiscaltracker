@@ -9,10 +9,10 @@ body { display:flex; flex-direction:column; }
 .topbar { position: sticky; top:0; left:0; right:0; height: 40%var(--topbar-height); display:flex; align-items:center; justify-content:space-between; padding:0 20px; background:var(--topbar-bg); border-bottom:1px solid var(--topbar-border); z-index:1000; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,0.06); padding-top: env(safe-area-inset-top); }
 .logo { display:flex; align-items:center; gap:10px; font-weight:1000; color:#fff; }
 .logo img { width:100px; height:100px; object-fit:cover; }
-.logo span { font-size:40px; font-weight:bold; }
+.logo span { font-size:40px; font-weight:bold; color:#ffffff; }
 .profile { display:flex; align-items:center; gap:10px; }
 .profile img { border-radius:50%; }
-.profile span { font-weight:bold; }
+.profile span { font-weight:bold; color:#ffffff; }
 .profile a { cursor:pointer; color:blue; text-decoration:underline; }
 .modal-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:2000; }
 .modal-content { background:#fff; padding:24px 28px; border-radius:12px; min-width:300px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,0.25); text-align:center; }
@@ -32,28 +32,82 @@ th, td { padding:8px; text-align:left; }
 input[type=text], input[type=email], input[type=password], input[type=date], textarea { width:100%; padding:8px; font-size:16px; border-radius:8px; border:2px solid black; margin-bottom:15px; box-sizing:border-box; }
 input[type=submit], button[type=submit], button.sendEmailbtn, .approve-btn, .reject-btn { width:auto; padding:10px 14px; font-size:16px; font-weight:bold; border-radius:8px; border:2px solid #2e7d32; cursor:pointer; background-color:#4CAF50; color:#fff; }
 
-/* Topbar centered clock styling - absolute center so it's truly centered visually */
-.topbar { position: sticky; top:0; left:0; right:0; }
-.topbar-center {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none; /* allow clicks to pass through to logo/profile */
-  z-index: 1001; /* above background but below any modals */
-}
-#topbarDateTime {
-  display: inline-block;
-  font-size: 20px; /* base size */
-  font-weight: 800;
-  color: #ffffff; /* white text */
-  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0px 0px 6px rgba(0,0,0,0.6);
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: rgba(0,0,0,0.12);
-  pointer-events: auto; /* allow interactions with the clock itself if needed */
+/* Clear button styling for forms and modals */
+.clear-btn, 
+button[id*="clear"], 
+button[id*="Clear"] {
+    background: #f8f9fa;
+    color: #dc3545;
+    border: 2px solid #dc3545;
+    padding: 9px 22px;
+    font-size: 1em;
+    font-weight: bold;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.08s ease;
 }
 
+.clear-btn:hover, 
+button[id*="clear"]:hover, 
+button[id*="Clear"]:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.clear-btn:active, 
+button[id*="clear"]:active, 
+button[id*="Clear"]:active {
+    transform: translateY(1px);
+}
+
+/* Modal close X button styling */
+.modal-close-x {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.modal-close-x:hover {
+    background-color: #dc3545;
+    color: white;
+    transform: scale(1.1);
+}
+
+.modal-close-x:active {
+    transform: scale(0.95);
+}
+
+/* Logo text container and smaller date/time */
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.topbar-datetime-small {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  margin-top: 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.1);
+}
 @media (min-width: 900px) {
-  #topbarDateTime { font-size: 24px; padding:8px 14px; }
+  .topbar-datetime-small { font-size: 14px; }
+}
+
+/* Right-align balance column in tables */
+td:nth-child(5), th:nth-child(5) {
+  text-align: right;
 }

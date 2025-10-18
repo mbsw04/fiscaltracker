@@ -38,16 +38,16 @@ function showLogoutModal() {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
+                <button type="button" id="closeLogoutModal" class="modal-close-x">&times;</button>
                 <h3>Confirm Logout</h3>
                 <p>Are you sure you want to log out?</p>
                 <div class="modal-actions">
                     <button id="confirmLogoutBtn" class="confirm-btn">Log Out</button>
-                    <button id="cancelLogoutBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
-        modal.querySelector('#cancelLogoutBtn').addEventListener('click', () => { modal.style.display = 'none'; });
+        modal.querySelector('#closeLogoutModal').addEventListener('click', () => { modal.style.display = 'none'; });
         modal.querySelector('#confirmLogoutBtn').addEventListener('click', () => { try { localStorage.removeItem('user'); } catch (e) {}; window.location.href = '../LoginModule/index.html'; });
     }
     modal.style.display = 'flex';
@@ -297,16 +297,17 @@ async function loadEventLog() {
             modal.id = 'eventDetailModal';
             modal.className = 'modal-overlay';
             modal.innerHTML = `
-                <div class="modal-content" style="max-width:900px; width:95%;">
+                <div class="modal-content" style="max-width:1200px; width:95%;">
+                    <button type="button" id="closeEventModalX" class="modal-close-x">&times;</button>
                     <h3>Event Details</h3>
-                    <div style="display:flex; gap:12px; align-items:flex-start;">
+                    <div style="display:flex; gap:16px; align-items:flex-start;">
                         <div style="flex:1;">
                             <h4 style="margin-bottom:6px;">Before</h4>
-                            <pre id="eventBefore" style="background:#f7f7f7; padding:12px; border-radius:8px; max-height:60vh; overflow:auto; white-space:pre-wrap;"></pre>
+                            <div id="eventBefore" style="background:#f7f7f7; padding:8px; border-radius:8px; max-height:60vh; overflow:auto;"></div>
                         </div>
                         <div style="flex:1;">
                             <h4 style="margin-bottom:6px;">After</h4>
-                            <pre id="eventAfter" style="background:#f7f7f7; padding:12px; border-radius:8px; max-height:60vh; overflow:auto; white-space:pre-wrap;"></pre>
+                            <div id="eventAfter" style="background:#f7f7f7; padding:8px; border-radius:8px; max-height:60vh; overflow:auto;"></div>
                         </div>
                     </div>
                     <div style="display:flex; justify-content:center; margin-top:12px;">
@@ -316,6 +317,7 @@ async function loadEventLog() {
             `;
             document.body.appendChild(modal);
             modal.querySelector('#closeEventModal').addEventListener('click', () => { modal.style.display = 'none'; });
+            modal.querySelector('#closeEventModalX').addEventListener('click', () => { modal.style.display = 'none'; });
         }
 
         const beforeEl = modal.querySelector('#eventBefore');
@@ -396,16 +398,43 @@ async function loadEventLog() {
             document.head.appendChild(style);
         }
 
+        // Helper to render object as table
+        function renderObjectAsTable(obj, changedPaths, isAfter = false) {
+            if (!obj || typeof obj !== 'object') return `<p>${obj ? String(obj) : '(empty)'}</p>`;
+            
+            let tableHtml = '<table style="width:100%; border-collapse:collapse; font-size:0.9em;">';
+            tableHtml += '<thead><tr><th style="border:1px solid #ddd; padding:6px; background:#f5f5f5;">Field</th><th style="border:1px solid #ddd; padding:6px; background:#f5f5f5;">Value</th></tr></thead><tbody>';
+            
+            Object.keys(obj).forEach(key => {
+                const value = obj[key];
+                const isChanged = changedPaths.has(key);
+                const keyStyle = isChanged && isAfter ? 'background:#fff3cd; font-weight:bold;' : '';
+                const valueStyle = isChanged && isAfter ? 'background:#ffe8a1;' : '';
+                
+                let displayValue = value;
+                if (typeof value === 'object' && value !== null) {
+                    displayValue = JSON.stringify(value, null, 1);
+                } else if (typeof value === 'string' && value.length > 100) {
+                    displayValue = value.substring(0, 100) + '...';
+                }
+                
+                tableHtml += `<tr>
+                    <td style="border:1px solid #ddd; padding:6px; font-weight:600; ${keyStyle}">${escapeHtml(key)}</td>
+                    <td style="border:1px solid #ddd; padding:6px; ${valueStyle}">${escapeHtml(String(displayValue))}</td>
+                </tr>`;
+            });
+            
+            tableHtml += '</tbody></table>';
+            return tableHtml;
+        }
+
         try {
-            if (before && typeof before === 'object') beforeEl.innerHTML = `<div style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(before, null, 2))}</div>`;
-            else beforeEl.textContent = before ? String(before) : '(empty)';
+            // Render before as table (no highlight)
+            beforeEl.innerHTML = renderObjectAsTable(before, changedPaths, false);
         } catch (e) { beforeEl.textContent = String(before); }
         try {
-            if (after && typeof after === 'object') {
-                afterEl.innerHTML = renderJsonWithHighlights(after, changedPaths);
-            } else {
-                afterEl.textContent = after ? String(after) : '(empty)';
-            }
+            // Render after as table with highlights for changed keys
+            afterEl.innerHTML = renderObjectAsTable(after, changedPaths, true);
         } catch (e) { afterEl.textContent = String(after); }
         modal.style.display = 'flex';
     }
@@ -440,7 +469,7 @@ async function loadChartOfAccounts() {
     actionContent.innerHTML = `
         <h2>Chart of Accounts</h2>
         <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
-            <input id="accountsSearch" placeholder="Search by account number or name" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+            <input id="accountsSearch" placeholder="Search accounts (all fields)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
         </div>
         <div id="accountsTablesContainer" style="margin-top:18px;"></div>
     `;
@@ -508,7 +537,22 @@ async function loadChartOfAccounts() {
     function render() {
         const term = (searchTerm || '').toLowerCase();
         let rows = accounts.slice();
-        if (term) rows = rows.filter(a => ((a.account_number||'') + ' ' + (a.account_name||'')).toLowerCase().includes(term));
+        if (term) {
+            rows = rows.filter(a => {
+                const searchableFields = [
+                    a.account_number,
+                    a.account_name,
+                    a.category,
+                    a.subcategory,
+                    a.balance,
+                    a.statement
+                ];
+                return searchableFields.some(field => 
+                    (field !== null && field !== undefined) && 
+                    String(field).toLowerCase().includes(term)
+                );
+            });
+        }
         if (sortState.col) {
             rows.sort((a,b) => {
                 const A = (a[sortState.col] === null || a[sortState.col] === undefined) ? '' : String(a[sortState.col]).toLowerCase();
@@ -588,6 +632,7 @@ function showAccountModal(accountNumber) {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
+                <button type="button" id="closeAccountViewModal" class="modal-close-x">&times;</button>
                 <h3>Account Details</h3>
                 <div id="accountViewBody" style="min-width:320px;"></div>
                 <div style="display:flex; justify-content:center; margin-top:12px;">
@@ -597,6 +642,7 @@ function showAccountModal(accountNumber) {
         `;
         document.body.appendChild(modal);
         modal.querySelector('#accountViewOk').addEventListener('click', () => { modal.style.display = 'none'; });
+        modal.querySelector('#closeAccountViewModal').addEventListener('click', () => { modal.style.display = 'none'; });
     }
 
     const bodyDiv = modal.querySelector('#accountViewBody');
