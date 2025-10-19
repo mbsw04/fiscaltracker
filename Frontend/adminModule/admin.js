@@ -13,6 +13,19 @@ window.addEventListener('DOMContentLoaded', () => {
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', (ev) => {
+                ev.preventDefault && ev.preventDefault();
+                showLogoutModal();
+            });
+        }
+    } catch (e) {}
+
+    // Make the logo clickable to prompt logout confirmation (prevent accidental navigation)
+    try {
+        const logoEl = document.querySelector('.logo');
+        if (logoEl) {
+            logoEl.style.cursor = 'pointer';
+            logoEl.addEventListener('click', (ev) => {
+                ev.preventDefault && ev.preventDefault();
                 showLogoutModal();
             });
         }
@@ -27,19 +40,19 @@ function showLogoutModal() {
         modal.id = 'logoutConfirmModal';
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content">
+            <div class="modal-content" style="position: relative;">
+                <button class="modal-close-x" id="closeLogoutModal">&times;</button>
                 <h3>Confirm Logout</h3>
                 <p>Are you sure you want to log out?</p>
                 <div class="modal-actions">
                     <button id="confirmLogoutBtn" class="confirm-btn">Log Out</button>
-                    <button id="cancelLogoutBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
         // Attach handlers
-        modal.querySelector('#cancelLogoutBtn').addEventListener('click', () => {
+        modal.querySelector('#closeLogoutModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
         modal.querySelector('#confirmLogoutBtn').addEventListener('click', () => {
@@ -65,7 +78,8 @@ function showSuspendModal(userId) {
         const defaultToDate = new Date(today.getTime() + 7*24*60*60*1000);
         const defaultTo = format(defaultToDate);
         modal.innerHTML = `
-            <div class="modal-content">
+            <div class="modal-content" style="position: relative;">
+                <button class="modal-close-x" id="closeSuspendModal">&times;</button>
                 <h3>Suspend User</h3>
                 <p>Select suspension start and end dates:</p>
                 <div style="display:flex; gap:10px; justify-content:center; margin-top:8px;">
@@ -81,15 +95,31 @@ function showSuspendModal(userId) {
                 <div id="suspendError" style="color:#c00; min-height:18px; margin-top:10px; text-align:center;"></div>
                 <div class="modal-actions" style="margin-top:10px;">
                     <button id="confirmSuspendBtn" class="confirm-btn warn-yellow">Suspend</button>
-                    <button id="cancelSuspendBtn" class="cancel-btn">Cancel</button>
+                    <button id="clearSuspendForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#cancelSuspendBtn').addEventListener('click', () => {
+        modal.querySelector('#closeSuspendModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
+        
+        // Clear button functionality for Suspend User modal
+        modal.querySelector('#clearSuspendForm').addEventListener('click', () => {
+            const today = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const format = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+            const defaultFrom = format(today);
+            const defaultToDate = new Date(today.getTime() + 7*24*60*60*1000);
+            const defaultTo = format(defaultToDate);
+            
+            modal.querySelector('#suspendFrom').value = defaultFrom;
+            modal.querySelector('#suspendTo').value = defaultTo;
+            modal.querySelector('#suspendError').textContent = '';
+            modal.querySelector('#suspendFrom').focus();
+        });
+        
         modal.querySelector('#confirmSuspendBtn').addEventListener('click', async () => {
             const from = modal.querySelector('#suspendFrom').value;
             const to = modal.querySelector('#suspendTo').value;
@@ -124,25 +154,43 @@ try {
     }
 } catch (e) {}
 
-// Tab click handler
-tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelector('.tab-btn.active').classList.remove('active');
-        tab.classList.add('active');
-        updateContent(tab.getAttribute('data-tab'));
-    });
+// Tab click handler — use delegated listener so clicks work even if tabs are dynamic
+// Determine the original tabs container (parent of the initial tabs NodeList), fall back to document
+const tabsContainer = (tabs && tabs.length && tabs[0].parentElement) ? tabs[0].parentElement : document;
+document.addEventListener('click', (ev) => {
+    const tab = ev.target.closest && ev.target.closest('.tab-btn');
+    if (!tab) return;
+    // only handle clicks on elements that are inside the original tabs container
+    if (tabsContainer && !tabsContainer.contains(tab)) {
+        try { console.debug('[TAB CLICK] ignored tab-like element outside tabs container', tab); } catch (e) {}
+        return;
+    }
+    try { console.debug('[TAB CLICK] clicked tab', tab.getAttribute('data-tab'), tab); } catch (e) {}
+    const prev = document.querySelector('.tab-btn.active');
+    if (prev && prev !== tab) prev.classList.remove('active');
+    tab.classList.add('active');
+    // clear current content to avoid stale DOM interfering with loaders
+    try { if (actionContent) actionContent.innerHTML = ''; } catch (e) {}
+    try { updateContent(tab.getAttribute('data-tab')); } catch (e) {
+        console.error('Error updating tab content:', e);
+        try { if (actionContent) actionContent.innerHTML = `<p style="color:red;">Error loading tab: ${e.message}</p>`; } catch (e2) {}
+    }
 });
 
 // Initial load
 updateContent('chartOfAccounts');
 
 function updateContent(tab) {
+    try { console.debug('[updateContent] tab=', tab); } catch (e) {}
     switch(tab) {
         case 'chartOfAccounts':
             loadChartOfAccounts();
             break;
         case 'journal':
             loadJournal();
+            break;
+        case 'eventLog':
+            loadEventLog();
             break;
         case 'manageUsers':
             loadManageUsers();
@@ -170,16 +218,21 @@ function updateContent(tab) {
 // ----------------------
 
 async function loadChartOfAccounts() {
+    try { console.debug('[loadChartOfAccounts] called'); } catch (e) {}
     actionContent.innerHTML = `
     <h2>Chart of Accounts</h2>
-    <button id="createChartBtn" style="margin-bottom:20px; font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New Account</button>
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+        <button id="createAccBtn" style="font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New Account</button>
+        <input id="accountsSearch" placeholder="Search accounts (all fields)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+    </div>
     `;
 
     actionContent.insertAdjacentHTML("beforeend", `
-            <div id="createChartModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div id="createAccModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button class="modal-close-x" id="closeCreateAccModal">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Create New Chart</h2>
-                <form id="createUserForm" style="display:flex; flex-direction:column; gap:14px;">
+                <form id="createAccForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">Account Name
                         <input type="text" id="accountName" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
                     </label>
@@ -204,25 +257,46 @@ async function loadChartOfAccounts() {
                             <option value="">Select</option>
                         </select>
                     </label>
+                    <label style="font-weight:500; color:#222;">Statement
+                        <select id="accountStatement" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
+                            <option value="">Select</option>
+                            <option value="IS">Income Statement</option>
+                            <option value="BS">Balance Sheet</option>
+                            <option value="RE">Retained Earnings</option>
+                        </select>
+                    </label>
                     <label style="font-weight:500; color:#222; display:block;">
                     Account Description
                         <textarea id="accountDescription" required 
                         style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em; height: 100px; width:100%; display:block;">
                         </textarea>
                     </label>
-                    <div id="createUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
+                    <div id="createAccError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
                         <button type="submit" style="background:#4CAF50; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Create</button>
-                        <button type="button" id="cancelCreateUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                        <button type="button" id="clearCreateAccountForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                     </div>
                 </form>
             </div>
         </div>
     `);
 
-    const modal = document.getElementById('createChartModal');
-    document.getElementById('createChartBtn').onclick = () => { modal.style.display = 'flex'; };
-    document.getElementById('cancelCreateUser').onclick = () => { modal.style.display = 'none'; };
+    const modal = document.getElementById('createAccModal');
+    document.getElementById('createAccBtn').onclick = () => { modal.style.display = 'flex'; };
+    document.getElementById('closeCreateAccModal').onclick = () => { modal.style.display = 'none'; };
+    
+    // Clear button functionality for Create Account modal
+    document.getElementById('clearCreateAccountForm').onclick = () => {
+        document.getElementById('accountName').value = '';
+        document.getElementById('accountIDNumber').value = '';
+        document.getElementById('initialBalance').value = '';
+        document.getElementById('accountCategory').value = '';
+        document.getElementById('accountSubcategory').innerHTML = '<option value="">Select</option>';
+        document.getElementById('accountStatement').value = '';
+        document.getElementById('accountDescription').value = '';
+        document.getElementById('createAccError').textContent = '';
+        document.getElementById('accountName').focus();
+    };
 
     const accountCategory = document.getElementById("accountCategory");
     const accountSubcategory = document.getElementById("accountSubcategory");
@@ -250,6 +324,461 @@ async function loadChartOfAccounts() {
         }
     });
 
+    // Hook up the create account form (renamed to avoid id collisions elsewhere)
+    const createForm = document.getElementById('createAccForm');
+    if (createForm) {
+        createForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const account_name = document.getElementById('accountName').value.trim();
+            const account_number = document.getElementById('accountIDNumber').value.trim();
+            const initial_balance = parseFloat(document.getElementById('initialBalance').value) || 0;
+            const categoryVal = document.getElementById('accountCategory').value;
+            const subcategoryVal = document.getElementById('accountSubcategory').value;
+            const description = document.getElementById('accountDescription').value.trim();
+            const statementVal = document.getElementById('accountStatement') ? document.getElementById('accountStatement').value : null;
+            const errorDiv = document.getElementById('createAccError');
+            if (errorDiv) errorDiv.textContent = '';
+            if (!account_name || !account_number) {
+                if (errorDiv) errorDiv.textContent = 'Account name and ID are required.';
+                return;
+            }
+            if (!statementVal) {
+                if (errorDiv) errorDiv.textContent = 'Please select a statement (Income Statement, Balance Sheet or Retained Earnings).';
+                return;
+            }
+            // collect client-side user info for diagnostics
+            let clientUser = null;
+            try { clientUser = JSON.parse(localStorage.getItem('user')); } catch (e) { clientUser = null; }
+
+            try {
+                console.log('Creating account request - admin id (ADMIN_ID):', ADMIN_ID, 'localStorage user:', clientUser);
+                const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        admin_id: ADMIN_ID,
+                        account_number,
+                        account_name,
+                        description,
+                        normal_side: 'debit',
+                        category: categoryVal,
+                        subcategory: subcategoryVal,
+                        initial_balance,
+                        statement: statementVal,
+                        comment: null
+                    })
+                });
+                let data = await res.json();
+                // Normalize Lambda proxy response: { statusCode, body: '...json...' }
+                if (data && typeof data.body === 'string') {
+                    try { const parsed = JSON.parse(data.body); data = { ...data, ...parsed, body: parsed }; } catch (e) {}
+                }
+                const statusCode = (data && data.statusCode) ? Number(data.statusCode) : res.status;
+                if (statusCode >= 400) {
+                    const errMsg = (data && (data.error || data.message)) || (data && data.body && data.body.error) || 'Failed to create account';
+                    throw new Error(errMsg);
+                }
+                alert((data && (data.message || (data.body && data.body.message))) || 'Account created successfully.');
+                document.getElementById('createAccModal').style.display = 'none';
+                await loadAccounts();
+            } catch (err) {
+                // If server returns an authorization error, include client-side diagnostic info to help debug
+                if (errorDiv) {
+                    let msg = err.message || 'Failed to create account.';
+                    if (/not authorized/i.test(msg) || /403/.test(msg)) {
+                        msg += `\nClient-side admin id: ${ADMIN_ID}`;
+                        try { msg += `\nlocalStorage user: ${JSON.stringify(clientUser)}`; } catch (e) {}
+                    }
+                    errorDiv.textContent = msg;
+                }
+                console.error('Create account error:', err, 'clientUser:', clientUser);
+            }
+        };
+    }
+
+    // Container for account tables
+    let accountsContainer = document.getElementById('accountsTablesContainer');
+    if (!accountsContainer) {
+        accountsContainer = document.createElement('div');
+        accountsContainer.id = 'accountsTablesContainer';
+        accountsContainer.style.marginTop = '18px';
+        actionContent.appendChild(accountsContainer);
+    }
+
+    // State
+    let activeAccounts = [];
+    let inactiveAccounts = [];
+    let accountSearchTerm = '';
+    const sortState = { active: { col: null, asc: true }, inactive: { col: null, asc: true } };
+
+    async function loadAccounts() {
+        accountsContainer.innerHTML = '<p>Loading accounts...</p>';
+        try {
+            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: ADMIN_ID })
+            });
+            let data = await res.json();
+            if (typeof data.body === 'string') {
+                try { data = JSON.parse(data.body); } catch (e) {}
+            }
+
+            let rows = [];
+            if (Array.isArray(data)) rows = data;
+            else if (Array.isArray(data.rows)) rows = data.rows;
+            else if (Array.isArray(data.accounts)) rows = data.accounts;
+            else if (Array.isArray(data.body)) rows = data.body;
+            // otherwise, if data is an object that's actually the array string-parsed above will handle
+
+            // normalize boolean-like values
+            rows = (rows || []).map(r => ({ ...r, is_active: r.is_active === 1 || r.is_active === true || String(r.is_active) === 'true' }));
+
+            activeAccounts = rows.filter(a => a.is_active);
+            inactiveAccounts = rows.filter(a => !a.is_active);
+
+            renderTables();
+        } catch (err) {
+            accountsContainer.innerHTML = `<p style="color:red;">Error loading accounts: ${err.message}</p>`;
+        }
+    }
+
+    function buildTableHtml(accounts, which) {
+        // which = 'active' | 'inactive'
+        const cols = [
+            { key: 'account_number', label: 'Account Number' },
+            { key: 'account_name', label: 'Account Name' },
+            { key: 'is_active', label: 'Active' },
+            { key: 'category', label: 'Category' },
+            { key: 'subcategory', label: 'Subcategory' },
+            { key: 'balance', label: 'Balance' },
+            { key: 'statement', label: 'Statement' },
+            { key: 'description', label: 'Description' }
+        ];
+
+        let html = `<h3>${which === 'active' ? 'Active Accounts' : 'Inactive Accounts'}</h3>`;
+        if (!accounts.length) {
+            html += `<p>No ${which} accounts.</p>`;
+            return html;
+        }
+
+        html += `<table class="accounts-table" data-which="${which}"><thead><tr>`;
+        cols.forEach(c => {
+            // description is not sortable and actions column will be added separately
+            const sortable = c.key !== 'description';
+            html += `<th ${sortable ? 'class="sortable"' : ''} data-col="${c.key}">${c.label}`;
+            if (sortable) html += ' <span style="font-size:0.8em; color:#666;">↕</span>';
+            html += `</th>`;
+        });
+        html += `<th>Actions</th></tr></thead><tbody>`;
+
+        accounts.forEach(acc => {
+            html += `<tr data-account-number="${acc.account_number}">`;
+            // render account number and name as clickable links (buttons) that open the same modal
+            const accNum = acc.account_number || '';
+            const accName = acc.account_name || '';
+            html += `<td><button class="acc-link action-link" data-account-number="${accNum}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${accNum}</button></td>`;
+            html += `<td><button class="acc-link action-link" data-account-number="${accNum}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${accName}</button></td>`;
+            html += `<td>${acc.is_active ? 'Yes' : 'No'}</td>`;
+            html += `<td>${acc.category || ''}</td>`;
+            html += `<td>${acc.subcategory || ''}</td>`;
+            html += `<td>${(acc.balance !== undefined && acc.balance !== null) ? formatAccounting(acc.balance) : '0.00'}</td>`;
+            html += `<td>${acc.statement || ''}</td>`;
+            html += `<td>${acc.description ? String(acc.description).slice(0,120) : ''}</td>`;
+            // actions
+            if (which === 'active') {
+                html += `<td><button class="edit-acc-btn action-btn" data-account-number="${acc.account_number}">Edit</button> <button class="deactivate-acc-btn action-btn" data-account-number="${acc.account_number}">Deactivate</button></td>`;
+            } else {
+                html += `<td><button class="activate-acc-btn action-btn" data-account-number="${acc.account_number}">Activate</button></td>`;
+            }
+            html += `</tr>`;
+        });
+
+        html += `</tbody></table>`;
+        return html;
+    }
+
+    function renderTables() {
+        accountsContainer.innerHTML = '';
+        // Apply search filtering (live) - search all columns except description and actions
+        const term = (accountSearchTerm || '').toString().toLowerCase();
+        const filteredActive = !term ? activeAccounts : activeAccounts.filter(a => {
+            const searchableFields = [
+                a.account_number,
+                a.account_name,
+                a.is_active ? 'yes' : 'no',
+                a.category,
+                a.subcategory,
+                a.balance,
+                a.statement
+            ];
+            return searchableFields.some(field => 
+                (field !== null && field !== undefined) && 
+                String(field).toLowerCase().includes(term)
+            );
+        });
+        const filteredInactive = !term ? inactiveAccounts : inactiveAccounts.filter(a => {
+            const searchableFields = [
+                a.account_number,
+                a.account_name,
+                a.is_active ? 'yes' : 'no',
+                a.category,
+                a.subcategory,
+                a.balance,
+                a.statement
+            ];
+            return searchableFields.some(field => 
+                (field !== null && field !== undefined) && 
+                String(field).toLowerCase().includes(term)
+            );
+        });
+
+        accountsContainer.insertAdjacentHTML('beforeend', buildTableHtml(filteredActive, 'active'));
+        accountsContainer.insertAdjacentHTML('beforeend', buildTableHtml(filteredInactive, 'inactive'));
+
+        // attach sorting listeners
+        accountsContainer.querySelectorAll('th.sortable').forEach(th => {
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', () => {
+                const col = th.getAttribute('data-col');
+                const table = th.closest('table');
+                const which = table.getAttribute('data-which');
+                const state = sortState[which];
+                if (state.col === col) state.asc = !state.asc; else { state.col = col; state.asc = true; }
+                const arr = which === 'active' ? activeAccounts : inactiveAccounts;
+                arr.sort((a,b) => {
+                    const A = (a[col] === null || a[col] === undefined) ? '' : String(a[col]).toLowerCase();
+                    const B = (b[col] === null || b[col] === undefined) ? '' : String(b[col]).toLowerCase();
+                    if (!isNaN(parseFloat(A)) && !isNaN(parseFloat(B))) {
+                        return state.asc ? parseFloat(A) - parseFloat(B) : parseFloat(B) - parseFloat(A);
+                    }
+                    if (A < B) return state.asc ? -1 : 1;
+                    if (A > B) return state.asc ? 1 : -1;
+                    return 0;
+                });
+                renderTables();
+            });
+        });
+
+        // attach action listeners
+        accountsContainer.querySelectorAll('.edit-acc-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => showEditModal(e.target.getAttribute('data-account-number')));
+        });
+        accountsContainer.querySelectorAll('.deactivate-acc-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const acct = e.target.getAttribute('data-account-number');
+                if (!confirm(`Deactivate account ${acct}? Account balance must be zero to deactivate.`)) return;
+                try {
+                    const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_account_actions', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ admin_id: ADMIN_ID, action: 'DEACTIVATE ACCOUNT', account_number: acct })
+                    });
+                    let data = await res.json();
+                    if (data && typeof data.body === 'string') { try { const parsed = JSON.parse(data.body); data = { ...data, ...parsed, body: parsed }; } catch (e) {} }
+                    const statusCode = (data && data.statusCode) ? Number(data.statusCode) : res.status;
+                    if (statusCode >= 400) {
+                        const errMsg = (data && (data.error || data.message)) || (data && data.body && data.body.error) || 'Failed';
+                        throw new Error(errMsg);
+                    }
+                    alert((data && (data.message || (data.body && data.body.message))) || 'Account deactivated.');
+                    await loadAccounts();
+                } catch (err) { alert(`Error: ${err.message}`); }
+            });
+        });
+        accountsContainer.querySelectorAll('.activate-acc-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const acct = e.target.getAttribute('data-account-number');
+                if (!confirm(`Activate account ${acct}?`)) return;
+                try {
+                    const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_account_actions', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ admin_id: ADMIN_ID, action: 'ACTIVATE ACCOUNT', account_number: acct })
+                    });
+                    let data = await res.json();
+                    if (data && typeof data.body === 'string') { try { const parsed = JSON.parse(data.body); data = { ...data, ...parsed, body: parsed }; } catch (e) {} }
+                    const statusCode = (data && data.statusCode) ? Number(data.statusCode) : res.status;
+                    if (statusCode >= 400) {
+                        const errMsg = (data && (data.error || data.message)) || (data && data.body && data.body.error) || 'Failed';
+                        throw new Error(errMsg);
+                    }
+                    alert((data && (data.message || (data.body && data.body.message))) || 'Account activated.');
+                    await loadAccounts();
+                } catch (err) { alert(`Error: ${err.message}`); }
+            });
+        });
+
+        // wire up search input (live filter)
+        const searchEl = document.getElementById('accountsSearch');
+        if (searchEl) {
+            searchEl.value = accountSearchTerm || '';
+            searchEl.addEventListener('input', (e) => {
+                accountSearchTerm = (e.target.value || '').trim();
+                renderTables();
+            });
+        }
+
+        // attach click listeners for account number/name links to open placeholder modal
+        accountsContainer.querySelectorAll('.acc-link').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const acct = e.currentTarget.getAttribute('data-account-number');
+                showAccountModal(acct);
+            });
+        });
+    }
+
+    // Edit modal (created on demand)
+    function showEditModal(accountNumber) {
+        const acc = [...activeAccounts, ...inactiveAccounts].find(a => a.account_number === accountNumber);
+        if (!acc) { alert('Account data not found.'); return; }
+
+        let modal = document.getElementById('editAccModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'editAccModal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="position: relative;">
+                    <button class="modal-close-x" id="closeEditAccModal">&times;</button>
+                    <h3>Edit Account</h3>
+                    <form id="editAccForm" style="display:flex; flex-direction:column; gap:10px;">
+                        <input type="hidden" id="originalAccountNumber">
+                        <label>Account Number<input id="editAccountNumber" style="margin-top:4px;padding:8px;border-radius:6px;border:1px solid #ccc;"></label>
+                        <label>Account Name<input id="editAccountName" style="margin-top:4px;padding:8px;border-radius:6px;border:1px solid #ccc;"></label>
+                        <label>Initial Balance<input id="editInitialBalance" type="number" step="0.01" style="margin-top:4px;padding:8px;border-radius:6px;border:1px solid #ccc;"></label>
+                        <label>Category<select id="editAccountCategory" style="margin-top:4px;padding:8px;border-radius:6px;border:1px solid #ccc;"></select></label>
+                        <label>Subcategory<select id="editAccountSubcategory" style="margin-top:4px;padding:8px;border-radius:6px;border:1px solid #ccc;"></select></label>
+                        <label>Statement<select id="editStatement" style="margin-top:4px;padding:8px;border-radius:6px;border:1px solid #ccc;"><option value="">Select</option><option value="IS">IS</option><option value="BS">BS</option><option value="RE">RE</option></select></label>
+                        <label style="display:block; font-weight:500; color:#222;">Description
+                            <textarea id="editDescription" placeholder="Enter account description (optional)" rows="5" 
+                                style="margin-top:6px; padding:10px; border-radius:7px; border:1.5px solid #bbb; font-size:1em; width:100%; box-sizing:border-box; min-height:100px;">
+                            </textarea>
+                        </label>
+                        <div id="editAccError" style="color:#c00; min-height:18px;"></div>
+                        <div style="display:flex; gap:10px; justify-content:flex-end;">
+                            <button type="submit" style="background:#4CAF50;color:#fff;border:none;border-radius:6px;padding:8px 14px;">Save</button>
+                            <button type="button" id="clearEditAccountForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:6px;padding:8px 14px;">Clear</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.querySelector('#closeEditAccModal').addEventListener('click', () => { modal.style.display = 'none'; });
+            
+            // Clear button functionality for Edit Account modal
+            modal.querySelector('#clearEditAccountForm').addEventListener('click', () => {
+                document.getElementById('editAccountNumber').value = '';
+                document.getElementById('editAccountName').value = '';
+                document.getElementById('editInitialBalance').value = '';
+                document.getElementById('editAccountCategory').value = '';
+                document.getElementById('editAccountSubcategory').innerHTML = '<option value="">Select</option>';
+                document.getElementById('editStatement').value = '';
+                document.getElementById('editDescription').value = '';
+                document.getElementById('editAccError').textContent = '';
+                document.getElementById('editAccountNumber').focus();
+            });
+            
+            modal.querySelector('#editAccForm').addEventListener('submit', async (ev) => {
+                ev.preventDefault();
+                const errorDiv = document.getElementById('editAccError'); if (errorDiv) errorDiv.textContent = '';
+                const account_number = document.getElementById('editAccountNumber').value;
+                const account_name = document.getElementById('editAccountName').value.trim();
+                const initial_balance = parseFloat(document.getElementById('editInitialBalance').value) || 0;
+                const category = document.getElementById('editAccountCategory').value;
+                const subcategory = document.getElementById('editAccountSubcategory').value;
+                const statement = document.getElementById('editStatement').value;
+                const description = document.getElementById('editDescription').value.trim();
+                try {
+                    const original_account_number = document.getElementById('originalAccountNumber') ? document.getElementById('originalAccountNumber').value : account_number;
+                    const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_account', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ admin_id: ADMIN_ID, original_account_number, account_number, account_name, description, normal_side: 'debit', category, subcategory, initial_balance, statement, comment: null })
+                        });
+                    let data = await res.json();
+                    if (data && typeof data.body === 'string') { try { const parsed = JSON.parse(data.body); data = { ...data, ...parsed, body: parsed }; } catch (e) {} }
+                    const statusCode = (data && data.statusCode) ? Number(data.statusCode) : res.status;
+                    if (statusCode >= 400) {
+                        const errMsg = (data && (data.error || data.message)) || (data && data.body && data.body.error) || 'Failed to update account';
+                        throw new Error(errMsg);
+                    }
+                    alert((data && (data.message || (data.body && data.body.message))) || 'Account updated.');
+                    modal.style.display = 'none';
+                    await loadAccounts();
+                } catch (err) {
+                    if (errorDiv) errorDiv.textContent = err.message || 'Failed to update account.';
+                }
+            });
+        }
+
+        // populate fields
+        modal.style.display = 'flex';
+        document.getElementById('editAccountNumber').value = acc.account_number || '';
+    document.getElementById('originalAccountNumber').value = acc.account_number || '';
+        document.getElementById('editAccountName').value = acc.account_name || '';
+        document.getElementById('editInitialBalance').value = acc.initial_balance || acc.balance || 0;
+
+        const catSelect = document.getElementById('editAccountCategory');
+        catSelect.innerHTML = '<option value="">Select</option>';
+        Object.keys(subcategories).forEach(k => {
+            const opt = document.createElement('option'); opt.value = k; opt.textContent = k.charAt(0).toUpperCase() + k.slice(1);
+            if (acc.category && acc.category.toLowerCase() === k) opt.selected = true;
+            catSelect.appendChild(opt);
+        });
+
+        const subSel = document.getElementById('editAccountSubcategory');
+        function populateEditSubcats() {
+            const k = catSelect.value;
+            subSel.innerHTML = '<option value="">Select</option>';
+            if (k && subcategories[k]) subcategories[k].forEach(s => { const o = document.createElement('option'); o.value = s.toLowerCase().replace(/\s+/g,'-'); o.textContent = s; if (acc.subcategory && acc.subcategory.toLowerCase() === o.value) o.selected = true; subSel.appendChild(o); });
+        }
+        populateEditSubcats();
+        catSelect.addEventListener('change', populateEditSubcats);
+
+        document.getElementById('editStatement').value = acc.statement || '';
+        document.getElementById('editDescription').value = acc.description || '';
+    }
+
+    // Simple placeholder modal for viewing account details (OK button only)
+    function showAccountModal(accountNumber) {
+        const acc = [...activeAccounts, ...inactiveAccounts].find(a => a.account_number === accountNumber);
+        if (!acc) { alert('Account not found.'); return; }
+
+        let modal = document.getElementById('accountViewModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'accountViewModal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <h3>Account Details</h3>
+                    <div id="accountViewBody" style="min-width:320px;">
+                    </div>
+                    <div style="display:flex; justify-content:center; margin-top:12px;">
+                        <button id="accountViewOk" class="confirm-btn">OK</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector('#accountViewOk').addEventListener('click', () => { modal.style.display = 'none'; });
+        }
+
+        const bodyDiv = modal.querySelector('#accountViewBody');
+        bodyDiv.innerHTML = `
+            <p><strong>Account Number:</strong> ${acc.account_number || ''}</p>
+            <p><strong>Account Name:</strong> ${acc.account_name || ''}</p>
+            <p><strong>Category:</strong> ${acc.category || ''}</p>
+            <p><strong>Subcategory:</strong> ${acc.subcategory || ''}</p>
+            <p><strong>Balance:</strong> ${(acc.balance !== undefined && acc.balance !== null) ? formatAccounting(acc.balance) : '0.00'}</p>
+            <p><strong>Statement:</strong> ${acc.statement || ''}</p>
+            <p><strong>Description:</strong> ${acc.description ? String(acc.description).slice(0,400) : ''}</p>
+        `;
+
+        modal.style.display = 'flex';
+    }
+
+    // initial load
+    await loadAccounts();
+
 }
 
 // ----------------------
@@ -259,6 +788,309 @@ async function loadChartOfAccounts() {
 async function loadJournal() {
     actionContent.innerHTML = '<h2>Journal</h2><p>Journal features coming soon.</p>';
 }
+
+// ----------------------
+// EVENT LOG TAB
+// ----------------------
+async function loadEventLog() {
+    actionContent.innerHTML = `
+        <h2>Event Log</h2>
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+            <input id="eventLogSearch" placeholder="Filter by table, record id, action, or user" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+            <select id="eventLogFilterColumn" style="padding:8px; border-radius:8px; border:1px solid #ccc;">
+                <option value="all">All Columns</option>
+                <option value="table_name">Table</option>
+                <option value="record_id">Record ID</option>
+                <option value="action">Action</option>
+                <option value="changed_by">Changed By</option>
+            </select>
+        </div>
+        <div id="eventLogContainer">Loading event logs...</div>
+    `;
+
+    const container = document.getElementById('eventLogContainer');
+    const searchEl = document.getElementById('eventLogSearch');
+    const filterColEl = document.getElementById('eventLogFilterColumn');
+
+    let events = [];
+    let filterTerm = '';
+    let filterCol = 'all';
+    const sortState = { col: 'changed_at', asc: false };
+
+    function parseMaybeJson(v) {
+        if (v === null || v === undefined) return null;
+        if (typeof v === 'object') return v;
+        if (typeof v === 'string') {
+            v = v.trim();
+            if (!v) return null;
+            try { return JSON.parse(v); } catch (e) { return v; }
+        }
+        return v;
+    }
+
+    function buildTableHtml(rows) {
+        if (!rows || !rows.length) return '<p>No events found.</p>';
+        let html = `<table class="event-log-table"><thead><tr>`;
+        const cols = [
+            { key: 'event_id', label: 'Event ID' },
+            { key: 'table_name', label: 'Table' },
+            { key: 'record_id', label: 'Record ID' },
+            { key: 'action', label: 'Action' },
+            { key: 'changed_by', label: 'Changed By' },
+            { key: 'changed_at', label: 'Changed At' }
+        ];
+        cols.forEach(c => { html += `<th ${c.key !== 'event_id' ? 'class="sortable"' : ''} data-col="${c.key}">${c.label}` + (c.key !== 'event_id' ? ' <span style="font-size:0.8em; color:#666;">↕</span>' : '') + `</th>`; });
+        html += `</tr></thead><tbody>`;
+        rows.forEach(r => {
+            html += `<tr data-event-id="${r.event_id}">`;
+            html += `<td><button class="event-id-link action-link" data-event-id="${r.event_id}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;text-decoration:underline;">${r.event_id}</button></td>`;
+            html += `<td>${r.table_name || ''}</td>`;
+            html += `<td>${r.record_id || ''}</td>`;
+            html += `<td>${r.action || ''}</td>`;
+            html += `<td>${r.changed_by || ''}</td>`;
+            html += `<td>${r.changed_at ? new Date(r.changed_at).toLocaleString() : ''}</td>`;
+            html += `</tr>`;
+        });
+        html += `</tbody></table>`;
+        return html;
+    }
+
+    function render() {
+        // apply filter
+        const term = (filterTerm || '').toString().toLowerCase();
+        let rows = events.slice();
+        if (term) {
+            rows = rows.filter(r => {
+                if (filterCol === 'all') {
+                    return ['table_name','record_id','action','changed_by','event_id'].some(k => (String(r[k]||'')).toLowerCase().includes(term));
+                }
+                return (String(r[filterCol]||'')).toLowerCase().includes(term);
+            });
+        }
+        // sort
+        if (sortState.col) {
+            rows.sort((a,b) => {
+                let A = a[sortState.col];
+                let B = b[sortState.col];
+                if (A === undefined || A === null) A = '';
+                if (B === undefined || B === null) B = '';
+                if (sortState.col === 'changed_at') {
+                    A = new Date(A).getTime() || 0;
+                    B = new Date(B).getTime() || 0;
+                    return sortState.asc ? A - B : B - A;
+                }
+                const sA = String(A).toLowerCase();
+                const sB = String(B).toLowerCase();
+                if (sA < sB) return sortState.asc ? -1 : 1;
+                if (sA > sB) return sortState.asc ? 1 : -1;
+                return 0;
+            });
+        }
+        container.innerHTML = buildTableHtml(rows);
+
+        // attach sorting handlers
+        container.querySelectorAll('th.sortable').forEach(th => {
+            th.style.cursor = 'pointer';
+            th.onclick = () => {
+                const col = th.getAttribute('data-col');
+                if (sortState.col === col) sortState.asc = !sortState.asc; else { sortState.col = col; sortState.asc = true; }
+                render();
+            };
+        });
+
+        // attach event id listeners
+        container.querySelectorAll('.event-id-link').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.currentTarget.getAttribute('data-event-id');
+                const ev = events.find(x => String(x.event_id) === String(id));
+                if (!ev) { alert('Event not found'); return; }
+                showEventModal(ev);
+            });
+        });
+    }
+
+    function showEventModal(ev) {
+        let modal = document.getElementById('eventDetailModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'eventDetailModal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:1200px; width:95%;">
+                    <h3>Event Details</h3>
+                    <div style="display:flex; gap:16px; align-items:flex-start;">
+                        <div style="flex:1;">
+                            <h4 style="margin-bottom:6px;">Before</h4>
+                            <div id="eventBefore" style="background:#f7f7f7; padding:8px; border-radius:8px; max-height:60vh; overflow:auto;"></div>
+                        </div>
+                        <div style="flex:1;">
+                            <h4 style="margin-bottom:6px;">After</h4>
+                            <div id="eventAfter" style="background:#f7f7f7; padding:8px; border-radius:8px; max-height:60vh; overflow:auto;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:center; margin-top:12px;">
+                        <button id="closeEventModal" class="confirm-btn">Close</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector('#closeEventModal').addEventListener('click', () => { modal.style.display = 'none'; });
+        }
+
+        const beforeEl = modal.querySelector('#eventBefore');
+        const afterEl = modal.querySelector('#eventAfter');
+        const before = parseMaybeJson(ev.before_image);
+        const after = parseMaybeJson(ev.after_image);
+
+        // Lightweight JSON diff to find changed keys (shallow and nested)
+        function diffObjects(a, b, path = '') {
+            const changes = new Set();
+            // if either is not object, compare directly
+            if (a === null || a === undefined || typeof a !== 'object' || b === null || b === undefined || typeof b !== 'object') {
+                if (JSON.stringify(a) !== JSON.stringify(b)) changes.add(path || '$');
+                return changes;
+            }
+            const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+            keys.forEach(k => {
+                const nk = path ? `${path}.${k}` : k;
+                const va = a ? a[k] : undefined;
+                const vb = b ? b[k] : undefined;
+                if (typeof va === 'object' && va !== null && typeof vb === 'object' && vb !== null) {
+                    const sub = diffObjects(va, vb, nk);
+                    sub.forEach(s => changes.add(s));
+                } else {
+                    if (JSON.stringify(va) !== JSON.stringify(vb)) changes.add(nk);
+                }
+            });
+            return changes;
+        }
+
+        const changedPaths = diffObjects(before, after);
+
+        // Helper to render JSON with highlighted keys that changed in 'after'
+        function renderJsonWithHighlights(obj, changedSet) {
+            if (obj === null || obj === undefined) return '(empty)';
+            if (typeof obj === 'string' && (obj.trim().startsWith('{') || obj.trim().startsWith('['))) {
+                try { obj = JSON.parse(obj); } catch (e) { /* leave as-is */ }
+            }
+            function walk(o, prefix = '') {
+                if (o === null) return '(null)';
+                if (typeof o !== 'object') return escapeHtml(String(o));
+                if (Array.isArray(o)) {
+                    return '[' + o.map((v, i) => walk(v, `${prefix}[${i}]`)).join(', ') + ']';
+                }
+                let parts = [];
+                Object.keys(o).forEach(k => {
+                    const p = prefix ? `${prefix}.${k}` : k;
+                    const val = o[k];
+                    const keyHtml = escapeHtml(k);
+                    const valueHtml = (typeof val === 'object' && val !== null) ? walk(val, p) : escapeHtml(JSON.stringify(val));
+                    // If this path or any descendant path is in changedSet, mark the key
+                    const isChanged = Array.from(changedSet).some(ch => ch === p || ch.startsWith(p + '.'));
+                    if (isChanged) {
+                        parts.push(`<div style="margin-left:6px;"><span class="json-key-changed">"${keyHtml}"</span>: <span class="json-val-changed">${valueHtml}</span></div>`);
+                    } else {
+                        parts.push(`<div style="margin-left:6px;"><span class="json-key">"${keyHtml}"</span>: <span class="json-val">${valueHtml}</span></div>`);
+                    }
+                });
+                return `<div>{${parts.join('')}<div>}</div>`;
+            }
+            try { return walk(obj); } catch (e) { return escapeHtml(JSON.stringify(obj, null, 2)); }
+        }
+
+        // small helper to escape HTML
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Inject minimal styles for highlights (only once)
+        if (!document.getElementById('event-json-diff-styles')) {
+            const style = document.createElement('style');
+            style.id = 'event-json-diff-styles';
+            style.innerHTML = `
+                .json-key-changed { background: #fff3cd; padding: 2px 4px; border-radius:3px; }
+                .json-val-changed { background: #ffe8a1; padding: 2px 4px; border-radius:3px; }
+                .json-key { color: #333; font-weight:600; }
+                .json-val { color: #111; }
+                #eventBefore, #eventAfter { font-family: monospace; font-size: 0.9em; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Helper to render object as table
+        function renderObjectAsTable(obj, changedPaths, isAfter = false) {
+            if (!obj || typeof obj !== 'object') return `<p>${obj ? String(obj) : '(empty)'}</p>`;
+            
+            let tableHtml = '<table style="width:100%; border-collapse:collapse; font-size:0.9em;">';
+            tableHtml += '<thead><tr><th style="border:1px solid #ddd; padding:6px; background:#f5f5f5;">Field</th><th style="border:1px solid #ddd; padding:6px; background:#f5f5f5;">Value</th></tr></thead><tbody>';
+            
+            Object.keys(obj).forEach(key => {
+                const value = obj[key];
+                const isChanged = changedPaths.has(key);
+                const keyStyle = isChanged && isAfter ? 'background:#fff3cd; font-weight:bold;' : '';
+                const valueStyle = isChanged && isAfter ? 'background:#ffe8a1;' : '';
+                
+                let displayValue = value;
+                if (typeof value === 'object' && value !== null) {
+                    displayValue = JSON.stringify(value, null, 1);
+                } else if (typeof value === 'string' && value.length > 100) {
+                    displayValue = value.substring(0, 100) + '...';
+                }
+                
+                tableHtml += `<tr>
+                    <td style="border:1px solid #ddd; padding:6px; font-weight:600; ${keyStyle}">${escapeHtml(key)}</td>
+                    <td style="border:1px solid #ddd; padding:6px; ${valueStyle}">${escapeHtml(String(displayValue))}</td>
+                </tr>`;
+            });
+            
+            tableHtml += '</tbody></table>';
+            return tableHtml;
+        }
+
+        try {
+            // Render before as table (no highlight)
+            beforeEl.innerHTML = renderObjectAsTable(before, changedPaths, false);
+        } catch (e) { beforeEl.textContent = String(before); }
+        try {
+            // Render after as table with highlights for changed keys
+            afterEl.innerHTML = renderObjectAsTable(after, changedPaths, true);
+        } catch (e) { afterEl.textContent = String(after); }
+        modal.style.display = 'flex';
+    }
+
+    // initial fetch
+    try {
+        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_event_log_list', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        });
+        let data = await res.json();
+        if (data && typeof data.body === 'string') {
+            try { data = JSON.parse(data.body); } catch (e) { /* leave as-is */ }
+        }
+        // determine rows
+        if (Array.isArray(data)) events = data;
+        else if (Array.isArray(data.rows)) events = data.rows;
+        else if (Array.isArray(data.events)) events = data.events;
+        else if (Array.isArray(data.body)) events = data.body;
+        else if (Array.isArray(data.result)) events = data.result;
+        else events = [];
+    } catch (err) {
+        container.innerHTML = `<p style="color:red;">Error loading event logs: ${err.message}</p>`;
+        return;
+    }
+
+    // wire search/filter
+    searchEl.addEventListener('input', (e) => { filterTerm = e.target.value || ''; render(); });
+    filterColEl.addEventListener('change', (e) => { filterCol = e.target.value || 'all'; render(); });
+
+    render();
+}
+
 
 // ----------------------
 // USER REQUEST TAB - working as intended
@@ -437,6 +1269,7 @@ async function loadManageUsers() {
         <button id="createUserBtn" style="margin-bottom:20px; font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New User</button>
         <div id="createUserModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button class="modal-close-x" id="closeCreateUserModal">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Create New User</h2>
                 <form id="createUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">First Name
@@ -462,7 +1295,7 @@ async function loadManageUsers() {
                     <div id="createUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
                         <button type="submit" style="background:#4CAF50; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Create</button>
-                        <button type="button" id="cancelCreateUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                        <button type="button" id="clearCreateUserForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                     </div>
                 </form>
             </div>
@@ -472,7 +1305,18 @@ async function loadManageUsers() {
     // Modal logic
     const modal = document.getElementById('createUserModal');
     document.getElementById('createUserBtn').onclick = () => { modal.style.display = 'flex'; };
-    document.getElementById('cancelCreateUser').onclick = () => { modal.style.display = 'none'; };
+    document.getElementById('closeCreateUserModal').onclick = () => { modal.style.display = 'none'; };
+    
+    // Clear button functionality for Create User modal
+    document.getElementById('clearCreateUserForm').onclick = () => {
+        document.getElementById('newFirstName').value = '';
+        document.getElementById('newLastName').value = '';
+        document.getElementById('newEmail').value = '';
+        document.getElementById('newDob').value = '';
+        document.getElementById('newRole').value = '';
+        document.getElementById('createUserError').textContent = '';
+        document.getElementById('newFirstName').focus();
+    };
     document.getElementById('createUserForm').onsubmit = async (e) => {
         e.preventDefault();
         const first_name = document.getElementById('newFirstName').value.trim();
@@ -652,6 +1496,7 @@ function showEmailUserModal(user) {
         modal.style.justifyContent = 'center';
         modal.innerHTML = `
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button type="button" id="closeEmailUserModal" class="modal-close-x">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Send Email to User</h2>
                 <form id="emailUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">To (User Email)
@@ -663,7 +1508,7 @@ function showEmailUserModal(user) {
                     <div id="emailUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
                         <button type="submit" class="confirm-btn primary-green action-btn">Send Email</button>
-                        <button type="button" id="cancelEmailUser" class="cancel-btn action-btn">Cancel</button>
+                        <button type="button" id="clearEmailUserForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                     </div>
                 </form>
             </div>
@@ -675,8 +1520,15 @@ function showEmailUserModal(user) {
     modal.querySelector('#emailUserMessage').value = '';
     // Show modal
     modal.style.display = 'flex';
-    // Cancel button
-    modal.querySelector('#cancelEmailUser').onclick = () => { modal.style.display = 'none'; };
+    // Close X button
+    modal.querySelector('#closeEmailUserModal').onclick = () => { modal.style.display = 'none'; };
+    
+    // Clear button functionality for Email User modal
+    modal.querySelector('#clearEmailUserForm').onclick = () => {
+        modal.querySelector('#emailUserMessage').value = '';
+        modal.querySelector('#emailUserError').textContent = '';
+        modal.querySelector('#emailUserMessage').focus();
+    };
     // Submit handler
     modal.querySelector('#emailUserForm').onsubmit = async (e) => {
         e.preventDefault();
@@ -782,6 +1634,7 @@ function showEditUserModal(user) {
         modal.style.justifyContent = 'center';
         modal.innerHTML = `
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button type="button" id="closeEditUserModal" class="modal-close-x">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Edit User Info</h2>
                 <form id="editUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">First Name
@@ -804,7 +1657,7 @@ function showEditUserModal(user) {
                     <div id="editUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
                         <button type="submit" class="confirm-btn primary-green action-btn">Update Info</button>
-                        <button type="button" id="cancelEditUser" class="cancel-btn action-btn">Cancel</button>
+                        <button type="button" id="clearEditUserForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                     </div>
                 </form>
             </div>
@@ -819,7 +1672,17 @@ function showEditUserModal(user) {
     // Show modal
     modal.style.display = 'flex';
     // Cancel button
-    modal.querySelector('#cancelEditUser').onclick = () => { modal.style.display = 'none'; };
+    modal.querySelector('#closeEditUserModal').onclick = () => { modal.style.display = 'none'; };
+    
+    // Clear button functionality for Edit User modal
+    modal.querySelector('#clearEditUserForm').onclick = () => {
+        modal.querySelector('#editFirstName').value = '';
+        modal.querySelector('#editLastName').value = '';
+        modal.querySelector('#editEmail').value = '';
+        modal.querySelector('#editRole').value = '';
+        modal.querySelector('#editUserError').textContent = '';
+        modal.querySelector('#editFirstName').focus();
+    };
     // Submit handler
     modal.querySelector('#editUserForm').onsubmit = async (e) => {
         e.preventDefault();
@@ -974,18 +1837,18 @@ function showDeactivateModal(userId) {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
+                <button type="button" id="closeDeactivateModal" class="modal-close-x">&times;</button>
                 <h3>Confirm Deactivation</h3>
                 <p>Are you sure you want to deactivate this user?</p>
                 <p>They will lose access until reactivated.</p>
                 <div class="modal-actions">
                     <button id="confirmDeactivateBtn" class="confirm-btn">Deactivate</button>
-                    <button id="cancelDeactivateBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#cancelDeactivateBtn').addEventListener('click', () => {
+        modal.querySelector('#closeDeactivateModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
         modal.querySelector('#confirmDeactivateBtn').addEventListener('click', async () => {
@@ -1009,17 +1872,17 @@ function showActivateModal(userId) {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
+                <button type="button" id="closeActivateModal" class="modal-close-x">&times;</button>
                 <h3>Confirm Activation</h3>
                 <p>Are you sure you want to activate this user? They will regain access.</p>
                 <div class="modal-actions">
                     <button id="confirmActivateBtn" class="confirm-btn primary-green">Activate</button>
-                    <button id="cancelActivateBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#cancelActivateBtn').addEventListener('click', () => {
+        modal.querySelector('#closeActivateModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
         modal.querySelector('#confirmActivateBtn').addEventListener('click', async () => {
@@ -1043,17 +1906,17 @@ function showUnsuspendModal(userId) {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
+                <button type="button" id="closeUnsuspendModal" class="modal-close-x">&times;</button>
                 <h3>Confirm Unsuspend</h3>
                 <p>Are you sure you want to unsuspend this user? They will regain access immediately.</p>
                 <div class="modal-actions">
                     <button id="confirmUnsuspendBtn" class="confirm-btn primary-green">Unsuspend</button>
-                    <button id="cancelUnsuspendBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#cancelUnsuspendBtn').addEventListener('click', () => {
+        modal.querySelector('#closeUnsuspendModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
         modal.querySelector('#confirmUnsuspendBtn').addEventListener('click', async () => {
@@ -1066,4 +1929,111 @@ function showUnsuspendModal(userId) {
         });
     }
     modal.style.display = 'flex';
+}
+
+// Helper: format number in accounting style (commas, two decimals, parentheses for negative)
+function formatAccounting(value) {
+    let n = 0;
+    if (value === null || value === undefined || value === '') return '0.00';
+    if (typeof value === 'number') n = value;
+    else {
+        n = parseFloat(String(value).replace(/[,()\s]/g, ''));
+    }
+    if (isNaN(n)) return String(value);
+    const isNeg = n < 0;
+    const abs = Math.abs(n).toFixed(2);
+    const parts = abs.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const formatted = parts.join('.');
+    return isNeg ? `(${formatted})` : formatted;
+}
+
+// Topbar date/time clock: update every second
+function startTopbarClock() {
+    try {
+        const el = document.getElementById('topbarDateTime');
+        if (!el) return;
+        function tick() {
+            el.textContent = new Date().toLocaleString();
+        }
+        tick();
+        const existing = el.__topbarClockId;
+        if (existing) clearInterval(existing);
+        el.__topbarClockId = setInterval(tick, 1000);
+    } catch (err) {
+        console.error('topbar clock init failed', err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    startTopbarClock();
+    initButtonTooltips();
+});
+
+// Add informative tooltips to buttons that are missing a title attribute.
+function initButtonTooltips() {
+    try {
+        const commonMap = new Map([
+            ['createAccBtn', 'Create a new account'],
+            ['createUserBtn', 'Create a new user account'],
+            ['confirmLogoutBtn', 'Confirm logout'],
+            ['cancelLogoutBtn', 'Cancel logout'],
+            ['confirmDeactivateBtn', 'Confirm deactivation'],
+            ['cancelDeactivateBtn', 'Cancel deactivation'],
+            ['confirmActivateBtn', 'Confirm activation'],
+            ['cancelActivateBtn', 'Cancel activation'],
+            ['confirmSuspendBtn', 'Confirm suspend'],
+            ['cancelSuspendBtn', 'Cancel suspend'],
+            ['confirmUnsuspendBtn', 'Confirm unsuspend'],
+            ['cancelUnsuspendBtn', 'Cancel unsuspend'],
+            ['accountViewOk', 'Close account view'],
+            ['closeEventModal', 'Close event details'],
+        ]);
+
+        function applyTooltipToButton(btn) {
+            if (!btn || !(btn instanceof HTMLElement) || btn.tagName !== 'BUTTON') return;
+            if (btn.title && btn.title.trim().length) return; // already has tooltip
+            // explicit id-based mapping
+            if (btn.id && commonMap.has(btn.id)) { btn.title = commonMap.get(btn.id); return; }
+            // data attributes (like data-account-number, data-event-id) give context
+            if (btn.dataset && Object.keys(btn.dataset).length) {
+                const entries = Object.entries(btn.dataset).map(([k,v]) => `${k.replace(/([A-Z])/g,' $1')}: ${v}`).join('; ');
+                btn.title = btn.textContent.trim() ? `${btn.textContent.trim()} — ${entries}` : entries;
+                return;
+            }
+            // class-based hints
+            const cls = btn.className || '';
+            if (cls.includes('edit-acc-btn')) { btn.title = 'Edit this account'; return; }
+            if (cls.includes('deactivate-acc-btn') || cls.includes('deactivate-btn')) { btn.title = 'Deactivate this account'; return; }
+            if (cls.includes('activate-acc-btn') || cls.includes('activate-btn')) { btn.title = 'Activate this account'; return; }
+            if (cls.includes('approve-btn')) { btn.title = 'Approve the selected item'; return; }
+            if (cls.includes('reject-btn')) { btn.title = 'Reject the selected item'; return; }
+            if (cls.includes('tab-btn')) { btn.title = `Switch to ${btn.getAttribute('data-tab') || btn.textContent.trim()} tab`; return; }
+            // fallback: use visible text
+            const text = btn.textContent && btn.textContent.trim();
+            if (text) btn.title = text;
+        }
+
+        // initial pass
+        Array.from(document.querySelectorAll('button')).forEach(applyTooltipToButton);
+
+        // observe dynamic additions (e.g., action column buttons added when tabs change)
+        const observer = new MutationObserver(mutations => {
+            for (const m of mutations) {
+                if (m.type === 'childList' && m.addedNodes && m.addedNodes.length) {
+                    m.addedNodes.forEach(node => {
+                        if (!(node instanceof HTMLElement)) return;
+                        if (node.tagName === 'BUTTON') applyTooltipToButton(node);
+                        // also scan within the added subtree
+                        node.querySelectorAll && node.querySelectorAll('button') && Array.from(node.querySelectorAll('button')).forEach(applyTooltipToButton);
+                    });
+                }
+            }
+        });
+        // watch the main content area if present, otherwise body
+        const target = document.getElementById('actionContent') || document.body;
+        observer.observe(target, { childList: true, subtree: true });
+    } catch (err) {
+        console.error('initButtonTooltips failed', err);
+    }
 }

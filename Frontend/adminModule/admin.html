@@ -9,16 +9,16 @@
 <body>
     <header class="topbar">
         <div class="logo">
-            <a href="adminpng.html" class="logo">
-                    
-                    <img src="../images/logo.png" id="logoImage">
-                    <span class = "logo-txt">Fiscal Tracker</span>
-            </a>
+            <img id="logoImage" src="../images/logo.png" alt="Fiscal Tracker Logo">
+            <div class="logo-text">
+                <span>FiscalTracker</span>
+                <div id="topbarDateTime" class="topbar-datetime-small"></div>
+            </div>
         </div>
         <div class="profile">
             <img id="profilePic" src="../images/AdminProfilePic.png" alt="Admin Profile" width="50">
-            <span id="profileName" color="white">admin</span>
-            <button id="logoutBtn" type="button">Log Out</button>
+            <span id="profileName">Admin Name</span>
+            <a id="logoutBtn" href="../LoginModule/index.html">Log Out</a>
         </div>
     </header>
 
@@ -27,15 +27,13 @@
             
             <div class="tabs stage" style="justify-content: center;">
                 <h1 style="margin-top: 0; text-align: center;">Admin Dashboard</h1>
-                <button class="tab-btn active" data-tab="chartOfAccounts">Chart of Accounts</button>
+                <button class="tab-btn active" data-tab="chartOfAccounts">Chart Of Accounts</button>
                 <button class="tab-btn" data-tab="journal">Journal</button>
+                <button class="tab-btn" data-tab="eventLog">Event Log</button>
                 <button class="tab-btn" data-tab="manageUsers">Manage Users</button>
                 <button class="tab-btn" data-tab="userRequest">User Requests</button>
                 <button class="tab-btn" data-tab="generateReports">Generate Reports</button>
-                <!-- <button class="tab-btn" data-tab="emailUser">Email User</button> -->
-                 
             </div>
-
         </div>
         <div id="actionContent" class="stage">
             <!-- Content loaded by JS -->

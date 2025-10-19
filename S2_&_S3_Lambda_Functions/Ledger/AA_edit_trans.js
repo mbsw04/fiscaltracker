@@ -10,7 +10,13 @@ export const handler = async (event) => {
 
   const { user_id, trans_id, credit, debit, description } = body;
 
- 
+  // Convert arrays to comma-separated strings with 2 decimal places
+  const creditStr = Array.isArray(credit) ? 
+    credit.map(amt => parseFloat(amt).toFixed(2)).join(',') : 
+    parseFloat(credit || 0).toFixed(2);
+  const debitStr = Array.isArray(debit) ? 
+    debit.map(amt => parseFloat(amt).toFixed(2)).join(',') : 
+    parseFloat(debit || 0).toFixed(2);
 
   let conn;
   try {
@@ -26,7 +32,7 @@ export const handler = async (event) => {
     const before = beforeRows && beforeRows[0] ? beforeRows[0] : null;
     await conn.execute(
       `UPDATE Transactions SET credit=?, debit=?, description=? WHERE id=?`,
-      [credit, debit, description, trans_id]
+      [creditStr, debitStr, description, trans_id]
     );
     const [afterRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
     const after = afterRows && afterRows[0] ? afterRows[0] : null;

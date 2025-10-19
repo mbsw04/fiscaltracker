@@ -8,6 +8,11 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
+  const { user_id } = body || {};
+  if (!user_id) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Missing user_id in request body' }) };
+  }
+
   let conn;
 
   try {
@@ -15,6 +20,13 @@ export const handler = async (event) => {
     
     
     
+    // verify user exists
+    const [userRows] = await conn.execute(`SELECT id FROM Users WHERE id = ?`, [user_id]);
+    const user = userRows && userRows[0] ? userRows[0] : null;
+    if (!user) {
+      return { statusCode: 404, body: JSON.stringify({ error: 'User not found' }) };
+    }
+
     const [rows] = await conn.execute(`
       SELECT e.*, u.username 
       FROM Event_Logs e

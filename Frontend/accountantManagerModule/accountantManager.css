@@ -1,0 +1,113 @@
+/* Copied from adminModule/admin.css as base styling for accountant/manager panel */
+:root {
+  --topbar-bg: linear-gradient(135deg, red 0%, black 50%, green 100%);
+  --topbar-height: 70px;
+  --topbar-border: #e6e6e6;
+}
+html, body { margin:0; padding:0; font-family: Arial, sans-serif; height:100%; }
+body { display:flex; flex-direction:column; }
+.topbar { position: sticky; top:0; left:0; right:0; height: 40%var(--topbar-height); display:flex; align-items:center; justify-content:space-between; padding:0 20px; background:var(--topbar-bg); border-bottom:1px solid var(--topbar-border); z-index:1000; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,0.06); padding-top: env(safe-area-inset-top); }
+.logo { display:flex; align-items:center; gap:10px; font-weight:1000; color:#fff; }
+.logo img { width:100px; height:100px; object-fit:cover; }
+.logo span { font-size:40px; font-weight:bold; color:#ffffff; }
+.profile { display:flex; align-items:center; gap:10px; }
+.profile img { border-radius:50%; }
+.profile span { font-weight:bold; color:#ffffff; }
+.profile a { cursor:pointer; color:blue; text-decoration:underline; }
+.modal-overlay { display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:2000; }
+.modal-content { background:#fff; padding:24px 28px; border-radius:12px; min-width:300px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,0.25); text-align:center; }
+.confirm-btn { background:#b71c1c; color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:bold; cursor:pointer; }
+.confirm-btn.primary-green { background:#4CAF50; border:2px solid #2e7d32; }
+.confirm-btn.warn-yellow { background:#f4c542; color:#000; border:2px solid #d4a017; }
+.cancel-btn { background:#eee; color:#333; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; }
+.action-btn { padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; transition: background-color .12s ease, transform .06s ease; display:inline-block; }
+.container { padding:20px; flex:1; }
+.stage { background-color: rgba(255,255,255,0.95); border-radius:15px; padding:25px; margin-bottom:20px; box-shadow:0 5px 15px rgba(0,0,0,0.3); text-align:left; }
+.tab-btn { padding:10px 15px; border:none; background-color:#fff; cursor:pointer; margin-right:5px; border-radius:8px; transition:.3s; font-weight:bold; }
+.tab-btn.active { background-color:#ddd; }
+.tab-btn:hover { background-color:#eee; }
+table { width:100%; border-collapse:collapse; margin-top:15px; }
+table, th, td { border:1px solid black; }
+th, td { padding:8px; text-align:left; }
+input[type=text], input[type=email], input[type=password], input[type=date], textarea { width:100%; padding:8px; font-size:16px; border-radius:8px; border:2px solid black; margin-bottom:15px; box-sizing:border-box; }
+input[type=submit], button[type=submit], button.sendEmailbtn, .approve-btn, .reject-btn { width:auto; padding:10px 14px; font-size:16px; font-weight:bold; border-radius:8px; border:2px solid #2e7d32; cursor:pointer; background-color:#4CAF50; color:#fff; }
+
+/* Clear button styling for forms and modals */
+.clear-btn, 
+button[id*="clear"], 
+button[id*="Clear"] {
+    background: #f8f9fa;
+    color: #dc3545;
+    border: 2px solid #dc3545;
+    padding: 9px 22px;
+    font-size: 1em;
+    font-weight: bold;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.08s ease;
+}
+
+.clear-btn:hover, 
+button[id*="clear"]:hover, 
+button[id*="Clear"]:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.clear-btn:active, 
+button[id*="clear"]:active, 
+button[id*="Clear"]:active {
+    transform: translateY(1px);
+}
+
+/* Modal close X button styling */
+.modal-close-x {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.modal-close-x:hover {
+    background-color: #dc3545;
+    color: white;
+    transform: scale(1.1);
+}
+
+.modal-close-x:active {
+    transform: scale(0.95);
+}
+
+/* Logo text container and smaller date/time */
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.topbar-datetime-small {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  margin-top: 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.1);
+}
+@media (min-width: 900px) {
+  .topbar-datetime-small { font-size: 14px; }
+}
+
+/* Right-align balance column in tables */
+td:nth-child(5), th:nth-child(5) {
+  text-align: right;
+}

@@ -8,15 +8,16 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
-  const { admin_id, account_number, account_name, description, normal_side, category, subcategory, initial_balance, order, statement, comment } = body;
+  const { admin_id, original_account_number, account_number, account_name, description, normal_side, category, subcategory, initial_balance, statement, comment } = body;
 
   let conn;
   try {
     conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
     
-    // verify admin exists
-    const [adminRows] = await conn.execute(`SELECT id FROM Users WHERE id = ?`, [admin_id]);
-    const admin = adminRows && adminRows[0] ? adminRows[0] : null;
+  // verify admin exists (include role for authorization check)
+  const [adminRows] = await conn.execute(`SELECT id, role FROM Users WHERE id = ?`, [admin_id]);
+  const admin = adminRows && adminRows[0] ? adminRows[0] : null;
+  console.log('AA_edit_account - admin lookup result:', admin);
     if (!admin) {
       return { statusCode: 404, body: JSON.stringify({ error: 'Admin user not found' }) };
     } else { if (String(admin.role).toLowerCase() !== 'administrator') {
@@ -24,12 +25,14 @@ export const handler = async (event) => {
       }
     }
     
-    const [beforeRows] = await conn.execute(`SELECT * FROM Accounts WHERE account_number = ?`, [account_number]);
+    const lookupAccountNumber = original_account_number && original_account_number !== '' ? original_account_number : account_number;
+    const [beforeRows] = await conn.execute(`SELECT * FROM Accounts WHERE account_number = ?`, [lookupAccountNumber]);
     const before = beforeRows && beforeRows[0] ? beforeRows[0] : null;
 
+    // Update - allow changing the account_number value (rename) by setting account_number = ?
     await conn.execute(
-      `UPDATE Accounts SET account_name=?, description=?, normal_side=?, category=?, subcategory=?, initial_balance=?, \`order\`=?, statement=?, comment=? WHERE account_number=?`,
-      [account_name, description, normal_side, category, subcategory, initial_balance, order, statement, comment, account_number]
+      `UPDATE Accounts SET account_number=?, account_name=?, description=?, normal_side=?, category=?, subcategory=?, initial_balance=?, statement=?, comment=? WHERE account_number=?`,
+      [account_number, account_name, description, normal_side, category, subcategory, initial_balance, statement, comment, lookupAccountNumber]
     );
 
     const [afterRows] = await conn.execute(`SELECT * FROM Accounts WHERE account_number = ?`, [account_number]);

@@ -19,9 +19,10 @@ export const handler = async (event) => {
   try {
     conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
 
-    // verify admin exists
-    const [adminRows] = await conn.execute(`SELECT id FROM Users WHERE id = ?`, [admin_id]);
-    const admin = adminRows && adminRows[0] ? adminRows[0] : null;
+  // verify admin exists (include role for authorization check)
+  const [adminRows] = await conn.execute(`SELECT id, role FROM Users WHERE id = ?`, [admin_id]);
+  const admin = adminRows && adminRows[0] ? adminRows[0] : null;
+    console.log('AA_account_actions - admin lookup result:', admin);
     if (!admin) {
       return { statusCode: 404, body: JSON.stringify({ error: 'Admin user not found' }) };
     } else { if (String(admin.role).toLowerCase() !== 'administrator') {
@@ -53,6 +54,30 @@ export const handler = async (event) => {
         `INSERT INTO Event_Logs (table_name, record_id, action, before_image, after_image, changed_by)
          VALUES (?, ?, ?, ?, ?, ?)`,
         ['Accounts', (beforeRow && beforeRow.id) || (acctRow && acctRow.id) || null, 'DEACTIVATE ACCOUNT', JSON.stringify(beforeRow || {}), JSON.stringify(acctRow || {}), admin_id]
+      );
+    }
+
+    if (action === "ACTIVATE ACCOUNT") {
+      // get the current state (before image)
+      const [beforeRows] = await conn.execute(`SELECT * FROM Accounts WHERE account_number = ?`, [account_number]);
+      const beforeRow = beforeRows && beforeRows[0] ? beforeRows[0] : null;
+
+      if (!beforeRow) {
+        return { statusCode: 404, body: JSON.stringify({ error: 'Account not found' }) };
+      }
+
+      // perform the update to activate
+      await conn.execute(`UPDATE Accounts SET is_active = TRUE WHERE account_number = ?`, [account_number]);
+
+      // fetch the account row after change (after image)
+      const [acctRows] = await conn.execute(`SELECT * FROM Accounts WHERE account_number = ?`, [account_number]);
+      const acctRow = acctRows && acctRows[0] ? acctRows[0] : null;
+
+      // Insert Event_Log with both before and after images
+      await conn.execute(
+        `INSERT INTO Event_Logs (table_name, record_id, action, before_image, after_image, changed_by)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        ['Accounts', (beforeRow && beforeRow.id) || (acctRow && acctRow.id) || null, 'ACTIVATE ACCOUNT', JSON.stringify(beforeRow || {}), JSON.stringify(acctRow || {}), admin_id]
       );
     }
 

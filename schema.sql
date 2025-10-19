@@ -63,7 +63,7 @@ CREATE TABLE Accounts (
     balance DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     added_by INT NOT NULL,                         -- FK → Users.id
-    order INT NOT NULL,                            -- e.g. '1'
+    -- removed `order` column; account_number will determine ordering
     statement ENUM('IS', 'BS', 'RE') NOT NULL,     -- Income Statement, Balance Sheet, etc.
     comment TEXT,
     is_active BOOLEAN DEFAULT TRUE,
@@ -73,18 +73,16 @@ CREATE TABLE Accounts (
 
 CREATE TABLE Transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    credit_account_id INT NOT NULL,
-    credit DECIMAL(15,2) DEFAULT 0.00,
-    debit_account_id INT NOT NULL,
-    debit DECIMAL(15,2) DEFAULT 0.00,
+    credit_account_id TEXT NOT NULL,  -- Array stored as comma-separated values: "1001,1002,1003"
+    credit TEXT DEFAULT NULL,         -- Array stored as comma-separated values with 2 decimals: "100.50,200.75,300.00"
+    debit_account_id TEXT NOT NULL,   -- Array stored as comma-separated values: "2001,2002"
+    debit TEXT DEFAULT NULL,          -- Array stored as comma-separated values with 2 decimals: "150.25,450.00"
     description TEXT,
     created_by INT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     approved_by INT,
     approved_date DATETIME,
-    FOREIGN KEY (credit_account_id) REFERENCES Accounts(id),
-    FOREIGN KEY (debit_account_id) REFERENCES Accounts(id),
     FOREIGN KEY (created_by) REFERENCES Users(id),
     FOREIGN KEY (approved_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 7001;

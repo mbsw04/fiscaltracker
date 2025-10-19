@@ -29,11 +29,11 @@ export const handler = async (event) => {
     let rows;
     if (String(user.role).toLowerCase() === 'administrator') {
       // admin sees all accounts
-      const [allRows] = await conn.execute(`SELECT * FROM Accounts ORDER BY \`order\``);
+      const [allRows] = await conn.execute(`SELECT * FROM Accounts ORDER BY account_number`);
       rows = allRows;
     } else {
       // managers/accountants see only active accounts
-      const [activeRows] = await conn.execute(`SELECT * FROM Accounts WHERE is_active = TRUE ORDER BY \`order\``);
+      const [activeRows] = await conn.execute(`SELECT * FROM Accounts WHERE is_active = TRUE ORDER BY account_number`);
       rows = activeRows;
     }
 

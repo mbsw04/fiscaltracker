@@ -110,11 +110,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            window.location.href = "../adminModule/admin.html";
+            // Redirect based on role. Known roles: 'administrator', 'accountant', 'manager'
+            const role = (userObj.role || '').toString().toLowerCase();
+            if (role === 'administrator') {
+                window.location.href = "../adminModule/admin.html";
+            } else {
+                // common sensible path for accountant and manager UI
+                window.location.href = "../accountantManagerModule/accountantManager.html";
+            }
+
         } catch (err) {
             console.error("Error during login:", err);
             alert("An error occurred during login. Please try again.");
         }
+        
     });
 
     // -----------------------
@@ -304,6 +313,43 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error(err);
                 alert("An error occurred. Please try again.");
             }
+        });
+    }
+
+    // -----------------------
+    // Clear Button Functionality
+    // -----------------------
+    
+    // Clear Login Form
+    const clearLoginBtn = document.getElementById("clearLoginForm");
+    if (clearLoginBtn) {
+        clearLoginBtn.addEventListener("click", () => {
+            usernameField.value = "";
+            passwordField.value = "";
+            usernameField.focus();
+        });
+    }
+
+    // Clear New User Form
+    const clearNewUserBtn = document.getElementById("clearNewUserForm");
+    if (clearNewUserBtn) {
+        clearNewUserBtn.addEventListener("click", () => {
+            document.getElementById("fname").value = "";
+            document.getElementById("lname").value = "";
+            document.getElementById("email").value = "";
+            document.getElementById("dob").value = "";
+            document.getElementById("fname").focus();
+        });
+    }
+
+    // Clear Forgot Password Form
+    const clearForgotBtn = document.getElementById("clearForgotPasswordForm");
+    if (clearForgotBtn) {
+        clearForgotBtn.addEventListener("click", () => {
+            document.getElementById("forgotEmail").value = "";
+            document.getElementById("forgotAnswer").value = "";
+            document.getElementById("forgotNewPass").value = "";
+            document.getElementById("forgotEmail").focus();
         });
     }
 });

@@ -313,6 +313,61 @@ input[type=submit]:active, button[type=submit]:active, button.sendEmailbtn:activ
     transform: translateY(1px);
 }
 
+/* Clear button styling for forms and modals */
+.clear-btn, 
+button[id*="clear"], 
+button[id*="Clear"] {
+    background: #f8f9fa;
+    color: #dc3545;
+    border: 2px solid #dc3545;
+    padding: 9px 22px;
+    font-size: 1em;
+    font-weight: bold;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.08s ease;
+}
+
+.clear-btn:hover, 
+button[id*="clear"]:hover, 
+button[id*="Clear"]:hover {
+    background: #dc3545;
+    color: white;
+}
+
+.clear-btn:active, 
+button[id*="clear"]:active, 
+button[id*="Clear"]:active {
+    transform: translateY(1px);
+}
+
+/* Modal close X button styling */
+.modal-close-x {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.modal-close-x:hover {
+    background-color: #dc3545;
+    color: white;
+    transform: scale(1.1);
+}
+
+.modal-close-x:active {
+    transform: scale(0.95);
+}
+
 /* Make reject button use a red tone but with consistent treatment */
 .reject-btn {
     background-color: #f44336; /* keep red */
@@ -331,6 +386,66 @@ input[type=submit]:active, button[type=submit]:active, button.sendEmailbtn:activ
 .deactivate-btn:hover {
     background-color: #8e0f0f;
 }
+
+/* Ensure the deactivate button used in Chart table has the same red styling */
+.deactivate-acc-btn {
+    background-color: #b71c1c; /* deep red */
+    border-color: #7f0000;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    border-style: solid;
+    border-width: 2px;
+}
+.deactivate-acc-btn:hover { background-color: #8e0f0f; }
+
+/* Logo text container and smaller date/time */
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.topbar-datetime-small {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  margin-top: 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.1);
+}
+@media (min-width: 900px) {
+  .topbar-datetime-small { font-size: 14px; }
+}/* Right-align balance column in tables */
+td:nth-child(6), th:nth-child(6) {
+  text-align: right;
+}/* Edit account button - blue */
+.edit-acc-btn {
+    background-color: #1976d2;
+    border-color: #0d47a1;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    border-style: solid;
+    border-width: 2px;
+}
+.edit-acc-btn:hover { background-color: #1565c0; }
+
+/* Activate account button - green (ensure consistent with .activate-btn) */
+.activate-acc-btn {
+    background-color: #4CAF50;
+    border-color: #2e7d32;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    border-style: solid;
+    border-width: 2px;
+}
+.activate-acc-btn:hover { background-color: #3e8e41; }
 
 .suspend-btn {
     background-color: #f4c542; /* yellow */
