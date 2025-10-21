@@ -87,6 +87,62 @@ input[type=submit]:active {
     transform: translateY(1px);
 }
 
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.clear-btn {
+    padding: 10px 16px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 2px solid #dc3545;
+    cursor: pointer;
+    background-color: #f8f9fa;
+    color: #dc3545;
+    transition: background-color 0.2s ease, transform 0.08s ease;
+}
+
+.clear-btn:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+.clear-btn:active {
+    transform: translateY(1px);
+}
+
+/* Modal close X button styling */
+.modal-close-x {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.modal-close-x:hover {
+    background-color: #dc3545;
+    color: white;
+    transform: scale(1.1);
+}
+
+.modal-close-x:active {
+    transform: scale(0.95);
+}
+
 a {
     cursor: pointer;
     color: blue;

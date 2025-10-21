@@ -10,7 +10,15 @@ export const handler = async (event) => {
 
   const { user_id, credit_account_id, credit, debit_account_id, debit, description } = body;
 
-
+  // Convert arrays to comma-separated strings with 2 decimal places
+  const creditAccountStr = Array.isArray(credit_account_id) ? credit_account_id.join(',') : String(credit_account_id || '');
+  const creditStr = Array.isArray(credit) ? 
+    credit.map(amt => parseFloat(amt).toFixed(2)).join(',') : 
+    parseFloat(credit || 0).toFixed(2);
+  const debitAccountStr = Array.isArray(debit_account_id) ? debit_account_id.join(',') : String(debit_account_id || '');
+  const debitStr = Array.isArray(debit) ? 
+    debit.map(amt => parseFloat(amt).toFixed(2)).join(',') : 
+    parseFloat(debit || 0).toFixed(2);
 
   let conn;
   try {
@@ -25,7 +33,7 @@ export const handler = async (event) => {
     const [result] = await conn.execute(
       `INSERT INTO Transactions (credit_account_id, debit_account_id, credit, debit, description, created_by)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [credit_account_id, debit_account_id, credit, debit, description, user_id]
+      [creditAccountStr, debitAccountStr, creditStr, debitStr, description, user_id]
     );
 
     // fetch created transaction and write full JSON to event log

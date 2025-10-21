@@ -315,4 +315,41 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // -----------------------
+    // Clear Button Functionality
+    // -----------------------
+    
+    // Clear Login Form
+    const clearLoginBtn = document.getElementById("clearLoginForm");
+    if (clearLoginBtn) {
+        clearLoginBtn.addEventListener("click", () => {
+            usernameField.value = "";
+            passwordField.value = "";
+            usernameField.focus();
+        });
+    }
+
+    // Clear New User Form
+    const clearNewUserBtn = document.getElementById("clearNewUserForm");
+    if (clearNewUserBtn) {
+        clearNewUserBtn.addEventListener("click", () => {
+            document.getElementById("fname").value = "";
+            document.getElementById("lname").value = "";
+            document.getElementById("email").value = "";
+            document.getElementById("dob").value = "";
+            document.getElementById("fname").focus();
+        });
+    }
+
+    // Clear Forgot Password Form
+    const clearForgotBtn = document.getElementById("clearForgotPasswordForm");
+    if (clearForgotBtn) {
+        clearForgotBtn.addEventListener("click", () => {
+            document.getElementById("forgotEmail").value = "";
+            document.getElementById("forgotAnswer").value = "";
+            document.getElementById("forgotNewPass").value = "";
+            document.getElementById("forgotEmail").focus();
+        });
+    }
 });

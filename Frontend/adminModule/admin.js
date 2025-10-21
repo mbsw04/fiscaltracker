@@ -40,19 +40,19 @@ function showLogoutModal() {
         modal.id = 'logoutConfirmModal';
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content">
+            <div class="modal-content" style="position: relative;">
+                <button class="modal-close-x" id="closeLogoutModal">&times;</button>
                 <h3>Confirm Logout</h3>
                 <p>Are you sure you want to log out?</p>
                 <div class="modal-actions">
                     <button id="confirmLogoutBtn" class="confirm-btn">Log Out</button>
-                    <button id="cancelLogoutBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
         // Attach handlers
-        modal.querySelector('#cancelLogoutBtn').addEventListener('click', () => {
+        modal.querySelector('#closeLogoutModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
         modal.querySelector('#confirmLogoutBtn').addEventListener('click', () => {
@@ -78,7 +78,8 @@ function showSuspendModal(userId) {
         const defaultToDate = new Date(today.getTime() + 7*24*60*60*1000);
         const defaultTo = format(defaultToDate);
         modal.innerHTML = `
-            <div class="modal-content">
+            <div class="modal-content" style="position: relative;">
+                <button class="modal-close-x" id="closeSuspendModal">&times;</button>
                 <h3>Suspend User</h3>
                 <p>Select suspension start and end dates:</p>
                 <div style="display:flex; gap:10px; justify-content:center; margin-top:8px;">
@@ -94,15 +95,31 @@ function showSuspendModal(userId) {
                 <div id="suspendError" style="color:#c00; min-height:18px; margin-top:10px; text-align:center;"></div>
                 <div class="modal-actions" style="margin-top:10px;">
                     <button id="confirmSuspendBtn" class="confirm-btn warn-yellow">Suspend</button>
-                    <button id="cancelSuspendBtn" class="cancel-btn">Cancel</button>
+                    <button id="clearSuspendForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#cancelSuspendBtn').addEventListener('click', () => {
+        modal.querySelector('#closeSuspendModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
+        
+        // Clear button functionality for Suspend User modal
+        modal.querySelector('#clearSuspendForm').addEventListener('click', () => {
+            const today = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const format = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+            const defaultFrom = format(today);
+            const defaultToDate = new Date(today.getTime() + 7*24*60*60*1000);
+            const defaultTo = format(defaultToDate);
+            
+            modal.querySelector('#suspendFrom').value = defaultFrom;
+            modal.querySelector('#suspendTo').value = defaultTo;
+            modal.querySelector('#suspendError').textContent = '';
+            modal.querySelector('#suspendFrom').focus();
+        });
+        
         modal.querySelector('#confirmSuspendBtn').addEventListener('click', async () => {
             const from = modal.querySelector('#suspendFrom').value;
             const to = modal.querySelector('#suspendTo').value;
@@ -206,13 +223,14 @@ async function loadChartOfAccounts() {
     <h2>Chart of Accounts</h2>
     <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
         <button id="createAccBtn" style="font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New Account</button>
-        <input id="accountsSearch" placeholder="Search by account number or name" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+        <input id="accountsSearch" placeholder="Search accounts (all fields)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
     </div>
     `;
 
     actionContent.insertAdjacentHTML("beforeend", `
         <div id="createAccModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button class="modal-close-x" id="closeCreateAccModal">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Create New Chart</h2>
                 <form id="createAccForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">Account Name
@@ -256,7 +274,7 @@ async function loadChartOfAccounts() {
                     <div id="createAccError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
                         <button type="submit" style="background:#4CAF50; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Create</button>
-                        <button type="button" id="cancelCreateUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                        <button type="button" id="clearCreateAccountForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                     </div>
                 </form>
             </div>
@@ -265,7 +283,20 @@ async function loadChartOfAccounts() {
 
     const modal = document.getElementById('createAccModal');
     document.getElementById('createAccBtn').onclick = () => { modal.style.display = 'flex'; };
-    document.getElementById('cancelCreateUser').onclick = () => { modal.style.display = 'none'; };
+    document.getElementById('closeCreateAccModal').onclick = () => { modal.style.display = 'none'; };
+    
+    // Clear button functionality for Create Account modal
+    document.getElementById('clearCreateAccountForm').onclick = () => {
+        document.getElementById('accountName').value = '';
+        document.getElementById('accountIDNumber').value = '';
+        document.getElementById('initialBalance').value = '';
+        document.getElementById('accountCategory').value = '';
+        document.getElementById('accountSubcategory').innerHTML = '<option value="">Select</option>';
+        document.getElementById('accountStatement').value = '';
+        document.getElementById('accountDescription').value = '';
+        document.getElementById('createAccError').textContent = '';
+        document.getElementById('accountName').focus();
+    };
 
     const accountCategory = document.getElementById("accountCategory");
     const accountSubcategory = document.getElementById("accountSubcategory");
@@ -469,17 +500,37 @@ async function loadChartOfAccounts() {
 
     function renderTables() {
         accountsContainer.innerHTML = '';
-        // Apply search filtering (live)
+        // Apply search filtering (live) - search all columns except description and actions
         const term = (accountSearchTerm || '').toString().toLowerCase();
         const filteredActive = !term ? activeAccounts : activeAccounts.filter(a => {
-            const num = (a.account_number || '').toString().toLowerCase();
-            const name = (a.account_name || '').toString().toLowerCase();
-            return num.includes(term) || name.includes(term);
+            const searchableFields = [
+                a.account_number,
+                a.account_name,
+                a.is_active ? 'yes' : 'no',
+                a.category,
+                a.subcategory,
+                a.balance,
+                a.statement
+            ];
+            return searchableFields.some(field => 
+                (field !== null && field !== undefined) && 
+                String(field).toLowerCase().includes(term)
+            );
         });
         const filteredInactive = !term ? inactiveAccounts : inactiveAccounts.filter(a => {
-            const num = (a.account_number || '').toString().toLowerCase();
-            const name = (a.account_name || '').toString().toLowerCase();
-            return num.includes(term) || name.includes(term);
+            const searchableFields = [
+                a.account_number,
+                a.account_name,
+                a.is_active ? 'yes' : 'no',
+                a.category,
+                a.subcategory,
+                a.balance,
+                a.statement
+            ];
+            return searchableFields.some(field => 
+                (field !== null && field !== undefined) && 
+                String(field).toLowerCase().includes(term)
+            );
         });
 
         accountsContainer.insertAdjacentHTML('beforeend', buildTableHtml(filteredActive, 'active'));
@@ -586,7 +637,8 @@ async function loadChartOfAccounts() {
             modal.id = 'editAccModal';
             modal.className = 'modal-overlay';
             modal.innerHTML = `
-                <div class="modal-content">
+                <div class="modal-content" style="position: relative;">
+                    <button class="modal-close-x" id="closeEditAccModal">&times;</button>
                     <h3>Edit Account</h3>
                     <form id="editAccForm" style="display:flex; flex-direction:column; gap:10px;">
                         <input type="hidden" id="originalAccountNumber">
@@ -604,14 +656,28 @@ async function loadChartOfAccounts() {
                         <div id="editAccError" style="color:#c00; min-height:18px;"></div>
                         <div style="display:flex; gap:10px; justify-content:flex-end;">
                             <button type="submit" style="background:#4CAF50;color:#fff;border:none;border-radius:6px;padding:8px 14px;">Save</button>
-                            <button type="button" id="cancelEditAcc" style="background:#eee;border:none;border-radius:6px;padding:8px 14px;">Cancel</button>
+                            <button type="button" id="clearEditAccountForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:6px;padding:8px 14px;">Clear</button>
                         </div>
                     </form>
                 </div>
             `;
             document.body.appendChild(modal);
 
-            modal.querySelector('#cancelEditAcc').addEventListener('click', () => { modal.style.display = 'none'; });
+            modal.querySelector('#closeEditAccModal').addEventListener('click', () => { modal.style.display = 'none'; });
+            
+            // Clear button functionality for Edit Account modal
+            modal.querySelector('#clearEditAccountForm').addEventListener('click', () => {
+                document.getElementById('editAccountNumber').value = '';
+                document.getElementById('editAccountName').value = '';
+                document.getElementById('editInitialBalance').value = '';
+                document.getElementById('editAccountCategory').value = '';
+                document.getElementById('editAccountSubcategory').innerHTML = '<option value="">Select</option>';
+                document.getElementById('editStatement').value = '';
+                document.getElementById('editDescription').value = '';
+                document.getElementById('editAccError').textContent = '';
+                document.getElementById('editAccountNumber').focus();
+            });
+            
             modal.querySelector('#editAccForm').addEventListener('submit', async (ev) => {
                 ev.preventDefault();
                 const errorDiv = document.getElementById('editAccError'); if (errorDiv) errorDiv.textContent = '';
@@ -863,16 +929,16 @@ async function loadEventLog() {
             modal.id = 'eventDetailModal';
             modal.className = 'modal-overlay';
             modal.innerHTML = `
-                <div class="modal-content" style="max-width:900px; width:95%;">
+                <div class="modal-content" style="max-width:1200px; width:95%;">
                     <h3>Event Details</h3>
-                    <div style="display:flex; gap:12px; align-items:flex-start;">
+                    <div style="display:flex; gap:16px; align-items:flex-start;">
                         <div style="flex:1;">
                             <h4 style="margin-bottom:6px;">Before</h4>
-                            <pre id="eventBefore" style="background:#f7f7f7; padding:12px; border-radius:8px; max-height:60vh; overflow:auto; white-space:pre-wrap;"></pre>
+                            <div id="eventBefore" style="background:#f7f7f7; padding:8px; border-radius:8px; max-height:60vh; overflow:auto;"></div>
                         </div>
                         <div style="flex:1;">
                             <h4 style="margin-bottom:6px;">After</h4>
-                            <pre id="eventAfter" style="background:#f7f7f7; padding:12px; border-radius:8px; max-height:60vh; overflow:auto; white-space:pre-wrap;"></pre>
+                            <div id="eventAfter" style="background:#f7f7f7; padding:8px; border-radius:8px; max-height:60vh; overflow:auto;"></div>
                         </div>
                     </div>
                     <div style="display:flex; justify-content:center; margin-top:12px;">
@@ -968,18 +1034,43 @@ async function loadEventLog() {
             document.head.appendChild(style);
         }
 
+        // Helper to render object as table
+        function renderObjectAsTable(obj, changedPaths, isAfter = false) {
+            if (!obj || typeof obj !== 'object') return `<p>${obj ? String(obj) : '(empty)'}</p>`;
+            
+            let tableHtml = '<table style="width:100%; border-collapse:collapse; font-size:0.9em;">';
+            tableHtml += '<thead><tr><th style="border:1px solid #ddd; padding:6px; background:#f5f5f5;">Field</th><th style="border:1px solid #ddd; padding:6px; background:#f5f5f5;">Value</th></tr></thead><tbody>';
+            
+            Object.keys(obj).forEach(key => {
+                const value = obj[key];
+                const isChanged = changedPaths.has(key);
+                const keyStyle = isChanged && isAfter ? 'background:#fff3cd; font-weight:bold;' : '';
+                const valueStyle = isChanged && isAfter ? 'background:#ffe8a1;' : '';
+                
+                let displayValue = value;
+                if (typeof value === 'object' && value !== null) {
+                    displayValue = JSON.stringify(value, null, 1);
+                } else if (typeof value === 'string' && value.length > 100) {
+                    displayValue = value.substring(0, 100) + '...';
+                }
+                
+                tableHtml += `<tr>
+                    <td style="border:1px solid #ddd; padding:6px; font-weight:600; ${keyStyle}">${escapeHtml(key)}</td>
+                    <td style="border:1px solid #ddd; padding:6px; ${valueStyle}">${escapeHtml(String(displayValue))}</td>
+                </tr>`;
+            });
+            
+            tableHtml += '</tbody></table>';
+            return tableHtml;
+        }
+
         try {
-            // Render before as pretty JSON (no highlight)
-            if (before && typeof before === 'object') beforeEl.innerHTML = `<div style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(before, null, 2))}</div>`;
-            else beforeEl.textContent = before ? String(before) : '(empty)';
+            // Render before as table (no highlight)
+            beforeEl.innerHTML = renderObjectAsTable(before, changedPaths, false);
         } catch (e) { beforeEl.textContent = String(before); }
         try {
-            // Render after with highlights for changed keys
-            if (after && typeof after === 'object') {
-                afterEl.innerHTML = renderJsonWithHighlights(after, changedPaths);
-            } else {
-                afterEl.textContent = after ? String(after) : '(empty)';
-            }
+            // Render after as table with highlights for changed keys
+            afterEl.innerHTML = renderObjectAsTable(after, changedPaths, true);
         } catch (e) { afterEl.textContent = String(after); }
         modal.style.display = 'flex';
     }
@@ -1191,6 +1282,7 @@ async function loadManageUsers() {
         <button id="createUserBtn" style="margin-bottom:20px; font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New User</button>
         <div id="createUserModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button class="modal-close-x" id="closeCreateUserModal">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Create New User</h2>
                 <form id="createUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">First Name
@@ -1216,7 +1308,7 @@ async function loadManageUsers() {
                     <div id="createUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
                         <button type="submit" style="background:#4CAF50; color:#fff; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Create</button>
-                        <button type="button" id="cancelCreateUser" style="background:#eee; color:#333; border:none; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Cancel</button>
+                        <button type="button" id="clearCreateUserForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                     </div>
                 </form>
             </div>
@@ -1226,7 +1318,18 @@ async function loadManageUsers() {
     // Modal logic
     const modal = document.getElementById('createUserModal');
     document.getElementById('createUserBtn').onclick = () => { modal.style.display = 'flex'; };
-    document.getElementById('cancelCreateUser').onclick = () => { modal.style.display = 'none'; };
+    document.getElementById('closeCreateUserModal').onclick = () => { modal.style.display = 'none'; };
+    
+    // Clear button functionality for Create User modal
+    document.getElementById('clearCreateUserForm').onclick = () => {
+        document.getElementById('newFirstName').value = '';
+        document.getElementById('newLastName').value = '';
+        document.getElementById('newEmail').value = '';
+        document.getElementById('newDob').value = '';
+        document.getElementById('newRole').value = '';
+        document.getElementById('createUserError').textContent = '';
+        document.getElementById('newFirstName').focus();
+    };
     document.getElementById('createUserForm').onsubmit = async (e) => {
         e.preventDefault();
         const first_name = document.getElementById('newFirstName').value.trim();
@@ -1406,6 +1509,7 @@ function showEmailUserModal(user) {
         modal.style.justifyContent = 'center';
         modal.innerHTML = `
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button type="button" id="closeEmailUserModal" class="modal-close-x">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Send Email to User</h2>
                 <form id="emailUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">To (User Email)
@@ -1417,7 +1521,7 @@ function showEmailUserModal(user) {
                     <div id="emailUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
                         <button type="submit" class="confirm-btn primary-green action-btn">Send Email</button>
-                        <button type="button" id="cancelEmailUser" class="cancel-btn action-btn">Cancel</button>
+                        <button type="button" id="clearEmailUserForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                     </div>
                 </form>
             </div>
@@ -1429,8 +1533,15 @@ function showEmailUserModal(user) {
     modal.querySelector('#emailUserMessage').value = '';
     // Show modal
     modal.style.display = 'flex';
-    // Cancel button
-    modal.querySelector('#cancelEmailUser').onclick = () => { modal.style.display = 'none'; };
+    // Close X button
+    modal.querySelector('#closeEmailUserModal').onclick = () => { modal.style.display = 'none'; };
+    
+    // Clear button functionality for Email User modal
+    modal.querySelector('#clearEmailUserForm').onclick = () => {
+        modal.querySelector('#emailUserMessage').value = '';
+        modal.querySelector('#emailUserError').textContent = '';
+        modal.querySelector('#emailUserMessage').focus();
+    };
     // Submit handler
     modal.querySelector('#emailUserForm').onsubmit = async (e) => {
         e.preventDefault();
@@ -1536,6 +1647,7 @@ function showEditUserModal(user) {
         modal.style.justifyContent = 'center';
         modal.innerHTML = `
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button type="button" id="closeEditUserModal" class="modal-close-x">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Edit User Info</h2>
                 <form id="editUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">First Name
@@ -1558,7 +1670,7 @@ function showEditUserModal(user) {
                     <div id="editUserError" style="color:#c00; min-height:18px; font-size:0.98em;"></div>
                     <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:8px;">
                         <button type="submit" class="confirm-btn primary-green action-btn">Update Info</button>
-                        <button type="button" id="cancelEditUser" class="cancel-btn action-btn">Cancel</button>
+                        <button type="button" id="clearEditUserForm" style="background:#f8f9fa; color:#dc3545; border:2px solid #dc3545; border-radius:7px; padding:9px 22px; font-size:1em; font-weight:bold; cursor:pointer;">Clear</button>
                     </div>
                 </form>
             </div>
@@ -1573,7 +1685,17 @@ function showEditUserModal(user) {
     // Show modal
     modal.style.display = 'flex';
     // Cancel button
-    modal.querySelector('#cancelEditUser').onclick = () => { modal.style.display = 'none'; };
+    modal.querySelector('#closeEditUserModal').onclick = () => { modal.style.display = 'none'; };
+    
+    // Clear button functionality for Edit User modal
+    modal.querySelector('#clearEditUserForm').onclick = () => {
+        modal.querySelector('#editFirstName').value = '';
+        modal.querySelector('#editLastName').value = '';
+        modal.querySelector('#editEmail').value = '';
+        modal.querySelector('#editRole').value = '';
+        modal.querySelector('#editUserError').textContent = '';
+        modal.querySelector('#editFirstName').focus();
+    };
     // Submit handler
     modal.querySelector('#editUserForm').onsubmit = async (e) => {
         e.preventDefault();
@@ -1728,18 +1850,18 @@ function showDeactivateModal(userId) {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
+                <button type="button" id="closeDeactivateModal" class="modal-close-x">&times;</button>
                 <h3>Confirm Deactivation</h3>
                 <p>Are you sure you want to deactivate this user?</p>
                 <p>They will lose access until reactivated.</p>
                 <div class="modal-actions">
                     <button id="confirmDeactivateBtn" class="confirm-btn">Deactivate</button>
-                    <button id="cancelDeactivateBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#cancelDeactivateBtn').addEventListener('click', () => {
+        modal.querySelector('#closeDeactivateModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
         modal.querySelector('#confirmDeactivateBtn').addEventListener('click', async () => {
@@ -1763,17 +1885,17 @@ function showActivateModal(userId) {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
+                <button type="button" id="closeActivateModal" class="modal-close-x">&times;</button>
                 <h3>Confirm Activation</h3>
                 <p>Are you sure you want to activate this user? They will regain access.</p>
                 <div class="modal-actions">
                     <button id="confirmActivateBtn" class="confirm-btn primary-green">Activate</button>
-                    <button id="cancelActivateBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#cancelActivateBtn').addEventListener('click', () => {
+        modal.querySelector('#closeActivateModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
         modal.querySelector('#confirmActivateBtn').addEventListener('click', async () => {
@@ -1797,17 +1919,17 @@ function showUnsuspendModal(userId) {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
+                <button type="button" id="closeUnsuspendModal" class="modal-close-x">&times;</button>
                 <h3>Confirm Unsuspend</h3>
                 <p>Are you sure you want to unsuspend this user? They will regain access immediately.</p>
                 <div class="modal-actions">
                     <button id="confirmUnsuspendBtn" class="confirm-btn primary-green">Unsuspend</button>
-                    <button id="cancelUnsuspendBtn" class="cancel-btn">Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#cancelUnsuspendBtn').addEventListener('click', () => {
+        modal.querySelector('#closeUnsuspendModal').addEventListener('click', () => {
             modal.style.display = 'none';
         });
         modal.querySelector('#confirmUnsuspendBtn').addEventListener('click', async () => {

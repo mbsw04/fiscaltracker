@@ -44,11 +44,15 @@ export const handler = async (event) => {
     const [updatedRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
     const updatedRow = updatedRows && updatedRows[0] ? updatedRows[0] : null;
 
-    // Update account balances and credit/debit totals for debit and credit accounts
-    const creditAccountId = updatedRow ? updatedRow.credit_account_id : null;
-    const debitAccountId = updatedRow ? updatedRow.debit_account_id : null;
-    const creditAmt = updatedRow ? Number((parseFloat(updatedRow.credit) || 0).toFixed(2)) : 0;
-    const debitAmt = updatedRow ? Number((parseFloat(updatedRow.debit) || 0).toFixed(2)) : 0;
+    // Parse arrays from comma-separated strings with proper 2 decimal place formatting
+    const creditAccountIds = updatedRow && updatedRow.credit_account_id ? 
+      String(updatedRow.credit_account_id).split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [];
+    const debitAccountIds = updatedRow && updatedRow.debit_account_id ? 
+      String(updatedRow.debit_account_id).split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [];
+    const creditAmts = updatedRow && updatedRow.credit ? 
+      String(updatedRow.credit).split(',').map(amt => parseFloat(parseFloat(amt.trim()).toFixed(2))).filter(amt => !isNaN(amt)) : [];
+    const debitAmts = updatedRow && updatedRow.debit ? 
+      String(updatedRow.debit).split(',').map(amt => parseFloat(parseFloat(amt.trim()).toFixed(2))).filter(amt => !isNaN(amt)) : [];
 
     const computeNewBalance = (acct, amount, isDebitOp) => {
       const normal = acct && acct.normal_side ? String(acct.normal_side).toLowerCase() : 'debit';
@@ -61,8 +65,11 @@ export const handler = async (event) => {
       return bal;
     };
 
-    // process credited account: increment credit column and adjust balance
-    if (creditAccountId) {
+    // process credited accounts: increment credit column and adjust balance for each account
+    for (let i = 0; i < creditAccountIds.length && i < creditAmts.length; i++) {
+      const creditAccountId = creditAccountIds[i];
+      const creditAmt = Number(creditAmts[i].toFixed(2));
+      
       const [cRows] = await conn.execute(`SELECT * FROM Accounts WHERE id = ? FOR UPDATE`, [creditAccountId]);
       const beforeAcct = cRows && cRows[0] ? cRows[0] : null;
       if (beforeAcct) {
@@ -81,8 +88,11 @@ export const handler = async (event) => {
       }
     }
 
-    // process debited account: increment debit column and adjust balance
-    if (debitAccountId) {
+    // process debited accounts: increment debit column and adjust balance for each account
+    for (let i = 0; i < debitAccountIds.length && i < debitAmts.length; i++) {
+      const debitAccountId = debitAccountIds[i];
+      const debitAmt = Number(debitAmts[i].toFixed(2));
+      
       const [dRows] = await conn.execute(`SELECT * FROM Accounts WHERE id = ? FOR UPDATE`, [debitAccountId]);
       const beforeAcct = dRows && dRows[0] ? dRows[0] : null;
       if (beforeAcct) {
