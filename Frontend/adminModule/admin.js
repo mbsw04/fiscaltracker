@@ -186,9 +186,6 @@ function updateContent(tab) {
         case 'chartOfAccounts':
             loadChartOfAccounts();
             break;
-        case 'journal':
-            loadJournal();
-            break;
         case 'eventLog':
             loadEventLog();
             break;
@@ -973,14 +970,6 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
     // initial load
     await loadAccounts();
 
-}
-
-// ----------------------
-// Journal TAB
-// ----------------------
-
-async function loadJournal() {
-    actionContent.innerHTML = '<h2>Journal</h2><p>Journal features coming soon.</p>';
 }
 
 // ----------------------
