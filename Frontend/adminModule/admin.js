@@ -224,6 +224,7 @@ async function loadChartOfAccounts() {
     <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
         <button id="createAccBtn" style="font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New Account</button>
         <input id="accountsSearch" placeholder="Search accounts (all fields)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+        <button id="sendEmailBtn" class="email-user-btn" style="font-size:1.05em; padding:8px 18px; border-radius:8px; border:2px solid #757575; font-weight:bold; cursor:pointer;">Send Email</button>
     </div>
     `;
 
@@ -280,6 +281,186 @@ async function loadChartOfAccounts() {
             </div>
         </div>
     `);
+
+    let allUsers = []; // will be filled from your Lambda
+
+async function fetchUsers() {
+  try {
+    const res = await fetch(
+      'https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_user_list',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_id: ADMIN_ID }),
+      }
+    );
+
+    // get the top-level JSON
+    let data = await res.json();
+
+    // parse the body string from the Lambda response
+    if (data.body) {
+      data = JSON.parse(data.body);
+    }
+
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
+
+    // Filter only managers & accountants (case-insensitive)
+    const filtered = data.users.filter(u => {
+      const role = u.role?.toLowerCase();
+      return role === 'manager' || role === 'accountant';
+    });
+
+    console.log('Fetched + filtered users:', filtered);
+    return filtered;
+
+  } catch (err) {
+    console.error('fetchUsers error:', err);
+    return [];
+  }
+}
+
+allUsers = await fetchUsers();
+
+
+    async function openEmailModal() {
+    // Fetch admin info from localStorage
+    let admin = { first_name: '', last_name: '', email: '' };
+    try {
+        const u = JSON.parse(localStorage.getItem('user'));
+        if (u) admin = { first_name: u.first_name || '', last_name: u.last_name || '', email: u.email || '' };
+    } catch (e) {}
+
+    // Create modal if not exists
+    let modal = document.getElementById('emailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'emailModal';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'none';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+        modal.style.background = 'rgba(0,0,0,0.4)';
+        modal.style.zIndex = '1002';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+
+        modal.innerHTML = `
+            <div class="modal-content" style="background:#fff; padding:32px 28px; border-radius:16px; max-width:500px; width:90%; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button type="button" id="closeEmailUserModal" class="modal-close-x" style="position:absolute; top:12px; right:12px; font-size:1.5em; background:none; border:none; cursor:pointer;">&times;</button>
+                <h3 style="text-align:center; margin-bottom:18px;">Send Email</h3>
+                <form id="emailForm" style="display:flex; flex-direction:column; gap:12px;">
+                    <label>Role
+                        <select id="emailRoleSelect" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc;">
+                            <option value="">Select Role</option>
+                            <option value="manager">Manager</option>
+                            <option value="accountant">Accountant</option>
+                        </select>
+                    </label>
+                    <label>User
+                        <select id="emailUserSelect" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc;">
+                            <option value="">Select User</option>
+                        </select>
+                    </label>
+                    <label>Message
+                        <textarea id="emailMessage" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc; height:120px;"></textarea>
+                    </label>
+                    <div id="emailError" style="color:red; min-height:18px;"></div>
+                    <div style="display:flex; justify-content:flex-end; gap:12px;">
+                        <button type="submit" class="email-user-btn" style="background-color:#9e9e9e; border-color:#757575; color:#fff; padding:8px 16px; border-radius:7px;">Send Email</button>
+                        <button type="button" id="clearEmailForm" style="padding:8px 16px; border-radius:7px; border:1px solid #ccc; background:#f8f9fa; color:#333;">Clear</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Close modal
+        modal.querySelector('#closeEmailUserModal').onclick = () => { modal.style.display = 'none'; };
+
+        // Clear form
+        modal.querySelector('#clearEmailForm').onclick = () => {
+            modal.querySelector('#emailForm').reset();
+            modal.querySelector('#emailUserSelect').innerHTML = `<option value="">Select User</option>`;
+            modal.querySelector('#emailError').textContent = '';
+        };
+
+        // Populate user dropdown when role changes
+        const roleSelect = modal.querySelector('#emailRoleSelect');
+        const userSelect = modal.querySelector('#emailUserSelect');
+        roleSelect.addEventListener('change', () => {
+            const selectedRole = roleSelect.value.toLowerCase();
+            const filteredUsers = allUsers.filter(u => u.role.toLowerCase() === selectedRole && u.is_active);
+            userSelect.innerHTML = `<option value="">Select User</option>` +
+                filteredUsers.map(u => `<option value="${u.id}">${u.first_name} ${u.last_name}</option>`).join('');
+        });
+
+        // Handle form submission
+        const emailForm = modal.querySelector('#emailForm');
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            modal.querySelector('#emailError').textContent = '';
+
+            const recipientId = Number(userSelect.value);
+            const message = modal.querySelector('#emailMessage').value.trim();
+            if (!recipientId || !message) { 
+                modal.querySelector('#emailError').textContent = 'Please fill all fields';
+                return;
+            }
+
+            const selectedUser = allUsers.find(u => u.id === recipientId);
+            if (!selectedUser) {
+                modal.querySelector('#emailError').textContent = 'Selected user not found';
+                return;
+            }
+
+            const fullMessage = message + `\n\n---\nThis message was sent by ${admin.first_name} ${admin.last_name} (${admin.email}).\nSend replies to ${admin.email}. This inbox is not monitored.`;
+
+            try {
+                const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_send_email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_email: selectedUser.email,
+                        first_name: selectedUser.first_name,
+                        last_name: selectedUser.last_name,
+                        admin_email: admin.email,
+                        admin_first_name: admin.first_name,
+                        admin_last_name: admin.last_name,
+                        admin_id: ADMIN_ID,
+                        message: fullMessage
+                    })
+                });
+
+                let data = await res.json();
+                if (data.body && typeof data.body === 'string') {
+                    try { data = { ...data, ...JSON.parse(data.body) }; } catch(e) {}
+                }
+
+                if (!res.ok) throw new Error(data.error || 'Failed to send email');
+
+                alert(data.message || 'Email sent successfully');
+                emailForm.reset();
+                userSelect.innerHTML = `<option value="">Select User</option>`;
+                modal.style.display = 'none';
+
+            } catch (err) {
+                modal.querySelector('#emailError').textContent = err.message;
+            }
+        });
+    }
+
+    // Show modal
+    modal.style.display = 'flex';
+}
+
+// Attach to button
+document.getElementById('sendEmailBtn').addEventListener('click', () => openEmailModal());
+
 
     const modal = document.getElementById('createAccModal');
     document.getElementById('createAccBtn').onclick = () => { modal.style.display = 'flex'; };
