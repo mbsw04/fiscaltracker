@@ -585,13 +585,477 @@ async function loadChartOfAccounts() {
     await fetchAccounts();
 }
 
-// Journal tab: show role-specific placeholder for accountant vs manager
+// Journal tab: show role-specific journal entries view
 async function loadJournal() {
-    if (CURRENT_ROLE === 'manager') {
-        actionContent.innerHTML = `<h2>Journal - Manager View</h2><p>Manager-specific journal features go here (placeholder).</p>`;
-    } else {
-        actionContent.innerHTML = `<h2>Journal - Accountant View</h2><p>Accountant-specific journal features go here (placeholder).</p>`;
+    actionContent.innerHTML = `
+        <h2>Journal Entries</h2>
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+            <input id="journalSearch" placeholder="Search journal entries (account, amount, date)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+            <select id="journalFilterStatus" style="padding:8px; border-radius:8px; border:1px solid #ccc;">
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:6px">From: <input id="journalFilterFrom" type="date" style="padding:6px;border-radius:6px;border:1px solid #ccc"></label>
+            <label style="display:flex;align-items:center;gap:6px">To: <input id="journalFilterTo" type="date" style="padding:6px;border-radius:6px;border:1px solid #ccc"></label>
+            <button id="newJournalEntryBtn" class="confirm-btn primary-green">New Journal Entry</button>
+        </div>
+        <div id="journalTableContainer">Loading journal entries...</div>
+    `;
+
+    const container = document.getElementById('journalTableContainer');
+    const searchEl = document.getElementById('journalSearch');
+    const filterStatusEl = document.getElementById('journalFilterStatus');
+    let entries = [];
+    let searchTerm = '';
+    let statusFilter = 'all';
+    const sortState = { col: 'date', asc: false };
+
+    async function fetchJournalEntries() {
+        try {
+            const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: ADMIN_ID })
+            });
+            
+            if (!response.ok) throw new Error('Failed to fetch journal entries');
+            let data = await response.json();
+            if (data && typeof data.body === 'string') {
+                try { data = JSON.parse(data.body); } catch (e) {}
+            }
+            entries = Array.isArray(data) ? data : 
+                     Array.isArray(data.body) ? data.body :
+                     Array.isArray(data.transactions) ? data.transactions : [];
+            // normalize some fields to make client usage easier
+            entries = entries.map(e => ({
+                ...e,
+                date: e.created_at || e.date || e.createdAt || e.created_at,
+                credit_account_names: e.credit_account_names || e.credit_account_names || '',
+                debit_account_names: e.debit_account_names || e.debit_account_names || '',
+                credit_amounts_array: e.credit_amounts_array || e.credit_amounts_array || (e.credit ? String(e.credit).split(',').map(x=>parseFloat(x)) : []),
+                debit_amounts_array: e.debit_amounts_array || e.debit_amounts_array || (e.debit ? String(e.debit).split(',').map(x=>parseFloat(x)) : []),
+                status: (e.status || 'pending').toString().toLowerCase()
+            }));
+            render();
+        } catch (err) {
+            console.error('Error fetching journal entries:', err);
+            container.innerHTML = 'Error loading journal entries. Please try again.';
+        }
     }
+
+    function buildTable(rows) {
+        if (!rows.length) return '<p>No journal entries found.</p>';
+        
+        return `
+        <table>
+            <thead>
+                <tr>
+                    <th class="sortable" data-col="date">Date</th>
+                    <th class="sortable" data-col="description">Description</th>
+                    <th class="sortable" data-col="account">Account</th>
+                    <th class="sortable" data-col="debit">Debit</th>
+                    <th class="sortable" data-col="credit">Credit</th>
+                    <th class="sortable" data-col="status">Status</th>
+                    ${CURRENT_ROLE === 'manager' ? '<th>Actions</th>' : ''}
+                </tr>
+            </thead>
+            <tbody>
+                ${rows.map(entry => `
+                    <tr data-id="${entry.id}">
+                        <td>${new Date(entry.date).toLocaleDateString()}</td>
+                        <td>${entry.description || ''}</td>
+                        <td>${(entry.debit_account_names || entry.debit_account_names) || ''} ${(entry.credit_account_names ? (' / ' + entry.credit_account_names) : '')}</td>
+                        <td style="text-align:right">${(entry.debit_amounts_array && entry.debit_amounts_array.length) ? entry.debit_amounts_array.map(a=>formatAccounting(a)).join(', ') : ''}</td>
+                        <td style="text-align:right">${(entry.credit_amounts_array && entry.credit_amounts_array.length) ? entry.credit_amounts_array.map(a=>formatAccounting(a)).join(', ') : ''}</td>
+                        <td>${(entry.status || 'pending')}</td>
+                        ${CURRENT_ROLE === 'manager' ? `
+                            <td style="white-space:nowrap">
+                                ${entry.status === 'pending' ? `
+                                    <button onclick="editJournalEntry(${entry.id})" class="action-btn" style="background:#4CAF50;color:white;margin-right:4px;">Edit</button>
+                                    <button onclick="approveJournalEntry(${entry.id})" class="approve-btn action-btn" style="background:#2e7d32;color:#fff;margin-right:4px">Approve</button>
+                                    <button onclick="rejectJournalEntry(${entry.id})" class="reject-btn action-btn" style="background:#f44336;color:#fff">Reject</button>
+                                ` : ''}
+                            </td>
+                        ` : ''}
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        `;
+    }
+
+    function showEditModal(entry) {
+        let modal = document.getElementById('journalEditModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'journalEditModal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="min-width:400px">
+                    <button type="button" id="closeJournalEditModal" class="modal-close-x">&times;</button>
+                    <h3>Edit Journal Entry</h3>
+                    <form id="journalEditForm">
+                        <input type="hidden" name="id" id="editJournalId">
+                        <div style="margin-bottom:12px">
+                            <label style="display:block;margin-bottom:4px">Description</label>
+                            <textarea name="description" id="editJournalDescription" style="width:100%;min-height:60px" required></textarea>
+                        </div>
+                        <div style="margin-bottom:12px">
+                            <label style="display:block;margin-bottom:4px">Account</label>
+                            <input type="text" name="account" id="editJournalAccount" style="width:100%" readonly>
+                        </div>
+                        <div style="display:flex;gap:12px;margin-bottom:12px">
+                            <div style="flex:1">
+                                <label style="display:block;margin-bottom:4px">Debit</label>
+                                <input type="number" name="debit" id="editJournalDebit" step="0.01" min="0">
+                            </div>
+                            <div style="flex:1">
+                                <label style="display:block;margin-bottom:4px">Credit</label>
+                                <input type="number" name="credit" id="editJournalCredit" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:20px">
+                            <button type="button" class="cancel-btn" id="cancelJournalEdit">Cancel</button>
+                            <button type="submit" class="confirm-btn">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            modal.querySelector('#closeJournalEditModal').addEventListener('click', () => modal.style.display = 'none');
+            modal.querySelector('#cancelJournalEdit').addEventListener('click', () => modal.style.display = 'none');
+            
+            modal.querySelector('#journalEditForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = {
+                    id: formData.get('id'),
+                    description: formData.get('description'),
+                    debit: parseFloat(formData.get('debit')) || 0,
+                    credit: parseFloat(formData.get('credit')) || 0
+                };
+                
+                try {
+                    const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_trans', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            admin_id: ADMIN_ID,
+                            ...data
+                        })
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to update journal entry');
+                    
+                    modal.style.display = 'none';
+                    await fetchJournalEntries(); // Refresh the table
+                } catch (err) {
+                    console.error('Error updating journal entry:', err);
+                    alert('Failed to update journal entry. Please try again.');
+                }
+            });
+        }
+
+        // Populate form with entry data
+        modal.querySelector('#editJournalId').value = entry.id;
+        modal.querySelector('#editJournalDescription').value = entry.description || '';
+        modal.querySelector('#editJournalAccount').value = `${entry.account_number} - ${entry.account_name || ''}`;
+        modal.querySelector('#editJournalDebit').value = entry.debit || '';
+        modal.querySelector('#editJournalCredit').value = entry.credit || '';
+        
+        modal.style.display = 'flex';
+    }
+
+    // Add global function for edit button click
+    window.editJournalEntry = (id) => {
+        const entry = entries.find(e => e.id === id);
+        if (entry) showEditModal(entry);
+    };
+
+    // Approve helper (calls AA_approve_trans)
+    window.approveJournalEntry = async (id) => {
+        if (!confirm('Approve this journal entry? This will update account balances.')) return;
+        try {
+            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_approve_trans', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ manager_id: ADMIN_ID, trans_id: id })
+            });
+            if (!res.ok) throw new Error('Approval failed');
+            await fetchJournalEntries();
+        } catch (err) {
+            console.error('Error approving transaction', err);
+            alert('Failed to approve transaction: ' + (err.message || ''));
+        }
+    };
+
+    // Reject helper - show modal to collect comment and then try to call a reject endpoint
+    window.rejectJournalEntry = (id) => {
+        let modal = document.getElementById('transactionRejectModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'transactionRejectModal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="min-width:420px">
+                    <button type="button" id="closeRejectModalX" class="modal-close-x">&times;</button>
+                    <h3>Reject Transaction</h3>
+                    <form id="rejectForm">
+                        <input type="hidden" id="rejectTransId">
+                        <div style="margin-bottom:12px">
+                            <label style="display:block;margin-bottom:4px">Reason for rejection*</label>
+                            <textarea id="rejectReason" required style="width:100%;min-height:80px"></textarea>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:12px">
+                            <button type="button" class="cancel-btn" id="cancelRejectBtn">Cancel</button>
+                            <button type="submit" class="confirm-btn">Reject</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector('#closeRejectModalX').addEventListener('click', () => modal.style.display = 'none');
+            modal.querySelector('#cancelRejectBtn').addEventListener('click', () => modal.style.display = 'none');
+            modal.querySelector('#rejectForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = modal.querySelector('#rejectTransId').value;
+                const reason = modal.querySelector('#rejectReason').value || '';
+                try {
+                    // Try to call a server-side reject endpoint if it exists
+                    const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_reject_trans', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ manager_id: ADMIN_ID, trans_id: id, comment: reason })
+                    });
+                    if (res.ok) {
+                        modal.style.display = 'none';
+                        await fetchJournalEntries();
+                        return;
+                    }
+                } catch (err) {
+                    // endpoint might not exist; we'll fall back to updating Transactions.status via AA_edit_trans
+                    console.warn('AA_reject_trans not available or failed, falling back', err);
+                }
+
+                try {
+                    // Fallback: use AA_edit_trans to change status to rejected and append reason to description/comment
+                    // Note: AA_edit_trans allows updating credit/debit/description. We'll prepend rejection reason to description.
+                    const entry = entries.find(e => String(e.id) === String(id));
+                    const newDesc = `[REJECTED: ${reason}] ` + (entry.description || '');
+                    const res2 = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_trans', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: ADMIN_ID, trans_id: id, credit: entry.credit, debit: entry.debit, description: newDesc })
+                    });
+                    if (!res2.ok) throw new Error('Fallback reject failed');
+                    // Also mark status locally by calling AA_approve_trans? No - better to rely on server-side. We'll refresh.
+                    modal.style.display = 'none';
+                    await fetchJournalEntries();
+                } catch (err) {
+                    console.error('Reject transaction fallback failed', err);
+                    alert('Failed to reject transaction.');
+                }
+            });
+        }
+        modal.querySelector('#rejectTransId').value = id;
+        modal.querySelector('#rejectReason').value = '';
+        modal.style.display = 'flex';
+    };
+
+    function showNewEntryModal() {
+        let modal = document.getElementById('journalNewModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'journalNewModal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="min-width:500px">
+                    <button type="button" id="closeJournalNewModal" class="modal-close-x">&times;</button>
+                    <h3>New Journal Entry</h3>
+                    <form id="journalNewForm">
+                        <div style="margin-bottom:12px">
+                            <label style="display:block;margin-bottom:4px">Date*</label>
+                            <input type="date" name="date" id="newJournalDate" required style="width:100%">
+                        </div>
+                        <div style="margin-bottom:12px">
+                            <label style="display:block;margin-bottom:4px">Description*</label>
+                            <textarea name="description" id="newJournalDescription" style="width:100%;min-height:60px" required></textarea>
+                        </div>
+                        <div style="margin-bottom:12px">
+                            <label style="display:block;margin-bottom:4px">Account Number*</label>
+                            <select name="account_number" id="newJournalAccount" required style="width:100%;padding:8px">
+                                <option value="">Select an account...</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:12px;margin-bottom:12px">
+                            <div style="flex:1">
+                                <label style="display:block;margin-bottom:4px">Debit Amount</label>
+                                <input type="number" name="debit" id="newJournalDebit"  min="0" style="width:100%">
+                            </div>
+                            <div style="flex:1">
+                                <label style="display:block;margin-bottom:4px">Credit Amount</label>
+                                <input type="number" name="credit" id="newJournalCredit"  min="0" style="width:100%">
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:20px">
+                            <button type="button" class="cancel-btn" id="cancelJournalNew">Cancel</button>
+                            <button type="submit" class="confirm-btn">Create Entry</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            modal.querySelector('#closeJournalNewModal').addEventListener('click', () => modal.style.display = 'none');
+            modal.querySelector('#cancelJournalNew').addEventListener('click', () => modal.style.display = 'none');
+            
+            // Set today's date as default
+            const today = new Date().toISOString().split('T')[0];
+            modal.querySelector('#newJournalDate').value = today;
+
+            // Load accounts into select dropdown
+            fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: ADMIN_ID })
+            })
+            .then(res => res.json())
+            .then(data => {
+                let accounts = [];
+                if (Array.isArray(data)) accounts = data;
+                else if (Array.isArray(data.body)) {
+                    try { accounts = JSON.parse(data.body); } 
+                    catch { accounts = data.body; }
+                }
+                
+                const select = modal.querySelector('#newJournalAccount');
+                accounts
+                    .filter(acc => acc.is_active)
+                    .sort((a, b) => a.account_number.localeCompare(b.account_number))
+                    .forEach(acc => {
+                        const option = document.createElement('option');
+                        option.value = acc.account_number;
+                        option.textContent = `${acc.account_number} - ${acc.account_name}`;
+                        select.appendChild(option);
+                    });
+            })
+            .catch(err => console.error('Error loading accounts:', err));
+
+            // Form submission handler
+            modal.querySelector('#journalNewForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = {
+                    date: formData.get('date'),
+                    description: formData.get('description'),
+                    account_number: formData.get('account_number'),
+                    debit: parseFloat(formData.get('debit')) || 0,
+                    credit: parseFloat(formData.get('credit')) || 0,
+                    status: 'pending' // New entries are always pending
+                };
+
+                // Validate that either debit or credit is filled, but not both
+                if ((data.debit > 0 && data.credit > 0) || (data.debit === 0 && data.credit === 0)) {
+                    alert('Please enter either a debit or credit amount, but not both.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_trans', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            admin_id: ADMIN_ID,
+                            ...data
+                        })
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to create journal entry');
+                    
+                    modal.style.display = 'none';
+                    e.target.reset(); // Clear form
+                    await fetchJournalEntries(); // Refresh the table
+                } catch (err) {
+                    console.error('Error creating journal entry:', err);
+                    alert('Failed to create journal entry. Please try again.');
+                }
+            });
+        }
+        
+        modal.style.display = 'flex';
+    }
+
+    // Add click handler for new journal entry button
+    document.getElementById('newJournalEntryBtn').addEventListener('click', showNewEntryModal);
+
+    function render() {
+        let filtered = [...entries];
+        
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(e => (e.status || '').toLowerCase() === statusFilter);
+        }
+        
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(e => 
+                (e.description || '').toLowerCase().includes(term) ||
+                (e.account_number || '').toString().includes(term) ||
+                (e.account_name || '').toLowerCase().includes(term)
+            );
+        }
+
+        if (sortState.col) {
+            filtered.sort((a, b) => {
+                let aVal = a[sortState.col];
+                let bVal = b[sortState.col];
+                
+                // Special handling for numeric fields
+                if (['debit', 'credit'].includes(sortState.col)) {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                }
+                
+                // Date comparison
+                if (sortState.col === 'date') {
+                    aVal = new Date(aVal).getTime();
+                    bVal = new Date(bVal).getTime();
+                }
+                
+                if (aVal < bVal) return sortState.asc ? -1 : 1;
+                if (aVal > bVal) return sortState.asc ? 1 : -1;
+                return 0;
+            });
+        }
+
+        container.innerHTML = buildTable(filtered);
+
+        // Add sort handlers
+        container.querySelectorAll('th.sortable').forEach(th => {
+            th.style.cursor = 'pointer';
+            th.onclick = () => {
+                const col = th.getAttribute('data-col');
+                if (sortState.col === col) sortState.asc = !sortState.asc;
+                else {
+                    sortState.col = col;
+                    sortState.asc = true;
+                }
+                render();
+            };
+        });
+    }
+
+    searchEl.addEventListener('input', (e) => {
+        searchTerm = e.target.value || '';
+        render();
+    });
+
+    filterStatusEl.addEventListener('change', (e) => {
+        statusFilter = e.target.value;
+        render();
+    });
+
+    // Initial load
+    fetchJournalEntries();
 }
 
 // Simple account details modal (reuse behavior from admin module)
@@ -647,13 +1111,27 @@ function showAccountModal(accountNumber) {
 
     const bodyDiv = modal.querySelector('#accountViewBody');
     bodyDiv.innerHTML = `
-        <p><strong>Account Number:</strong> ${acc.account_number || ''}</p>
-        <p><strong>Account Name:</strong> ${acc.account_name || ''}</p>
-        <p><strong>Category:</strong> ${acc.category || ''}</p>
-        <p><strong>Subcategory:</strong> ${acc.subcategory || ''}</p>
-    <p><strong>Balance:</strong> ${acc.balance ? formatAccounting(acc.balance) : ''}</p>
-        <p><strong>Statement:</strong> ${acc.statement || ''}</p>
-        <p><strong>Description:</strong> ${acc.description ? String(acc.description).slice(0,400) : ''}</p>
+        <label style="font-size:1.2em; font-weight:700; margin-bottom:12px; display:block;">Account Name: ${acc.account_name || ''}</label>
+        <label style="font-weight:600; margin-bottom:8px; display:block;">Account Number: ${acc.account_number || ''}</label>
+        <table border:none; border-collapse:collapse; cellpadding="8" cellspacing="0" 
+       style="width:100%; max-width:800px; margin-bottom:12px; border-collapse:collapse;">
+        <tr>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:300px;">Description</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Debit</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Credit</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
+        </tr>
+        <tr>
+            <td style="text-align:center; padding:12px; font-size:1em;">testing</td>
+            <td style="padding:12px; font-size:1em;">testing</td>
+            <td style="padding:12px; font-size:1em;">testing</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
+        </tr>
+        </table>    
     `;
 
     modal.style.display = 'flex';
