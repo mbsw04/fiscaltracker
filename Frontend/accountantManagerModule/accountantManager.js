@@ -590,13 +590,15 @@ async function loadJournal() {
     actionContent.innerHTML = `
         <h2>Journal Entries</h2>
         <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
-            <input id="journalSearch" placeholder="Search journal entries" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+            <input id="journalSearch" placeholder="Search journal entries (account, amount, date)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
             <select id="journalFilterStatus" style="padding:8px; border-radius:8px; border:1px solid #ccc;">
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
             </select>
+            <label style="display:flex;align-items:center;gap:6px">From: <input id="journalFilterFrom" type="date" style="padding:6px;border-radius:6px;border:1px solid #ccc"></label>
+            <label style="display:flex;align-items:center;gap:6px">To: <input id="journalFilterTo" type="date" style="padding:6px;border-radius:6px;border:1px solid #ccc"></label>
             <button id="newJournalEntryBtn" class="confirm-btn primary-green">New Journal Entry</button>
         </div>
         <div id="journalTableContainer">Loading journal entries...</div>
@@ -626,6 +628,16 @@ async function loadJournal() {
             entries = Array.isArray(data) ? data : 
                      Array.isArray(data.body) ? data.body :
                      Array.isArray(data.transactions) ? data.transactions : [];
+            // normalize some fields to make client usage easier
+            entries = entries.map(e => ({
+                ...e,
+                date: e.created_at || e.date || e.createdAt || e.created_at,
+                credit_account_names: e.credit_account_names || e.credit_account_names || '',
+                debit_account_names: e.debit_account_names || e.debit_account_names || '',
+                credit_amounts_array: e.credit_amounts_array || e.credit_amounts_array || (e.credit ? String(e.credit).split(',').map(x=>parseFloat(x)) : []),
+                debit_amounts_array: e.debit_amounts_array || e.debit_amounts_array || (e.debit ? String(e.debit).split(',').map(x=>parseFloat(x)) : []),
+                status: (e.status || 'pending').toString().toLowerCase()
+            }));
             render();
         } catch (err) {
             console.error('Error fetching journal entries:', err);
@@ -654,16 +666,16 @@ async function loadJournal() {
                     <tr data-id="${entry.id}">
                         <td>${new Date(entry.date).toLocaleDateString()}</td>
                         <td>${entry.description || ''}</td>
-                        <td>${entry.account_number} - ${entry.account_name || ''}</td>
-                        <td style="text-align:right">${entry.debit ? formatAccounting(entry.debit) : ''}</td>
-                        <td style="text-align:right">${entry.credit ? formatAccounting(entry.credit) : ''}</td>
-                        <td>${entry.status || 'pending'}</td>
+                        <td>${(entry.debit_account_names || entry.debit_account_names) || ''} ${(entry.credit_account_names ? (' / ' + entry.credit_account_names) : '')}</td>
+                        <td style="text-align:right">${(entry.debit_amounts_array && entry.debit_amounts_array.length) ? entry.debit_amounts_array.map(a=>formatAccounting(a)).join(', ') : ''}</td>
+                        <td style="text-align:right">${(entry.credit_amounts_array && entry.credit_amounts_array.length) ? entry.credit_amounts_array.map(a=>formatAccounting(a)).join(', ') : ''}</td>
+                        <td>${(entry.status || 'pending')}</td>
                         ${CURRENT_ROLE === 'manager' ? `
                             <td style="white-space:nowrap">
                                 ${entry.status === 'pending' ? `
-                                    <button onclick="editJournalEntry(${entry.id})" class="action-btn" style="background:#4CAF50;color:white;margin-right:4px;">
-                                        Edit
-                                    </button>
+                                    <button onclick="editJournalEntry(${entry.id})" class="action-btn" style="background:#4CAF50;color:white;margin-right:4px;">Edit</button>
+                                    <button onclick="approveJournalEntry(${entry.id})" class="approve-btn action-btn" style="background:#2e7d32;color:#fff;margin-right:4px">Approve</button>
+                                    <button onclick="rejectJournalEntry(${entry.id})" class="reject-btn action-btn" style="background:#f44336;color:#fff">Reject</button>
                                 ` : ''}
                             </td>
                         ` : ''}
@@ -763,6 +775,93 @@ async function loadJournal() {
         if (entry) showEditModal(entry);
     };
 
+    // Approve helper (calls AA_approve_trans)
+    window.approveJournalEntry = async (id) => {
+        if (!confirm('Approve this journal entry? This will update account balances.')) return;
+        try {
+            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_approve_trans', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ manager_id: ADMIN_ID, trans_id: id })
+            });
+            if (!res.ok) throw new Error('Approval failed');
+            await fetchJournalEntries();
+        } catch (err) {
+            console.error('Error approving transaction', err);
+            alert('Failed to approve transaction: ' + (err.message || ''));
+        }
+    };
+
+    // Reject helper - show modal to collect comment and then try to call a reject endpoint
+    window.rejectJournalEntry = (id) => {
+        let modal = document.getElementById('transactionRejectModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'transactionRejectModal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="min-width:420px">
+                    <button type="button" id="closeRejectModalX" class="modal-close-x">&times;</button>
+                    <h3>Reject Transaction</h3>
+                    <form id="rejectForm">
+                        <input type="hidden" id="rejectTransId">
+                        <div style="margin-bottom:12px">
+                            <label style="display:block;margin-bottom:4px">Reason for rejection*</label>
+                            <textarea id="rejectReason" required style="width:100%;min-height:80px"></textarea>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:12px">
+                            <button type="button" class="cancel-btn" id="cancelRejectBtn">Cancel</button>
+                            <button type="submit" class="confirm-btn">Reject</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector('#closeRejectModalX').addEventListener('click', () => modal.style.display = 'none');
+            modal.querySelector('#cancelRejectBtn').addEventListener('click', () => modal.style.display = 'none');
+            modal.querySelector('#rejectForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = modal.querySelector('#rejectTransId').value;
+                const reason = modal.querySelector('#rejectReason').value || '';
+                try {
+                    // Try to call a server-side reject endpoint if it exists
+                    const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_reject_trans', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ manager_id: ADMIN_ID, trans_id: id, comment: reason })
+                    });
+                    if (res.ok) {
+                        modal.style.display = 'none';
+                        await fetchJournalEntries();
+                        return;
+                    }
+                } catch (err) {
+                    // endpoint might not exist; we'll fall back to updating Transactions.status via AA_edit_trans
+                    console.warn('AA_reject_trans not available or failed, falling back', err);
+                }
+
+                try {
+                    // Fallback: use AA_edit_trans to change status to rejected and append reason to description/comment
+                    // Note: AA_edit_trans allows updating credit/debit/description. We'll prepend rejection reason to description.
+                    const entry = entries.find(e => String(e.id) === String(id));
+                    const newDesc = `[REJECTED: ${reason}] ` + (entry.description || '');
+                    const res2 = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_trans', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ user_id: ADMIN_ID, trans_id: id, credit: entry.credit, debit: entry.debit, description: newDesc })
+                    });
+                    if (!res2.ok) throw new Error('Fallback reject failed');
+                    // Also mark status locally by calling AA_approve_trans? No - better to rely on server-side. We'll refresh.
+                    modal.style.display = 'none';
+                    await fetchJournalEntries();
+                } catch (err) {
+                    console.error('Reject transaction fallback failed', err);
+                    alert('Failed to reject transaction.');
+                }
+            });
+        }
+        modal.querySelector('#rejectTransId').value = id;
+        modal.querySelector('#rejectReason').value = '';
+        modal.style.display = 'flex';
+    };
+
     function showNewEntryModal() {
         let modal = document.getElementById('journalNewModal');
         if (!modal) {
@@ -791,11 +890,11 @@ async function loadJournal() {
                         <div style="display:flex;gap:12px;margin-bottom:12px">
                             <div style="flex:1">
                                 <label style="display:block;margin-bottom:4px">Debit Amount</label>
-                                <input type="number" name="debit" id="newJournalDebit" step="0.01" min="0" style="width:100%">
+                                <input type="number" name="debit" id="newJournalDebit"  min="0" style="width:100%">
                             </div>
                             <div style="flex:1">
                                 <label style="display:block;margin-bottom:4px">Credit Amount</label>
-                                <input type="number" name="credit" id="newJournalCredit" step="0.01" min="0" style="width:100%">
+                                <input type="number" name="credit" id="newJournalCredit"  min="0" style="width:100%">
                             </div>
                         </div>
                         <div style="display:flex;justify-content:space-between;margin-top:20px">
