@@ -1111,13 +1111,27 @@ function showAccountModal(accountNumber) {
 
     const bodyDiv = modal.querySelector('#accountViewBody');
     bodyDiv.innerHTML = `
-        <p><strong>Account Number:</strong> ${acc.account_number || ''}</p>
-        <p><strong>Account Name:</strong> ${acc.account_name || ''}</p>
-        <p><strong>Category:</strong> ${acc.category || ''}</p>
-        <p><strong>Subcategory:</strong> ${acc.subcategory || ''}</p>
-    <p><strong>Balance:</strong> ${acc.balance ? formatAccounting(acc.balance) : ''}</p>
-        <p><strong>Statement:</strong> ${acc.statement || ''}</p>
-        <p><strong>Description:</strong> ${acc.description ? String(acc.description).slice(0,400) : ''}</p>
+        <label style="font-size:1.2em; font-weight:700; margin-bottom:12px; display:block;">Account Name: ${acc.account_name || ''}</label>
+        <label style="font-weight:600; margin-bottom:8px; display:block;">Account Number: ${acc.account_number || ''}</label>
+        <table border:none; border-collapse:collapse; cellpadding="8" cellspacing="0" 
+       style="width:100%; max-width:800px; margin-bottom:12px; border-collapse:collapse;">
+        <tr>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:300px;">Description</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Debit</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Credit</th>
+            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
+        </tr>
+        <tr>
+            <td style="text-align:center; padding:12px; font-size:1em;">testing</td>
+            <td style="padding:12px; font-size:1em;">testing</td>
+            <td style="padding:12px; font-size:1em;">testing</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
+        </tr>
+        </table>    
     `;
 
     modal.style.display = 'flex';
