@@ -874,6 +874,13 @@ async function loadJournal() {
                     <h3>New Journal Entry</h3>
                     <form id="journalNewForm">
                         <div style="margin-bottom:12px">
+                            <div id="dragDropArea" style="border:2px dashed #ccc; padding:20px; text-align:center; margin-bottom:15px; background:#f9f9f9; cursor:pointer;">
+                                <div id="dragDropText">Drag and drop files here or click to upload</div>
+                                <input type="file" id="fileInput" multiple style="display:none">
+                                <div id="fileList" style="margin-top:10px; text-align:left;"></div>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:12px">
                             <label style="display:block;margin-bottom:4px">Date*</label>
                             <input type="date" name="date" id="newJournalDate" required style="width:100%">
                         </div>
@@ -881,19 +888,36 @@ async function loadJournal() {
                             <label style="display:block;margin-bottom:4px">Description*</label>
                             <textarea name="description" id="newJournalDescription" style="width:100%;min-height:60px" required></textarea>
                         </div>
-                        <div style="margin-bottom:12px">
-                            <label style="display:block;margin-bottom:4px">Account Number*</label>
-                            <select name="account_number" id="newJournalAccount" required style="width:100%;padding:8px">
-                                <option value="">Select an account...</option>
-                            </select>
+                        <div style="margin-bottom:12px; display:flex; gap:12px;">
+                            <div style="flex:1">
+                                <label style="display:block;margin-bottom:4px">Account Type*</label>
+                                <select name="account_type" id="newJournalAccountType" required style="width:100%;padding:8px">
+                                    <option value="">Select account type...</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="accounts_receivable">Accounts Receivable</option>
+                                    <option value="accounts_payable">Accounts Payable</option>
+                                    <option value="inventory">Inventory</option>
+                                    <option value="fixed_assets">Fixed Assets</option>
+                                    <option value="revenue">Revenue</option>
+                                    <option value="expenses">Expenses</option>
+                                    <option value="equity">Equity</option>
+                                </select>
+                            </div>
+                            <div style="flex:1">
+                                <label style="display:block;margin-bottom:4px">Account Number*</label>
+                                <select name="account_number" id="newJournalAccount" required style="width:100%;padding:8px">
+                                    <option value="">Select an account...</option>
+                                </select>
+                            </div>
                         </div>
                         <div style="display:flex;gap:12px;margin-bottom:12px">
                             <div style="flex:1">
-                                <label style="display:block;margin-bottom:4px">Debit Amount</label>
+                                <label style="display:block;margin-bottom:4px">Debit Amount:</label>
                                 <input type="number" name="debit" id="newJournalDebit"  min="0" style="width:100%">
                             </div>
                             <div style="flex:1">
-                                <label style="display:block;margin-bottom:4px">Credit Amount</label>
+                                <label style="display:block;margin-bottom:4px">Credit Amount:</label>
+                                <br>
                                 <input type="number" name="credit" id="newJournalCredit"  min="0" style="width:100%">
                             </div>
                         </div>
@@ -928,16 +952,38 @@ async function loadJournal() {
                     catch { accounts = data.body; }
                 }
                 
-                const select = modal.querySelector('#newJournalAccount');
-                accounts
-                    .filter(acc => acc.is_active)
-                    .sort((a, b) => a.account_number.localeCompare(b.account_number))
-                    .forEach(acc => {
-                        const option = document.createElement('option');
-                        option.value = acc.account_number;
-                        option.textContent = `${acc.account_number} - ${acc.account_name}`;
-                        select.appendChild(option);
-                    });
+                const accountSelect = modal.querySelector('#newJournalAccount');
+                const accountTypeSelect = modal.querySelector('#newJournalAccountType');
+                let filteredAccounts = accounts.filter(acc => acc.is_active);
+
+                // Store all active accounts for filtering
+                const allAccounts = [...filteredAccounts];
+
+                // Function to update account numbers based on selected type
+                function updateAccountNumbers(selectedType) {
+                    accountSelect.innerHTML = '<option value="">Select an account...</option>';
+                    
+                    const filtered = selectedType ? 
+                        allAccounts.filter(acc => acc.category && acc.category.toLowerCase() === selectedType.toLowerCase()) :
+                        allAccounts;
+
+                    filtered
+                        .sort((a, b) => a.account_number.localeCompare(b.account_number))
+                        .forEach(acc => {
+                            const option = document.createElement('option');
+                            option.value = acc.account_number;
+                            option.textContent = `${acc.account_number} - ${acc.account_name}`;
+                            accountSelect.appendChild(option);
+                        });
+                }
+
+                // Add event listener for account type changes
+                accountTypeSelect.addEventListener('change', (e) => {
+                    updateAccountNumbers(e.target.value);
+                });
+
+                // Initial population of account numbers
+                updateAccountNumbers('');
             })
             .catch(err => console.error('Error loading accounts:', err));
 
@@ -974,12 +1020,64 @@ async function loadJournal() {
                     
                     modal.style.display = 'none';
                     e.target.reset(); // Clear form
+                    document.getElementById('fileList').innerHTML = ''; // Clear file list
                     await fetchJournalEntries(); // Refresh the table
                 } catch (err) {
                     console.error('Error creating journal entry:', err);
                     alert('Failed to create journal entry. Please try again.');
                 }
             });
+
+            // Initialize drag and drop functionality
+            const dragDropArea = modal.querySelector('#dragDropArea');
+            const fileInput = modal.querySelector('#fileInput');
+            const fileList = modal.querySelector('#fileList');
+            let files = [];
+
+            dragDropArea.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', (e) => {
+                const newFiles = Array.from(e.target.files);
+                handleFiles(newFiles);
+            });
+
+            dragDropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dragDropArea.style.background = '#e9e9e9';
+            });
+
+            dragDropArea.addEventListener('dragleave', () => {
+                dragDropArea.style.background = '#f9f9f9';
+            });
+
+            dragDropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dragDropArea.style.background = '#f9f9f9';
+                const newFiles = Array.from(e.dataTransfer.files);
+                handleFiles(newFiles);
+            });
+
+            function handleFiles(newFiles) {
+                files = [...files, ...newFiles];
+                updateFileList();
+            }
+
+            function updateFileList() {
+                fileList.innerHTML = files.map((file, index) => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:5px; margin:2px 0; background:#fff; border-radius:4px;">
+                        <span>${file.name}</span>
+                        <button type="button" class="remove-file" data-index="${index}" style="border:none; background:none; color:red; cursor:pointer;">&times;</button>
+                    </div>
+                `).join('');
+
+                fileList.querySelectorAll('.remove-file').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const index = parseInt(e.target.getAttribute('data-index'));
+                        files.splice(index, 1);
+                        updateFileList();
+                    });
+                });
+            }
         }
         
         modal.style.display = 'flex';
