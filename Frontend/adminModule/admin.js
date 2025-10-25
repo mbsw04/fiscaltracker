@@ -776,12 +776,12 @@ async function loadChartOfAccounts() {
             <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
         </tr>
         <tr>
-            <td style="text-align:center; padding:12px; font-size:1em;">testing</td>
-            <td style="padding:12px; font-size:1em;">testing</td>
-            <td style="padding:12px; font-size:1em;">testing</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
+            <td style="text-align:center; padding:12px; font-size:1em;">loading...</td>
+            <td style="padding:12px; font-size:1em;">loading...</td>
+            <td style="padding:12px; font-size:1em;">loading...</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
         </tr>
         </table>   
         `;
