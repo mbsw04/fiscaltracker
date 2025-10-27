@@ -869,40 +869,88 @@ async function loadJournal() {
             modal.id = 'journalNewModal';
             modal.className = 'modal-overlay';
             modal.innerHTML = `
-                <div class="modal-content" style="min-width:500px">
-                    <button type="button" id="closeJournalNewModal" class="modal-close-x">&times;</button>
-                    <h3>New Journal Entry</h3>
-                    <form id="journalNewForm">
-                        <div style="margin-bottom:12px">
-                            <label style="display:block;margin-bottom:4px">Date*</label>
-                            <input type="date" name="date" id="newJournalDate" required style="width:100%">
-                        </div>
-                        <div style="margin-bottom:12px">
-                            <label style="display:block;margin-bottom:4px">Description*</label>
-                            <textarea name="description" id="newJournalDescription" style="width:100%;min-height:60px" required></textarea>
-                        </div>
-                        <div style="margin-bottom:12px">
-                            <label style="display:block;margin-bottom:4px">Account Number*</label>
-                            <select name="account_number" id="newJournalAccount" required style="width:100%;padding:8px">
-                                <option value="">Select an account...</option>
-                            </select>
-                        </div>
-                        <div style="display:flex;gap:12px;margin-bottom:12px">
-                            <div style="flex:1">
-                                <label style="display:block;margin-bottom:4px">Debit Amount</label>
-                                <input type="number" name="debit" id="newJournalDebit"  min="0" style="width:100%">
-                            </div>
-                            <div style="flex:1">
-                                <label style="display:block;margin-bottom:4px">Credit Amount</label>
-                                <input type="number" name="credit" id="newJournalCredit"  min="0" style="width:100%">
-                            </div>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;margin-top:20px">
-                            <button type="button" class="cancel-btn" id="cancelJournalNew">Cancel</button>
-                            <button type="submit" class="confirm-btn">Create Entry</button>
-                        </div>
-                    </form>
+                        <div class="modal-content" style="min-width:500px;max-width:600px;background:#fff;border-radius:10px;padding:24px 32px;box-shadow:0 4px 20px rgba(0,0,0,0.15);position:relative;">
+                <button type="button" id="closeJournalNewModal" class="modal-close-x" 
+                    style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
+
+             <h3 style="text-align:center;margin-top:0;margin-bottom:20px;font-size:1.3rem;font-weight:600;">New Journal Entry</h3>
+
+            <form id="journalNewForm">
+                <div style="margin-bottom:14px">
+                    <div id="dragDropArea" 
+                        style="border:2px dashed #ccc;border-radius:8px;padding:18px;text-align:center;margin-bottom:15px;background:#f9f9f9;cursor:pointer;">
+                        <div id="dragDropText" style="color:#666;">Drag and drop files here or click to upload</div>
+                        <input type="file" id="fileInput" multiple style="display:none">
+                        <div id="fileList" style="margin-top:10px;text-align:left;"></div>
+                    </div>
+               </div>
+
+            <div style="margin-bottom:14px">
+                <label style="display:block;margin-bottom:4px;font-weight:500;">Date*</label>
+                <input type="date" name="date" id="newJournalDate" required 
+                    style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+            </div>
+
+            <div style="margin-bottom:14px">
+                <label style="display:block;margin-bottom:4px;font-weight:500;">Description*</label>
+                <textarea name="description" id="newJournalDescription" required 
+                    style="width:100%;min-height:60px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;resize:vertical;"></textarea>
+            </div>
+
+            <!-- First row -->
+            <div style="display:flex;gap:12px;margin-bottom:12px;">
+                <div style="flex:1;">
+                    <label style="display:block;margin-bottom:4px;font-weight:500;">Account</label>
+                    <select name="account_type" id="newJournalAccountType" required 
+                        style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+                        <option value="">Select account</option>
+                    </select>
                 </div>
+            <div style="flex:1;">
+                <label style="display:block;margin-bottom:4px;font-weight:500;">Debit Amount:</label>
+                <input type="number" name="debit" id="newJournalDebit" min="0" 
+                    style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+            </div>
+            <div style="flex:1;">
+                <label style="display:block;margin-bottom:4px;font-weight:500;">Credit Amount:</label>
+                <input type="number" name="credit" id="newJournalCredit" min="0" 
+                    style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+            </div>
+        </div>
+
+                <!-- Second row -->
+                <div style="display:flex;gap:12px;margin-bottom:12px;">
+                    <div style="flex:1;">
+                        <select name="account_type_2" id="newJournalAccountType2" 
+                            style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+                            <option value="">Select account</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <input type="number" name="debit_2" id="newJournalDebit2" min="0" 
+                            style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+                    </div>
+                    <div style="flex:1;">
+                        <input type="number" name="credit_2" id="newJournalCredit2" min="0" 
+                            style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+                    </div>
+                </div>
+
+                        <div style="text-align:right;margin-bottom:16px;">
+                    <button type="button" id="addNewAccountBtn" 
+                        style="background:#007bff;color:#fff;padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
+                        + Add New Account
+                    </button>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;margin-top:20px;">
+                    <button type="button" class="cancel-btn" id="cancelJournalNew" 
+                        style="background:#f2f2f2;color:#555;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;">Cancel</button>
+                    <button type="submit" class="confirm-btn" 
+                        style="background:#2ecc71;color:#fff;padding:8px 16px;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Create Entry</button>
+                </div>
+            </form>
+        </div>
             `;
             document.body.appendChild(modal);
             
