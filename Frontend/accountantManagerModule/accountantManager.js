@@ -869,7 +869,7 @@ async function loadJournal() {
             modal.id = 'journalNewModal';
             modal.className = 'modal-overlay';
             modal.innerHTML = `
-                        <div class="modal-content" style="min-width:500px;max-width:600px;background:#fff;border-radius:10px;padding:24px 32px;box-shadow:0 4px 20px rgba(0,0,0,0.15);position:relative;">
+        <div class="modal-content" style="min-width:500px;max-width:600px;background:#fff;border-radius:10px;padding:24px 32px;box-shadow:0 4px 20px rgba(0,0,0,0.15);position:relative;">
                 <button type="button" id="closeJournalNewModal" class="modal-close-x" 
                     style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
 
@@ -883,7 +883,7 @@ async function loadJournal() {
                         <input type="file" id="fileInput" multiple style="display:none">
                         <div id="fileList" style="margin-top:10px;text-align:left;"></div>
                     </div>
-               </div>
+                </div>
 
             <div style="margin-bottom:14px">
                 <label style="display:block;margin-bottom:4px;font-weight:500;">Date*</label>
@@ -902,19 +902,19 @@ async function loadJournal() {
                 <div style="flex:1;">
                     <label style="display:block;margin-bottom:4px;font-weight:500;">Account</label>
                     <select name="account_type" id="newJournalAccountType" required 
-                        style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+                        style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
                         <option value="">Select account</option>
                     </select>
                 </div>
             <div style="flex:1;">
                 <label style="display:block;margin-bottom:4px;font-weight:500;">Debit Amount:</label>
                 <input type="number" name="debit" id="newJournalDebit" min="0" 
-                    style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+                    style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
             </div>
             <div style="flex:1;">
                 <label style="display:block;margin-bottom:4px;font-weight:500;">Credit Amount:</label>
                 <input type="number" name="credit" id="newJournalCredit" min="0" 
-                    style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+                    style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
             </div>
         </div>
 
@@ -922,17 +922,17 @@ async function loadJournal() {
                 <div style="display:flex;gap:12px;margin-bottom:12px;">
                     <div style="flex:1;">
                         <select name="account_type_2" id="newJournalAccountType2" 
-                            style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+                            style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
                             <option value="">Select account</option>
                         </select>
                     </div>
                     <div style="flex:1;">
                         <input type="number" name="debit_2" id="newJournalDebit2" min="0" 
-                            style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+                            style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
                     </div>
                     <div style="flex:1;">
                         <input type="number" name="credit_2" id="newJournalCredit2" min="0" 
-                            style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+                            style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
                     </div>
                 </div>
 
@@ -951,6 +951,7 @@ async function loadJournal() {
                 </div>
             </form>
         </div>
+
             `;
             document.body.appendChild(modal);
             
@@ -976,16 +977,38 @@ async function loadJournal() {
                     catch { accounts = data.body; }
                 }
                 
-                const select = modal.querySelector('#newJournalAccount');
-                accounts
-                    .filter(acc => acc.is_active)
-                    .sort((a, b) => a.account_number.localeCompare(b.account_number))
-                    .forEach(acc => {
-                        const option = document.createElement('option');
-                        option.value = acc.account_number;
-                        option.textContent = `${acc.account_number} - ${acc.account_name}`;
-                        select.appendChild(option);
-                    });
+                const accountSelect = modal.querySelector('#newJournalAccount');
+                const accountTypeSelect = modal.querySelector('#newJournalAccountType');
+                let filteredAccounts = accounts.filter(acc => acc.is_active);
+
+                // Store all active accounts for filtering
+                const allAccounts = [...filteredAccounts];
+
+                // Function to update account numbers based on selected type
+                function updateAccountNumbers(selectedType) {
+                    accountSelect.innerHTML = '<option value="">Select an account...</option>';
+                    
+                    const filtered = selectedType ? 
+                        allAccounts.filter(acc => acc.category && acc.category.toLowerCase() === selectedType.toLowerCase()) :
+                        allAccounts;
+
+                    filtered
+                        .sort((a, b) => a.account_number.localeCompare(b.account_number))
+                        .forEach(acc => {
+                            const option = document.createElement('option');
+                            option.value = acc.account_number;
+                            option.textContent = `${acc.account_number} - ${acc.account_name}`;
+                            accountSelect.appendChild(option);
+                        });
+                }
+
+                // Add event listener for account type changes
+                accountTypeSelect.addEventListener('change', (e) => {
+                    updateAccountNumbers(e.target.value);
+                });
+
+                // Initial population of account numbers
+                updateAccountNumbers('');
             })
             .catch(err => console.error('Error loading accounts:', err));
 
@@ -1022,12 +1045,64 @@ async function loadJournal() {
                     
                     modal.style.display = 'none';
                     e.target.reset(); // Clear form
+                    document.getElementById('fileList').innerHTML = ''; // Clear file list
                     await fetchJournalEntries(); // Refresh the table
                 } catch (err) {
                     console.error('Error creating journal entry:', err);
                     alert('Failed to create journal entry. Please try again.');
                 }
             });
+
+            // Initialize drag and drop functionality
+            const dragDropArea = modal.querySelector('#dragDropArea');
+            const fileInput = modal.querySelector('#fileInput');
+            const fileList = modal.querySelector('#fileList');
+            let files = [];
+
+            dragDropArea.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', (e) => {
+                const newFiles = Array.from(e.target.files);
+                handleFiles(newFiles);
+            });
+
+            dragDropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dragDropArea.style.background = '#e9e9e9';
+            });
+
+            dragDropArea.addEventListener('dragleave', () => {
+                dragDropArea.style.background = '#f9f9f9';
+            });
+
+            dragDropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dragDropArea.style.background = '#f9f9f9';
+                const newFiles = Array.from(e.dataTransfer.files);
+                handleFiles(newFiles);
+            });
+
+            function handleFiles(newFiles) {
+                files = [...files, ...newFiles];
+                updateFileList();
+            }
+
+            function updateFileList() {
+                fileList.innerHTML = files.map((file, index) => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:5px; margin:2px 0; background:#fff; border-radius:4px;">
+                        <span>${file.name}</span>
+                        <button type="button" class="remove-file" data-index="${index}" style="border:none; background:none; color:red; cursor:pointer;">&times;</button>
+                    </div>
+                `).join('');
+
+                fileList.querySelectorAll('.remove-file').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const index = parseInt(e.target.getAttribute('data-index'));
+                        files.splice(index, 1);
+                        updateFileList();
+                    });
+                });
+            }
         }
         
         modal.style.display = 'flex';
@@ -1172,12 +1247,12 @@ function showAccountModal(accountNumber) {
             <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
         </tr>
         <tr>
-            <td style="text-align:center; padding:12px; font-size:1em;">testing</td>
-            <td style="padding:12px; font-size:1em;">testing</td>
-            <td style="padding:12px; font-size:1em;">testing</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">testing</td>
+            <td style="text-align:center; padding:12px; font-size:1em;">loading... </td>
+            <td style="padding:12px; font-size:1em;">loading...</td>
+            <td style="padding:12px; font-size:1em;">loading...</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
+            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
         </tr>
         </table>    
     `;

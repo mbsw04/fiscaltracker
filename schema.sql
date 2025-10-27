@@ -99,16 +99,3 @@ CREATE TABLE Event_Logs (
     FOREIGN KEY (changed_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 8001;
 
-/*
-CREATE TABLE Ledger (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    account_id INT NOT NULL,
-    credit_transaction_ids JSON,
-    debit_transaction_ids JSON,
-    debit DECIMAL(15,2) DEFAULT 0.00,
-    credit DECIMAL(15,2) DEFAULT 0.00,
-    balance DECIMAL(15,2) NOT NULL,
-    FOREIGN KEY (account_id) REFERENCES Accounts(id),
-    FOREIGN KEY (transaction_id) REFERENCES Transactions(id)
-) AUTO_INCREMENT = 9001;
-*/
