@@ -83,6 +83,7 @@ CREATE TABLE Transactions (
     status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     approved_by INT,
     approved_date DATETIME,
+    comment TEXT,
     FOREIGN KEY (created_by) REFERENCES Users(id),
     FOREIGN KEY (approved_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 7001;

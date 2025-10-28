@@ -32,12 +32,17 @@ export const handler = async (event) => {
     // Begin transaction to ensure atomicity
     await conn.beginTransaction();
 
-    // Perform rejection
+    // Perform rejection and append rejection reason to comment
+    const rejectionComment = rejection_reason ? `REJECTED: ${rejection_reason}` : 'REJECTED';
+    const commentUpdate = beforeRow.comment ? 
+      `${beforeRow.comment} | ${rejectionComment}` : 
+      rejectionComment;
+    
     await conn.execute(`
       UPDATE Transactions 
-      SET status = 'rejected', approved_by = ?, approved_date = NOW() 
+      SET status = 'rejected', approved_by = ?, approved_date = NOW(), comment = ?
       WHERE id = ?
-    `, [manager_id, trans_id]);
+    `, [manager_id, commentUpdate, trans_id]);
 
     // Fetch updated transaction
     const [updatedRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);

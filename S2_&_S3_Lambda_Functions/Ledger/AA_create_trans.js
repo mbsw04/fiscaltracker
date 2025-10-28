@@ -8,7 +8,7 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
-  const { user_id, credit_account_id, credit, debit_account_id, debit, description } = body;
+  const { user_id, credit_account_id, credit, debit_account_id, debit, description, comment } = body;
 
   // Convert arrays to comma-separated strings with 2 decimal places
   const creditAccountStr = Array.isArray(credit_account_id) ? credit_account_id.join(',') : String(credit_account_id || '');
@@ -31,9 +31,9 @@ export const handler = async (event) => {
     }
 
     const [result] = await conn.execute(
-      `INSERT INTO Transactions (credit_account_id, debit_account_id, credit, debit, description, created_by)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [creditAccountStr, debitAccountStr, creditStr, debitStr, description, user_id]
+      `INSERT INTO Transactions (credit_account_id, debit_account_id, credit, debit, description, comment, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [creditAccountStr, debitAccountStr, creditStr, debitStr, description, comment || null, user_id]
     );
 
     // fetch created transaction and write full JSON to event log
