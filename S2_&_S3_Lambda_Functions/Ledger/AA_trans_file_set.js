@@ -47,13 +47,12 @@ export const handler = async (event) => {
       fileBuffer = Buffer.from(file_content, 'utf8');
     }
 
-    // Upload to S3 with public-read ACL for public bucket
+    // Upload to S3 (bucket is public with ACLs disabled)
     const uploadParams = {
       Bucket: S3_BUCKET_NAME,
       Key: s3Key,
       Body: fileBuffer,
       ContentType: content_type || 'application/octet-stream',
-      ACL: 'public-read',
       Metadata: {
         'transaction-id': String(transaction_id),
         'uploaded-by': String(uploaded_by),
