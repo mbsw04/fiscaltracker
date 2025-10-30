@@ -8,7 +8,7 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
-  const { user_id, trans_id, credit, debit, description } = body;
+  const { user_id, trans_id, credit, debit, description, comment } = body;
 
   // Convert arrays to comma-separated strings with 2 decimal places
   const creditStr = Array.isArray(credit) ? 
@@ -31,8 +31,8 @@ export const handler = async (event) => {
     const [beforeRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
     const before = beforeRows && beforeRows[0] ? beforeRows[0] : null;
     await conn.execute(
-      `UPDATE Transactions SET credit=?, debit=?, description=? WHERE id=?`,
-      [creditStr, debitStr, description, trans_id]
+      `UPDATE Transactions SET credit=?, debit=?, description=?, comment=? WHERE id=?`,
+      [creditStr, debitStr, description, comment || null, trans_id]
     );
     const [afterRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
     const after = afterRows && afterRows[0] ? afterRows[0] : null;

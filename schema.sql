@@ -77,12 +77,14 @@ CREATE TABLE Transactions (
     credit TEXT DEFAULT NULL,         -- Array stored as comma-separated values with 2 decimals: "100.50,200.75,300.00"
     debit_account_id TEXT NOT NULL,   -- Array stored as comma-separated values: "2001,2002"
     debit TEXT DEFAULT NULL,          -- Array stored as comma-separated values with 2 decimals: "150.25,450.00"
+    type ENUM('standard', 'reversal', 'adjustment', 'closing') DEFAULT 'standard',
     description TEXT,
     created_by INT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     approved_by INT,
     approved_date DATETIME,
+    comment TEXT,
     FOREIGN KEY (created_by) REFERENCES Users(id),
     FOREIGN KEY (approved_by) REFERENCES Users(id)
 ) AUTO_INCREMENT = 7001;
