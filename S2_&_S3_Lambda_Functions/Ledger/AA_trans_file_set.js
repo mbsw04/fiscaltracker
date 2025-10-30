@@ -1,9 +1,9 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import mysql from "mysql2/promise";
 
-const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB, S3_BUCKET_NAME, AWS_REGION } = process.env;
+const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB, S3_BUCKET_NAME } = process.env;
 
-const s3Client = new S3Client({ region: AWS_REGION || 'us-east-1' });
+const s3Client = new S3Client({ region: 'us-east-1' });
 
 export const handler = async (event) => {
   let body = event;
@@ -63,7 +63,7 @@ export const handler = async (event) => {
     const uploadResult = await s3Client.send(new PutObjectCommand(uploadParams));
 
     // Generate public URL for the uploaded file
-    const publicUrl = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}`;
+    const publicUrl = `https://${S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com/${s3Key}`;
 
     // Log the file upload event
     await conn.execute(
