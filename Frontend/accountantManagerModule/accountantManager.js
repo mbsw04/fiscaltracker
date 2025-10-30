@@ -963,54 +963,48 @@ async function loadJournal() {
             modal.querySelector('#newJournalDate').value = today;
 
             // Load accounts into select dropdown
-            fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: ADMIN_ID })
-            })
-            .then(res => res.json())
-            .then(data => {
-                let accounts = [];
-                if (Array.isArray(data)) accounts = data;
-                else if (Array.isArray(data.body)) {
+                fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: ADMIN_ID })
+                })
+                .then(res => res.json())
+                .then(data => {
+                
+                    let accounts = [];
+                if (Array.isArray(data)) {
+                    accounts = data;
+                } 
+                else if (data.body) {
+                
                     try { accounts = JSON.parse(data.body); } 
                     catch { accounts = data.body; }
                 }
-                
-                const accountSelect = modal.querySelector('#newJournalAccount');
-                const accountTypeSelect = modal.querySelector('#newJournalAccountType');
-                let filteredAccounts = accounts.filter(acc => acc.is_active);
 
-                // Store all active accounts for filtering
-                const allAccounts = [...filteredAccounts];
+                // Get both dropdowns
+                const accountType1 = modal.querySelector('#newJournalAccountType');
+                const accountType2 = modal.querySelector('#newJournalAccountType2');
 
-                // Function to update account numbers based on selected type
-                function updateAccountNumbers(selectedType) {
-                    accountSelect.innerHTML = '<option value="">Select an account...</option>';
-                    
-                    const filtered = selectedType ? 
-                        allAccounts.filter(acc => acc.category && acc.category.toLowerCase() === selectedType.toLowerCase()) :
-                        allAccounts;
+                // Only include active accounts (if property exists)
+                let filteredAccounts = accounts.filter(acc => acc.is_active === true || acc.is_active === 1 || acc.is_active === "1");
 
-                    filtered
-                        .sort((a, b) => a.account_number.localeCompare(b.account_number))
-                        .forEach(acc => {
-                            const option = document.createElement('option');
-                            option.value = acc.account_number;
-                            option.textContent = `${acc.account_number} - ${acc.account_name}`;
-                            accountSelect.appendChild(option);
-                        });
+                function populateSelect(selectEl) {
+                    selectEl.innerHTML = '<option value="">Select account</option>';
+                    filteredAccounts
+                    .sort((a, b) => a.account_number.localeCompare(b.account_number))
+                    .forEach(acc => {
+                    const option = document.createElement('option');
+                    option.value = acc.account_number;
+                    option.textContent = `${acc.account_number} - ${acc.account_name}`;
+                    selectEl.appendChild(option);
+                    });
                 }
 
-                // Add event listener for account type changes
-                accountTypeSelect.addEventListener('change', (e) => {
-                    updateAccountNumbers(e.target.value);
-                });
-
-                // Initial population of account numbers
-                updateAccountNumbers('');
+                populateSelect(accountType1);
+                populateSelect(accountType2);
             })
             .catch(err => console.error('Error loading accounts:', err));
+
 
             // Form submission handler
             modal.querySelector('#journalNewForm').addEventListener('submit', async (e) => {
