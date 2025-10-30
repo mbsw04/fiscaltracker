@@ -8,7 +8,19 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
-  const { user_id, credit_account_id, credit, debit_account_id, debit, description, comment } = body;
+  const { user_id, credit_account_id, credit, debit_account_id, debit, description, comment, type } = body;
+
+  // Validate transaction type
+  const validTypes = ['standard', 'reversal', 'adjustment', 'closing'];
+  const transactionType = type || 'standard'; // Default to 'standard' if not provided
+  if (!validTypes.includes(transactionType)) {
+    return { 
+      statusCode: 400, 
+      body: JSON.stringify({ 
+        error: `Invalid transaction type. Must be one of: ${validTypes.join(', ')}` 
+      }) 
+    };
+  }
 
   // Convert arrays to comma-separated strings with 2 decimal places
   const creditAccountStr = Array.isArray(credit_account_id) ? credit_account_id.join(',') : String(credit_account_id || '');
@@ -31,9 +43,9 @@ export const handler = async (event) => {
     }
 
     const [result] = await conn.execute(
-      `INSERT INTO Transactions (credit_account_id, debit_account_id, credit, debit, description, comment, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [creditAccountStr, debitAccountStr, creditStr, debitStr, description, comment || null, user_id]
+      `INSERT INTO Transactions (credit_account_id, debit_account_id, credit, debit, type, description, comment, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [creditAccountStr, debitAccountStr, creditStr, debitStr, transactionType, description, comment || null, user_id]
     );
 
     // fetch created transaction and write full JSON to event log
