@@ -909,6 +909,12 @@ async function loadJournal() {
                                 style="width:100%;min-height:60px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;resize:vertical;"></textarea>
                         </div>
 
+                        <div style="display:flex;">
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:30px;">Accounts</label>
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:115px;">Debit</label>
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:120px;">Credit</label>
+                        </div>
+
                         <div id="accountRowsContainer"></div>
 
                         <div style="text-align:right;margin-bottom:16px;">
