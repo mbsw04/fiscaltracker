@@ -1,9 +1,9 @@
 import { S3Client, HeadObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import mysql from "mysql2/promise";
 
-const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB, S3_BUCKET_NAME, AWS_REGION } = process.env;
+const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB, S3_BUCKET_NAME } = process.env;
 
-const s3Client = new S3Client({ region: AWS_REGION || 'us-east-1' });
+const s3Client = new S3Client({ region: 'us-east-1' });
 
 export const handler = async (event) => {
   let body = event;

@@ -864,217 +864,275 @@ async function loadJournal() {
 
     function showNewEntryModal() {
         let modal = document.getElementById('journalNewModal');
+
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'journalNewModal';
             modal.className = 'modal-overlay';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.4)';
+            modal.style.zIndex = '1000';
             modal.innerHTML = `
-        <div class="modal-content" style="min-width:500px;max-width:600px;background:#fff;border-radius:10px;padding:24px 32px;box-shadow:0 4px 20px rgba(0,0,0,0.15);position:relative;">
-                <button type="button" id="closeJournalNewModal" class="modal-close-x" 
-                    style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
+                <div class="modal-content" 
+                    style="min-width:500px;max-width:600px;max-height:80vh;overflow-y:auto; background:#fff;border-radius:10px;padding:24px 32px; box-shadow:0 4px 20px rgba(0,0,0,0.15);position:relative;">
+                    <button type="button" id="closeJournalNewModal" class="modal-close-x" 
+                        style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
 
-             <h3 style="text-align:center;margin-top:0;margin-bottom:20px;font-size:1.3rem;font-weight:600;">New Journal Entry</h3>
+                    <h3 style="text-align:center;margin-top:0;margin-bottom:20px;font-size:1.3rem;font-weight:600;">New Journal Entry</h3>
 
-            <form id="journalNewForm">
-                <div style="margin-bottom:14px">
-                    <div id="dragDropArea" 
-                        style="border:2px dashed #ccc;border-radius:8px;padding:18px;text-align:center;margin-bottom:15px;background:#f9f9f9;cursor:pointer;">
-                        <div id="dragDropText" style="color:#666;">Drag and drop files here or click to upload</div>
-                        <input type="file" id="fileInput" multiple style="display:none">
-                        <div id="fileList" style="margin-top:10px;text-align:left;"></div>
-                    </div>
-                </div>
+                    <form id="journalNewForm">
+                        <div style="margin-bottom:14px">
+                            <div id="dragDropArea" 
+                                style="border:2px dashed #ccc;border-radius:8px;padding:18px;text-align:center;margin-bottom:15px;background:#f9f9f9;cursor:pointer;">
+                                <div id="dragDropText" style="color:#666;">Drag and drop files here or click to upload</div>
+                                <input type="file" id="fileInput" multiple style="display:none">
+                                <div id="fileList" style="margin-top:10px;text-align:left;"></div>
+                            </div>
+                        </div>
 
-            <div style="margin-bottom:14px">
-                <label style="display:block;margin-bottom:4px;font-weight:500;">Date*</label>
-                <input type="date" name="date" id="newJournalDate" required 
-                    style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
-            </div>
+                        <div style="margin-bottom:14px">
+                            <label style="display:block;margin-bottom:4px;font-weight:500;">Date*</label>
+                            <input type="date" name="date" id="newJournalDate" required 
+                                style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+                        </div>
 
-            <div style="margin-bottom:14px">
-                <label style="display:block;margin-bottom:4px;font-weight:500;">Description*</label>
-                <textarea name="description" id="newJournalDescription" required 
-                    style="width:100%;min-height:60px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;resize:vertical;"></textarea>
-            </div>
+                        <div style="margin-bottom:14px">
+                            <label style="display:block;margin-bottom:4px;font-weight:500;">Description*</label>
+                            <textarea name="description" id="newJournalDescription" required 
+                                style="width:100%;min-height:60px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;resize:vertical;"></textarea>
+                        </div>
 
-            <!-- First row -->
-            <div style="display:flex;gap:12px;margin-bottom:12px;">
-                <div style="flex:1;">
-                    <label style="display:block;margin-bottom:4px;font-weight:500;">Account</label>
-                    <select name="account_type" id="newJournalAccountType" required 
-                        style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
-                        <option value="">Select account</option>
-                    </select>
-                </div>
-            <div style="flex:1;">
-                <label style="display:block;margin-bottom:4px;font-weight:500;">Debit Amount:</label>
-                <input type="number" name="debit" id="newJournalDebit" min="0" 
-                    style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
-            </div>
-            <div style="flex:1;">
-                <label style="display:block;margin-bottom:4px;font-weight:500;">Credit Amount:</label>
-                <input type="number" name="credit" id="newJournalCredit" min="0" 
-                    style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
-            </div>
-        </div>
+                        <div style="display:flex;">
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:30px;">Accounts</label>
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:115px;">Debit</label>
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:120px;">Credit</label>
+                        </div>
 
-                <!-- Second row -->
-                <div style="display:flex;gap:12px;margin-bottom:12px;">
-                    <div style="flex:1;">
-                        <select name="account_type_2" id="newJournalAccountType2" 
-                            style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
-                            <option value="">Select account</option>
-                        </select>
-                    </div>
-                    <div style="flex:1;">
-                        <input type="number" name="debit_2" id="newJournalDebit2" min="0" 
-                            style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
-                    </div>
-                    <div style="flex:1;">
-                        <input type="number" name="credit_2" id="newJournalCredit2" min="0" 
-                            style="width:150px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
-                    </div>
-                </div>
+                        <div id="accountRowsContainer"></div>
 
                         <div style="text-align:right;margin-bottom:16px;">
-                    <button type="button" id="addNewAccountBtn" 
-                        style="background:#007bff;color:#fff;padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
-                        + Add New Account
-                    </button>
-                </div>
+                            <button type="button" id="addNewAccountBtn" 
+                                style="background:#007bff;color:#fff;padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
+                                + Add New Account
+                            </button>
+                        </div>
 
-                <div style="display:flex;justify-content:space-between;margin-top:20px;">
-                    <button type="button" class="cancel-btn" id="cancelJournalNew" 
-                        style="background:#f2f2f2;color:#555;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;">Cancel</button>
-                    <button type="submit" class="confirm-btn" 
-                        style="background:#2ecc71;color:#fff;padding:8px 16px;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Create Entry</button>
-                </div>
-            </form>
-        </div>
+                        <div id="balanceDisplay" style="text-align:center;margin-bottom:16px;font-weight:600;font-size:20px;color:green;">
+                            Balance: 0.00
+                        </div>
 
+                        <div style="display:flex;justify-content:space-between;margin-top:20px;">
+                            <button type="button" class="cancel-btn" id="cancelJournalNew" 
+                                style="background:#f2f2f2;color:#555;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;">Cancel</button>
+                            <button type="submit" class="confirm-btn" 
+                                style="background:#2ecc71;color:#fff;padding:8px 16px;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Create Entry</button>
+                        </div>
+                    </form>
+                </div>
             `;
             document.body.appendChild(modal);
-            
-            modal.querySelector('#closeJournalNewModal').addEventListener('click', () => modal.style.display = 'none');
-            modal.querySelector('#cancelJournalNew').addEventListener('click', () => modal.style.display = 'none');
-            
-            // Set today's date as default
-            const today = new Date().toISOString().split('T')[0];
-            modal.querySelector('#newJournalDate').value = today;
 
-            // Load accounts into select dropdown
-                fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: ADMIN_ID })
-                })
-                .then(res => res.json())
-                .then(data => {
-                
-                    let accounts = [];
-                if (Array.isArray(data)) {
-                    accounts = data;
-                } 
+            // Close modal handlers
+            modal.querySelector('#closeJournalNewModal').addEventListener('click', closeModal);
+            modal.querySelector('#cancelJournalNew').addEventListener('click', closeModal);
+
+            function closeModal() {
+                modal.style.display = 'none';
+                form.reset();
+                fileList.innerHTML = '';
+                files = [];
+                accountRowsContainer.innerHTML = '';
+                balanceDisplay.textContent = 'Balance: 0.00';
+            }
+
+            const accountRowsContainer = modal.querySelector('#accountRowsContainer');
+            const balanceDisplay = modal.querySelector('#balanceDisplay');
+            const form = modal.querySelector('#journalNewForm');
+
+
+            let files = [];
+            let availableAccounts = [];
+
+            fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: ADMIN_ID })
+            })
+            .then(res => res.json())
+            .then(data => {
+                let accounts = [];
+                if (Array.isArray(data)) accounts = data;
                 else if (data.body) {
-                
-                    try { accounts = JSON.parse(data.body); } 
-                    catch { accounts = data.body; }
+                    try { accounts = JSON.parse(data.body); } catch { accounts = data.body; }
                 }
+                availableAccounts = accounts.filter(acc => acc.is_active === true || acc.is_active === 1 || acc.is_active === "1");
 
-                // Get both dropdowns
-                const accountType1 = modal.querySelector('#newJournalAccountType');
-                const accountType2 = modal.querySelector('#newJournalAccountType2');
-
-                // Only include active accounts (if property exists)
-                let filteredAccounts = accounts.filter(acc => acc.is_active === true || acc.is_active === 1 || acc.is_active === "1");
-
-                function populateSelect(selectEl) {
-                    selectEl.innerHTML = '<option value="">Select account</option>';
-                    filteredAccounts
-                    .sort((a, b) => a.account_number.localeCompare(b.account_number))
-                    .forEach(acc => {
-                    const option = document.createElement('option');
-                    option.value = acc.account_number;
-                    option.textContent = `${acc.account_number} - ${acc.account_name}`;
-                    selectEl.appendChild(option);
-                    });
-                }
-
-                populateSelect(accountType1);
-                populateSelect(accountType2);
+                addAccountRow();
+                addAccountRow();
             })
             .catch(err => console.error('Error loading accounts:', err));
 
-
-            // Form submission handler
-            modal.querySelector('#journalNewForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = {
-                    date: formData.get('date'),
-                    description: formData.get('description'),
-                    account_number: formData.get('account_number'),
-                    debit: parseFloat(formData.get('debit')) || 0,
-                    credit: parseFloat(formData.get('credit')) || 0,
-                    status: 'pending' // New entries are always pending
-                };
-
-                // Validate that either debit or credit is filled, but not both
-                if ((data.debit > 0 && data.credit > 0) || (data.debit === 0 && data.credit === 0)) {
-                    alert('Please enter either a debit or credit amount, but not both.');
-                    return;
-                }
-
-                try {
-                    const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_trans', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            admin_id: ADMIN_ID,
-                            ...data
-                        })
+            function populateAccountDropdown(selectElement) {
+                selectElement.innerHTML = '<option value="">Select account</option>';
+                availableAccounts
+                    .sort((a, b) => a.account_number.localeCompare(b.account_number))
+                    .forEach(acc => {
+                        const option = document.createElement('option');
+                        option.value = acc.account_number;
+                        option.textContent = `${acc.account_number} - ${acc.account_name}`;
+                        selectElement.appendChild(option);
                     });
-                    
-                    if (!response.ok) throw new Error('Failed to create journal entry');
-                    
-                    modal.style.display = 'none';
-                    e.target.reset(); // Clear form
-                    document.getElementById('fileList').innerHTML = ''; // Clear file list
-                    await fetchJournalEntries(); // Refresh the table
-                } catch (err) {
-                    console.error('Error creating journal entry:', err);
-                    alert('Failed to create journal entry. Please try again.');
-                }
-            });
+            }
 
-            // Initialize drag and drop functionality
+            function updateAccountOptions() {
+                const selectedAccounts = Array.from(accountRowsContainer.querySelectorAll('select'))
+                    .map(s => s.value)
+                    .filter(v => v);
+
+                accountRowsContainer.querySelectorAll('select').forEach(select => {
+                    const currentValue = select.value; 
+                    populateAccountDropdown(select);     
+                    select.value = currentValue;         
+
+                    Array.from(select.options).forEach(option => {
+                        if (option.value && option.value !== currentValue && selectedAccounts.includes(option.value)) {
+                            option.disabled = true;
+                        }
+                    });
+                });
+            }
+
+            // Add a new account row
+            function addAccountRow() {
+                const newRow = document.createElement('div');
+                newRow.className = 'account-row';
+                newRow.style.display = 'flex';
+                newRow.style.gap = '12px';
+                newRow.style.marginBottom = '12px';
+
+                newRow.innerHTML = `
+                    <div style="flex:1;">
+                        <select name="account_number" class="accountSelect" 
+                            style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <input type="number" name="debit" class="debitInput" min="0" 
+                            style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+                    </div>
+                    <div style="flex:1;">
+                        <input type="number" name="credit" class="creditInput" min="0" 
+                            style="width:100px;padding:8px 10px;border:1px solid #ccc;border-radius:6px; text-align:right;">
+                    </div>
+                    <div style="flex:0;">
+                        <button type="button" class="removeRowBtn" 
+                            style="background:none;border:none;color:red;font-size:18px;cursor:pointer;">&times;</button>
+                    </div>
+                `;
+                accountRowsContainer.appendChild(newRow);
+
+                const accountSelect = newRow.querySelector('select');
+                const debitInput = newRow.querySelector('.debitInput');
+                const creditInput = newRow.querySelector('.creditInput');
+                const removeBtn = newRow.querySelector('.removeRowBtn');
+
+                populateAccountDropdown(accountSelect);
+                updateAccountOptions();
+
+                // Debit/Credit locking
+                debitInput.addEventListener('input', () => {
+                    if (debitInput.value && parseFloat(debitInput.value) > 0) {
+                        creditInput.disabled = true;
+                        creditInput.style.background = '#eee';
+                    } else {
+                        creditInput.disabled = false;
+                        creditInput.style.background = '#fff';
+                    }
+                    updateBalance();
+                });
+
+                creditInput.addEventListener('input', () => {
+                    if (creditInput.value && parseFloat(creditInput.value) > 0) {
+                        debitInput.disabled = true;
+                        debitInput.style.background = '#eee';
+                    } else {
+                        debitInput.disabled = false;
+                        debitInput.style.background = '#fff';
+                    }
+                    updateBalance();
+                });
+
+                accountSelect.addEventListener('change', updateAccountOptions);
+
+                removeBtn.addEventListener('click', () => {
+                    newRow.remove();
+                    updateBalance();
+                    updateAccountOptions();
+                });
+            }
+
+            modal.querySelector('#addNewAccountBtn').addEventListener('click', addAccountRow);
+
+            // Update balance
+            function updateBalance() {
+                const debitFields = form.querySelectorAll('.debitInput');
+                const creditFields = form.querySelectorAll('.creditInput');
+
+                let totalDebit = 0, totalCredit = 0;
+                debitFields.forEach(i => totalDebit += parseFloat(i.value) || 0);
+                creditFields.forEach(i => totalCredit += parseFloat(i.value) || 0);
+
+                const balance = totalDebit - totalCredit;
+
+                // Reorder rows: debit rows first, then credit rows
+                const rows = Array.from(accountRowsContainer.querySelectorAll('.account-row'));
+                const activeElement = document.activeElement;
+                const activeSelectionStart = activeElement.selectionStart;
+                const activeSelectionEnd = activeElement.selectionEnd;
+
+                rows.sort((a, b) => {
+                    const aDebit = parseFloat(a.querySelector('.debitInput').value) || 0;
+                    const aCredit = parseFloat(a.querySelector('.creditInput').value) || 0;
+                    const bDebit = parseFloat(b.querySelector('.debitInput').value) || 0;
+                    const bCredit = parseFloat(b.querySelector('.creditInput').value) || 0;
+
+                    if ((aDebit > 0 && bDebit > 0) || (aCredit > 0 && bCredit > 0)) return 0;
+                    if (aDebit > 0 && bCredit > 0) return -1;
+                    if (aCredit > 0 && bDebit > 0) return 1;
+                    return 0;
+                });
+
+                rows.forEach(row => accountRowsContainer.appendChild(row));
+
+                if (activeElement && activeElement.tagName === 'INPUT') {
+                    activeElement.focus();
+                    if (typeof activeSelectionStart === 'number' && typeof activeSelectionEnd === 'number') {
+                        activeElement.setSelectionRange(activeSelectionStart, activeSelectionEnd);
+                    }
+                }
+
+                balanceDisplay.textContent = `Balance: ${balance.toFixed(2)}`;
+                balanceDisplay.style.color = Math.abs(balance) < 0.001 ? 'green' : 'red';
+            }
+
+
+            // Drag & Drop Files
             const dragDropArea = modal.querySelector('#dragDropArea');
             const fileInput = modal.querySelector('#fileInput');
             const fileList = modal.querySelector('#fileList');
-            let files = [];
 
             dragDropArea.addEventListener('click', () => fileInput.click());
-
-            fileInput.addEventListener('change', (e) => {
-                const newFiles = Array.from(e.target.files);
-                handleFiles(newFiles);
-            });
-
-            dragDropArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dragDropArea.style.background = '#e9e9e9';
-            });
-
-            dragDropArea.addEventListener('dragleave', () => {
-                dragDropArea.style.background = '#f9f9f9';
-            });
-
-            dragDropArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dragDropArea.style.background = '#f9f9f9';
-                const newFiles = Array.from(e.dataTransfer.files);
-                handleFiles(newFiles);
-            });
+            fileInput.addEventListener('change', e => handleFiles(Array.from(e.target.files)));
+            dragDropArea.addEventListener('dragover', e => { e.preventDefault(); dragDropArea.style.background = '#e9e9e9'; });
+            dragDropArea.addEventListener('dragleave', () => dragDropArea.style.background = '#f9f9f9');
+            dragDropArea.addEventListener('drop', e => { e.preventDefault(); dragDropArea.style.background = '#f9f9f9'; handleFiles(Array.from(e.dataTransfer.files)); });
 
             function handleFiles(newFiles) {
                 files = [...files, ...newFiles];
@@ -1088,22 +1146,59 @@ async function loadJournal() {
                         <button type="button" class="remove-file" data-index="${index}" style="border:none; background:none; color:red; cursor:pointer;">&times;</button>
                     </div>
                 `).join('');
-
-                fileList.querySelectorAll('.remove-file').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const index = parseInt(e.target.getAttribute('data-index'));
-                        files.splice(index, 1);
-                        updateFileList();
-                    });
-                });
+                fileList.querySelectorAll('.remove-file').forEach(btn => btn.addEventListener('click', e => {
+                    const index = parseInt(e.target.dataset.index);
+                    files.splice(index, 1);
+                    updateFileList();
+                }));
             }
-        }
-        
-        modal.style.display = 'flex';
+
+        // Set today's date
+        modal.querySelector('#newJournalDate').value = new Date().toISOString().split('T')[0];
+
+        // Submit form
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const description = formData.get('description');
+            const date = formData.get('date');
+
+            const rows = Array.from(accountRowsContainer.querySelectorAll('.account-row')).map(row => {
+                const account_number = row.querySelector('select').value;
+                const debit = parseFloat(row.querySelector('.debitInput').value) || 0;
+                const credit = parseFloat(row.querySelector('.creditInput').value) || 0;
+                return { account_number, debit, credit };
+            }).filter(r => r.account_number && (r.debit > 0 || r.credit > 0));
+
+            if (rows.length === 0) { alert('Please fill at least one account row with debit or credit.'); return; }
+
+            try {
+                const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_trans', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        admin_id: ADMIN_ID,
+                        date,
+                        description,
+                        transactions: rows,
+                        status: 'pending'
+                    })
+                });
+                if (!response.ok) throw new Error('Failed to create journal entry');
+                closeModal();
+                await fetchJournalEntries(); // refresh table
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Failed to create journal entry. Please try again.');
+            }
+        });
     }
 
-    // Add click handler for new journal entry button
-    document.getElementById('newJournalEntryBtn').addEventListener('click', showNewEntryModal);
+    modal.style.display = 'flex';
+}
+
+// Attach new journal button
+document.getElementById('newJournalEntryBtn').addEventListener('click', showNewEntryModal);
 
     function render() {
         let filtered = [...entries];

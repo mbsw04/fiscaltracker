@@ -8,7 +8,20 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
-  const { user_id, trans_id, credit, debit, description, comment } = body;
+  const { user_id, trans_id, credit, debit, description, comment, type } = body;
+
+  // Validate transaction type if provided
+  if (type !== undefined) {
+    const validTypes = ['standard', 'reversal', 'adjustment', 'closing'];
+    if (!validTypes.includes(type)) {
+      return { 
+        statusCode: 400, 
+        body: JSON.stringify({ 
+          error: `Invalid transaction type. Must be one of: ${validTypes.join(', ')}` 
+        }) 
+      };
+    }
+  }
 
   // Convert arrays to comma-separated strings with 2 decimal places
   const creditStr = Array.isArray(credit) ? 
@@ -30,9 +43,10 @@ export const handler = async (event) => {
 
     const [beforeRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
     const before = beforeRows && beforeRows[0] ? beforeRows[0] : null;
+    
     await conn.execute(
-      `UPDATE Transactions SET credit=?, debit=?, description=?, comment=? WHERE id=?`,
-      [creditStr, debitStr, description, comment || null, trans_id]
+      `UPDATE Transactions SET credit=?, debit=?, type=?, description=?, comment=? WHERE id=?`,
+      [creditStr, debitStr, type || 'standard', description, comment || null, trans_id]
     );
     const [afterRows] = await conn.execute(`SELECT * FROM Transactions WHERE id = ?`, [trans_id]);
     const after = afterRows && afterRows[0] ? afterRows[0] : null;
