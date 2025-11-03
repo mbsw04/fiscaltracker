@@ -956,6 +956,7 @@ async function loadJournal() {
             const balanceDisplay = modal.querySelector('#balanceDisplay');
             const form = modal.querySelector('#journalNewForm');
 
+
             let files = [];
             let availableAccounts = [];
 
@@ -1089,9 +1090,38 @@ async function loadJournal() {
                 creditFields.forEach(i => totalCredit += parseFloat(i.value) || 0);
 
                 const balance = totalDebit - totalCredit;
+
+                // Reorder rows: debit rows first, then credit rows
+                const rows = Array.from(accountRowsContainer.querySelectorAll('.account-row'));
+                const activeElement = document.activeElement;
+                const activeSelectionStart = activeElement.selectionStart;
+                const activeSelectionEnd = activeElement.selectionEnd;
+
+                rows.sort((a, b) => {
+                    const aDebit = parseFloat(a.querySelector('.debitInput').value) || 0;
+                    const aCredit = parseFloat(a.querySelector('.creditInput').value) || 0;
+                    const bDebit = parseFloat(b.querySelector('.debitInput').value) || 0;
+                    const bCredit = parseFloat(b.querySelector('.creditInput').value) || 0;
+
+                    if ((aDebit > 0 && bDebit > 0) || (aCredit > 0 && bCredit > 0)) return 0;
+                    if (aDebit > 0 && bCredit > 0) return -1;
+                    if (aCredit > 0 && bDebit > 0) return 1;
+                    return 0;
+                });
+
+                rows.forEach(row => accountRowsContainer.appendChild(row));
+
+                if (activeElement && activeElement.tagName === 'INPUT') {
+                    activeElement.focus();
+                    if (typeof activeSelectionStart === 'number' && typeof activeSelectionEnd === 'number') {
+                        activeElement.setSelectionRange(activeSelectionStart, activeSelectionEnd);
+                    }
+                }
+
                 balanceDisplay.textContent = `Balance: ${balance.toFixed(2)}`;
                 balanceDisplay.style.color = Math.abs(balance) < 0.001 ? 'green' : 'red';
             }
+
 
             // Drag & Drop Files
             const dragDropArea = modal.querySelector('#dragDropArea');
