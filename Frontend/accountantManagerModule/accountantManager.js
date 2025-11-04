@@ -98,6 +98,7 @@ updateContent('chartOfAccounts');
 function updateContent(tab) {
     switch(tab) {
         case 'chartOfAccounts': loadChartOfAccounts(); break;
+        case 'trialBalance': loadTrialBalance(); break;
         case 'journal': loadJournal(); break;
         case 'eventLog': loadEventLog(); break;
         default: actionContent.innerHTML = '';
@@ -583,6 +584,132 @@ async function loadChartOfAccounts() {
     }
 
     await fetchAccounts();
+}
+
+// Trial Balance tab — full page view (for managers)
+async function loadTrialBalance() {
+    actionContent.innerHTML = `
+        <h2>Trial Balance</h2>
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+            <label style="display:flex; flex-direction:column;">As of Date
+                <input type="date" id="tbAsOf_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
+            </label>
+            <label style="display:flex; flex-direction:column;">From
+                <input type="date" id="tbFrom_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
+            </label>
+            <label style="display:flex; flex-direction:column;">To
+                <input type="date" id="tbTo_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
+            </label>
+            <div style="display:flex; gap:8px; margin-left:auto;">
+                <button id="generateTB_page" class="confirm-btn primary-green">Generate</button>
+                <button id="clearTB_page" class="cancel-btn">Clear</button>
+            </div>
+        </div>
+        <div id="tbMsg_page" style="color:#c00; margin-bottom:8px;"></div>
+        <div id="tbResults_page" style="max-height:60vh; overflow:auto;"></div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+            <button id="saveTB_page" class="action-btn">Save CSV</button>
+            <button id="emailTB_page" class="action-btn">Email</button>
+            <button id="printTB_page" class="action-btn">Print</button>
+        </div>
+    `;
+
+    const resultsEl = document.getElementById('tbResults_page');
+    const msgEl = document.getElementById('tbMsg_page');
+    let lastTB = null;
+
+    async function fetchAccountsForTB() {
+        try {
+            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: ADMIN_ID })
+            });
+            let data = await res.json();
+            if (data && typeof data.body === 'string') {
+                try { data = JSON.parse(data.body); } catch (e) {}
+            }
+            let rows = [];
+            if (Array.isArray(data)) rows = data;
+            else if (Array.isArray(data.rows)) rows = data.rows;
+            else if (Array.isArray(data.accounts)) rows = data.accounts;
+            else if (Array.isArray(data.body)) rows = data.body;
+            rows = (rows || []).map(r => ({ ...r, balance: Number(r.balance || 0) }));
+            return rows;
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    async function generateTBPage() {
+        resultsEl.innerHTML = '<p>Generating trial balance...</p>';
+        msgEl.textContent = '';
+        try {
+            const accounts = await fetchAccountsForTB();
+            const rows = accounts.map(a => ({ account_number: a.account_number || '', account_name: a.account_name || '', balance: Number(a.balance || 0) }));
+            let totalDebit = 0, totalCredit = 0;
+            const tbRows = rows.map(r => {
+                const bal = Number(r.balance) || 0;
+                let debit = 0, credit = 0;
+                if (bal >= 0) { debit = bal; totalDebit += bal; } else { credit = Math.abs(bal); totalCredit += Math.abs(bal); }
+                return { account_number: r.account_number, account_name: r.account_name, debit, credit };
+            });
+
+            let html = `<div style="overflow:auto;"><table style="width:100%; border-collapse:collapse;"><thead><tr><th style="text-align:left; padding:8px;">Account Number</th><th style="text-align:left; padding:8px;">Account Name</th><th style="text-align:right; padding:8px;">Debit</th><th style="text-align:right; padding:8px;">Credit</th></tr></thead><tbody>`;
+            tbRows.forEach(r => { html += `<tr><td style="padding:8px;">${r.account_number}</td><td style="padding:8px;">${r.account_name}</td><td style="padding:8px; text-align:right">${formatAccounting(r.debit)}</td><td style="padding:8px; text-align:right">${formatAccounting(r.credit)}</td></tr>`; });
+            html += `<tr style="font-weight:bold;"><td colspan="2" style="padding:8px; text-align:right">Totals</td><td style="padding:8px; text-align:right">${formatAccounting(totalDebit)}</td><td style="padding:8px; text-align:right">${formatAccounting(totalCredit)}</td></tr>`;
+            html += `</tbody></table></div>`;
+            resultsEl.innerHTML = html;
+            lastTB = { rows: tbRows, totalDebit, totalCredit, generatedAt: new Date().toISOString() };
+        } catch (err) {
+            resultsEl.innerHTML = `<p style="color:red;">Error generating trial balance: ${err.message}</p>`;
+        }
+    }
+
+    function downloadTBPageCSV() {
+        if (!lastTB) { alert('No trial balance generated yet.'); return; }
+        const tb = lastTB;
+        const lines = [];
+        lines.push(['Account Number','Account Name','Debit','Credit'].join(','));
+        tb.rows.forEach(r => { lines.push([`"${r.account_number}"`,`"${r.account_name}"`,r.debit.toFixed(2),r.credit.toFixed(2)].join(',')); });
+        lines.push(["","Totals",tb.totalDebit.toFixed(2),tb.totalCredit.toFixed(2)].join(','));
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `trial-balance-${(new Date()).toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    async function emailTBPage() {
+        if (!lastTB) { alert('No trial balance generated yet.'); return; }
+        const to = prompt('Enter recipient email:');
+        if (!to) return;
+        const message = prompt('Optional message to include:', `Trial Balance generated on ${new Date(lastTB.generatedAt).toLocaleString()}`) || '';
+        let body = message + '\n\n';
+        body += 'Account Number,Account Name,Debit,Credit\n';
+        lastTB.rows.forEach(r => { body += `${r.account_number},${r.account_name},${r.debit.toFixed(2)},${r.credit.toFixed(2)}\n`; });
+        body += `\nTotals,,${lastTB.totalDebit.toFixed(2)},${lastTB.totalCredit.toFixed(2)}`;
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_send_email', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ admin_id: ADMIN_ID, admin_email: user.email || '', user_email: to, first_name: 'Recipient', last_name: '', message: body })
+            });
+            let data = await res.json(); if (typeof data.body === 'string') { try { data = { ...data, ...JSON.parse(data.body) }; } catch (e) {} }
+            if (!res.ok) throw new Error(data.error || 'Failed to send email');
+            alert('Email queued/sent (backend dependent).');
+        } catch (err) { alert('Email failed: ' + (err.message || err)); }
+    }
+
+    function printTBPage() {
+        if (!lastTB) { alert('No trial balance to print.'); return; }
+        const content = resultsEl.innerHTML;
+        const w = window.open('', '_blank'); if (!w) { alert('Popup blocked. Allow popups to print.'); return; }
+        w.document.write(`<html><head><title>Trial Balance</title><style>table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #ccc;text-align:left}td.right{text-align:right}</style></head><body><h2>Trial Balance</h2>${content}</body></html>`);
+        w.document.close(); w.focus(); setTimeout(()=> w.print(), 300);
+    }
+
+    document.getElementById('generateTB_page').addEventListener('click', generateTBPage);
+    document.getElementById('clearTB_page').addEventListener('click', () => { document.getElementById('tbAsOf_page').value = ''; document.getElementById('tbFrom_page').value = ''; document.getElementById('tbTo_page').value = ''; document.getElementById('tbMsg_page').textContent = ''; document.getElementById('tbResults_page').innerHTML = ''; lastTB = null; });
+    document.getElementById('saveTB_page').addEventListener('click', downloadTBPageCSV);
+    document.getElementById('emailTB_page').addEventListener('click', emailTBPage);
+    document.getElementById('printTB_page').addEventListener('click', printTBPage);
 }
 
 // Journal tab: show role-specific journal entries view
