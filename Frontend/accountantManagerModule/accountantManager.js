@@ -814,93 +814,91 @@ async function loadJournal() {
     }
 
     function showEditModal(entry) {
-        let modal = document.getElementById('journalEditModal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'journalEditModal';
-            modal.className = 'modal-overlay';
-            modal.innerHTML = `
-                <div class="modal-content" style="min-width:400px">
-                    <button type="button" id="closeJournalEditModal" class="modal-close-x">&times;</button>
-                    <h3>Edit Journal Entry</h3>
-                    <form id="journalEditForm">
-                        <input type="hidden" name="id" id="editJournalId">
-                        <div style="margin-bottom:12px">
-                            <label style="display:block;margin-bottom:4px">Description</label>
-                            <textarea name="description" id="editJournalDescription" style="width:100%;min-height:60px" required></textarea>
+    let modal = document.getElementById('journalEditModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'journalEditModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content" style="min-width:400px">
+                <button type="button" id="closeJournalEditModal" class="modal-close-x">&times;</button>
+                <h3>Edit Journal Entry</h3>
+                <form id="journalEditForm">
+                    <input type="hidden" name="id" id="editJournalId">
+                    <div style="margin-bottom:12px">
+                        <label style="display:block;margin-bottom:4px">Description</label>
+                        <textarea name="description" id="editJournalDescription" style="width:100%;min-height:60px" required></textarea>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-bottom:12px">
+                        <div style="flex:1">
+                            <label style="display:block;margin-bottom:4px">Debit</label>
+                            <input type="number" name="debit" id="editJournalDebit" step="0.01" min="0">
                         </div>
-                        <div style="margin-bottom:12px">
-                            <label style="display:block;margin-bottom:4px">Account</label>
-                            <input type="text" name="account" id="editJournalAccount" style="width:100%" readonly>
+                        <div style="flex:1">
+                            <label style="display:block;margin-bottom:4px">Credit</label>
+                            <input type="number" name="credit" id="editJournalCredit" step="0.01" min="0">
                         </div>
-                        <div style="display:flex;gap:12px;margin-bottom:12px">
-                            <div style="flex:1">
-                                <label style="display:block;margin-bottom:4px">Debit</label>
-                                <input type="number" name="debit" id="editJournalDebit" step="0.01" min="0">
-                            </div>
-                            <div style="flex:1">
-                                <label style="display:block;margin-bottom:4px">Credit</label>
-                                <input type="number" name="credit" id="editJournalCredit" step="0.01" min="0">
-                            </div>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;margin-top:20px">
-                            <button type="button" class="cancel-btn" id="cancelJournalEdit">Cancel</button>
-                            <button type="submit" class="confirm-btn">Save Changes</button>
-                        </div>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            
-            modal.querySelector('#closeJournalEditModal').addEventListener('click', () => modal.style.display = 'none');
-            modal.querySelector('#cancelJournalEdit').addEventListener('click', () => modal.style.display = 'none');
-            
-            modal.querySelector('#journalEditForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = {
-                    id: formData.get('id'),
-                    description: formData.get('description'),
-                    debit: parseFloat(formData.get('debit')) || 0,
-                    credit: parseFloat(formData.get('credit')) || 0
-                };
-                
-                try {
-                    const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_trans', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            admin_id: ADMIN_ID,
-                            ...data
-                        })
-                    });
-                    
-                    if (!response.ok) throw new Error('Failed to update journal entry');
-                    
-                    modal.style.display = 'none';
-                    await fetchJournalEntries(); // Refresh the table
-                } catch (err) {
-                    console.error('Error updating journal entry:', err);
-                    alert('Failed to update journal entry. Please try again.');
-                }
-            });
-        }
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-top:20px">
+                        <button type="button" class="cancel-btn" id="cancelJournalEdit">Cancel</button>
+                        <button type="submit" class="confirm-btn">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
 
-        // Populate form with entry data
-        modal.querySelector('#editJournalId').value = entry.id;
-        modal.querySelector('#editJournalDescription').value = entry.description || '';
-        modal.querySelector('#editJournalAccount').value = `${entry.account_number} - ${entry.account_name || ''}`;
-        modal.querySelector('#editJournalDebit').value = entry.debit || '';
-        modal.querySelector('#editJournalCredit').value = entry.credit || '';
-        
-        modal.style.display = 'flex';
+        modal.querySelector('#closeJournalEditModal').addEventListener('click', () => modal.style.display = 'none');
+        modal.querySelector('#cancelJournalEdit').addEventListener('click', () => modal.style.display = 'none');
+
+        modal.querySelector('#journalEditForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                trans_id: formData.get('id'),
+                description: formData.get('description'),
+                debit: parseFloat(formData.get('debit')) || 0,
+                credit: parseFloat(formData.get('credit')) || 0,
+            };
+
+            try {
+                const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_trans', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: ADMIN_ID,
+                        ...data,
+                    }),
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Failed to update transaction');
+
+                alert('Journal entry updated successfully.');
+                modal.style.display = 'none';
+                await fetchJournalEntries(); // refresh
+            } catch (err) {
+                console.error('Error updating journal entry:', err);
+                alert('Failed to update journal entry. Please try again.');
+            }
+        });
     }
 
-    // Add global function for edit button click
-    window.editJournalEntry = (id) => {
-        const entry = entries.find(e => e.id === id);
-        if (entry) showEditModal(entry);
-    };
+    // Populate modal with current entry data
+    modal.querySelector('#editJournalId').value = entry.id;
+    modal.querySelector('#editJournalDescription').value = entry.description || '';
+    modal.querySelector('#editJournalDebit').value = entry.debit || '';
+    modal.querySelector('#editJournalCredit').value = entry.credit || '';
+
+    modal.style.display = 'flex';
+}
+
+// Triggered when Edit button is clicked
+window.editJournalEntry = (id) => {
+    const entry = entries.find(e => e.id === id);
+    if (entry) showEditModal(entry);
+};
+
 
     // Approve helper (calls AA_approve_trans)
     window.approveJournalEntry = async (id) => {
@@ -1283,13 +1281,14 @@ async function loadJournal() {
         // Set today's date
         modal.querySelector('#newJournalDate').value = new Date().toISOString().split('T')[0];
 
-        // Submit form
-        form.addEventListener('submit', async e => {
+         form.addEventListener('submit', async e => {
             e.preventDefault();
+
             const formData = new FormData(form);
             const description = formData.get('description');
             const date = formData.get('date');
 
+            // Collect account rows
             const rows = Array.from(accountRowsContainer.querySelectorAll('.account-row')).map(row => {
                 const account_number = row.querySelector('select').value;
                 const debit = parseFloat(row.querySelector('.debitInput').value) || 0;
@@ -1297,32 +1296,63 @@ async function loadJournal() {
                 return { account_number, debit, credit };
             }).filter(r => r.account_number && (r.debit > 0 || r.credit > 0));
 
-            if (rows.length === 0) { alert('Please fill at least one account row with debit or credit.'); return; }
+            if (rows.length === 0) { 
+                alert('Please fill at least one account row with debit or credit.'); 
+                return; 
+            }
+
+            // Transform rows into flattened arrays for Lambda
+            const debitAccounts = [];
+            const creditAccounts = [];
+            const debitAmounts = [];
+            const creditAmounts = [];
+
+            rows.forEach(r => {
+                if (r.debit > 0) {
+                    debitAccounts.push(r.account_number);
+                    debitAmounts.push(r.debit);
+                }
+                if (r.credit > 0) {
+                    creditAccounts.push(r.account_number);
+                    creditAmounts.push(r.credit);
+                }
+            });
+
+            const payload = {
+                user_id: ADMIN_ID,
+                date,
+                description,
+                status: 'pending',
+                debit_account_id: debitAccounts.join(','),
+                credit_account_id: creditAccounts.join(','),
+                debit: debitAmounts.join(','),
+                credit: creditAmounts.join(',')
+            };
 
             try {
                 const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_trans', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        admin_id: ADMIN_ID,
-                        date,
-                        description,
-                        transactions: rows,
-                        status: 'pending'
-                    })
+                    body: JSON.stringify(payload)
                 });
-                if (!response.ok) throw new Error('Failed to create journal entry');
-                closeModal();
-                await fetchJournalEntries(); // refresh table
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Failed to create transaction');
+
+                alert('Journal entry created successfully!');
+                modal.style.display = 'none';
+                await fetchJournalEntries();
             } catch (err) {
-                console.error('Error:', err);
+                console.error('Error creating transaction:', err);
                 alert('Failed to create journal entry. Please try again.');
             }
         });
-    }
 
-    modal.style.display = 'flex';
-}
+
+
+        }
+
+        modal.style.display = 'flex';
+    }
 
 // Attach new journal button
 document.getElementById('newJournalEntryBtn').addEventListener('click', showNewEntryModal);
