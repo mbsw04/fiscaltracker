@@ -98,7 +98,7 @@ updateContent('chartOfAccounts');
 function updateContent(tab) {
     switch(tab) {
         case 'chartOfAccounts': loadChartOfAccounts(); break;
-        case 'trialBalance': loadTrialBalance(); break;
+        case 'reports': loadReports(); break;
         case 'journal': loadJournal(); break;
         case 'eventLog': loadEventLog(); break;
         default: actionContent.innerHTML = '';
@@ -471,6 +471,7 @@ async function loadChartOfAccounts() {
         <h2>Chart of Accounts</h2>
         <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
             <input id="accountsSearch" placeholder="Search accounts (all fields)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+            <button id="sendEmailBtn" class="email-user-btn" style="font-size:1.05em; padding:8px 18px; border-radius:8px; border:2px solid #757575; font-weight:bold; cursor:pointer;">Send Email</button>
         </div>
         <div id="accountsTablesContainer" style="margin-top:18px;"></div>
     `;
@@ -479,6 +480,191 @@ async function loadChartOfAccounts() {
     let accounts = [];
     let searchTerm = '';
     const sortState = { col: null, asc: true };
+
+    let allUsers = []; // will be filled from your Lambda
+
+    async function fetchUsers() {
+        try {
+            const res = await fetch(
+                'https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_user_list',
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_id: ADMIN_ID }),
+                }
+            );
+
+            // get the top-level JSON
+            let data = await res.json();
+
+            // parse the body string from the Lambda response
+            if (data.body) {
+                try { data = JSON.parse(data.body); } catch (e) {}
+            }
+
+            if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
+
+            // Filter only managers & accountants (case-insensitive)
+            const filtered = data.users.filter(u => {
+                const role = (u.role || '').toLowerCase();
+                return role === 'manager' || role === 'accountant';
+            });
+
+            console.log('Fetched + filtered users:', filtered);
+            return filtered;
+
+        } catch (err) {
+            console.error('fetchUsers error:', err);
+            return [];
+        }
+    }
+
+    allUsers = await fetchUsers();
+
+    async function openEmailModal() {
+        // Fetch admin info from localStorage
+        let admin = { first_name: '', last_name: '', email: '' };
+        try {
+            const u = JSON.parse(localStorage.getItem('user'));
+            if (u) admin = { first_name: u.first_name || '', last_name: u.last_name || '', email: u.email || '' };
+        } catch (e) {}
+
+        // Create modal if not exists
+        let modal = document.getElementById('emailModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'emailModal';
+            modal.className = 'modal-overlay';
+            modal.style.display = 'none';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100vw';
+            modal.style.height = '100vh';
+            modal.style.background = 'rgba(0,0,0,0.4)';
+            modal.style.zIndex = '1002';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+
+            modal.innerHTML = `
+                <div class="modal-content" style="background:#fff; padding:32px 28px; border-radius:16px; max-width:500px; width:90%; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                    <button type="button" id="closeEmailUserModal" class="modal-close-x" style="position:absolute; top:12px; right:12px; font-size:1.5em; background:none; border:none; cursor:pointer;">&times;</button>
+                    <h3 style="text-align:center; margin-bottom:18px;">Send Email</h3>
+                    <form id="emailForm" style="display:flex; flex-direction:column; gap:12px;">
+                        <label>Role
+                            <select id="emailRoleSelect" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc;">
+                                <option value="">Select Role</option>
+                                <option value="manager">Manager</option>
+                                <option value="accountant">Accountant</option>
+                            </select>
+                        </label>
+                        <label>User
+                            <select id="emailUserSelect" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc;">
+                                <option value="">Select User</option>
+                            </select>
+                        </label>
+                        <label>Message
+                            <textarea id="emailMessage" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc; height:120px;"></textarea>
+                        </label>
+                        <div id="emailError" style="color:red; min-height:18px;"></div>
+                        <div style="display:flex; justify-content:flex-end; gap:12px;">
+                            <button type="submit" class="email-user-btn" style="background-color:#9e9e9e; border-color:#757575; color:#fff; padding:8px 16px; border-radius:7px;">Send Email</button>
+                            <button type="button" id="clearEmailForm" style="padding:8px 16px; border-radius:7px; border:1px solid #ccc; background:#f8f9fa; color:#333;">Clear</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Close modal
+            modal.querySelector('#closeEmailUserModal').onclick = () => { modal.style.display = 'none'; };
+
+            // Clear form
+            modal.querySelector('#clearEmailForm').onclick = () => {
+                modal.querySelector('#emailRoleSelect').value = '';
+                modal.querySelector('#emailUserSelect').innerHTML = '<option value="">Select User</option>';
+                modal.querySelector('#emailMessage').value = '';
+                modal.querySelector('#emailError').textContent = '';
+            };
+
+            // Populate user dropdown when role changes
+            const roleSelect = modal.querySelector('#emailRoleSelect');
+            const userSelect = modal.querySelector('#emailUserSelect');
+            roleSelect.addEventListener('change', () => {
+                const selectedRole = roleSelect.value.toLowerCase();
+                userSelect.innerHTML = '<option value="">Select User</option>';
+                const filteredUsers = allUsers.filter(u => (u.role || '').toLowerCase() === selectedRole);
+                filteredUsers.forEach(user => {
+                    const opt = document.createElement('option');
+                    opt.value = user.email;
+                    opt.textContent = `${user.first_name} ${user.last_name}`;
+                    opt.dataset.firstName = user.first_name;
+                    opt.dataset.lastName = user.last_name;
+                    userSelect.appendChild(opt);
+                });
+            });
+
+            // Handle form submission
+            const emailForm = modal.querySelector('#emailForm');
+            emailForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const errorDiv = modal.querySelector('#emailError');
+                errorDiv.textContent = '';
+
+                const userEmail = modal.querySelector('#emailUserSelect').value;
+                const message = modal.querySelector('#emailMessage').value;
+                const selectedOption = modal.querySelector('#emailUserSelect').selectedOptions[0];
+
+                if (!userEmail || !message) {
+                    errorDiv.textContent = 'Please fill all fields.';
+                    return;
+                }
+
+                const firstName = selectedOption?.dataset.firstName || '';
+                const lastName = selectedOption?.dataset.lastName || '';
+
+                try {
+                    const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_send_email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            admin_id: ADMIN_ID,
+                            admin_email: admin.email,
+                            user_email: userEmail,
+                            first_name: firstName,
+                            last_name: lastName,
+                            message: message
+                        })
+                    });
+
+                    let data = await res.json();
+                    if (typeof data.body === 'string') {
+                        try { data = { ...data, ...JSON.parse(data.body) }; } catch (e) {}
+                    }
+
+                    if (!res.ok) throw new Error(data.error || 'Failed to send email');
+
+                    alert('Email sent successfully!');
+                    modal.style.display = 'none';
+                    // Clear form
+                    modal.querySelector('#emailRoleSelect').value = '';
+                    modal.querySelector('#emailUserSelect').innerHTML = '<option value="">Select User</option>';
+                    modal.querySelector('#emailMessage').value = '';
+
+                } catch (err) {
+                    console.error('Email error:', err);
+                    errorDiv.textContent = err.message || 'Failed to send email';
+                }
+            });
+        }
+
+        // Show modal
+        modal.style.display = 'flex';
+    }
+
+    // Attach to button
+    document.getElementById('sendEmailBtn').addEventListener('click', () => openEmailModal());
 
     async function fetchAccounts() {
         accountsContainer.innerHTML = '<p>Loading accounts...</p>';
@@ -497,6 +683,10 @@ async function loadChartOfAccounts() {
             else if (Array.isArray(data.body)) rows = data.body;
             rows = (rows || []).map(r => ({ ...r, is_active: r.is_active === 1 || r.is_active === true || String(r.is_active) === 'true' }));
             accounts = rows.filter(a => a.is_active);
+            
+            // Store accounts globally for modal access
+            window.availableAccounts = accounts.slice();
+            
             render();
         } catch (err) {
             accountsContainer.innerHTML = `<p style="color:red;">Error loading accounts: ${err.message}</p>`;
@@ -586,11 +776,20 @@ async function loadChartOfAccounts() {
     await fetchAccounts();
 }
 
-// Trial Balance tab — full page view (for managers)
-async function loadTrialBalance() {
+// Reports tab — full page view (for managers)
+async function loadReports() {
     actionContent.innerHTML = `
-        <h2>Trial Balance</h2>
-        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+        <h2>Reports</h2>
+        <div style="display:flex; gap:12px; align-items:end; margin-bottom:12px; flex-wrap:wrap;">
+            <label style="display:flex; flex-direction:column; margin-bottom:0;">Choose Report Type
+                <select id="reportType" style="padding:8px; border-radius:6px; border:1px solid #ccc; font-size:inherit; font-family:inherit; margin-top:auto;">
+                    <option value="">Select Report Type</option>
+                    <option value="trialBalance">Trial Balance</option>
+                    <option value="incomeStatement">Income Statement</option>
+                    <option value="balanceSheet">Balance Sheet</option>
+                    <option value="retainedEarnings">Retained Earnings</option>
+                </select>
+            </label>
             <label style="display:flex; flex-direction:column;">As of Date
                 <input type="date" id="tbAsOf_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
             </label>
@@ -643,22 +842,136 @@ async function loadTrialBalance() {
         resultsEl.innerHTML = '<p>Generating trial balance...</p>';
         msgEl.textContent = '';
         try {
+            const asOfDate = document.getElementById('tbAsOf_page').value;
+            const fromDate = document.getElementById('tbFrom_page').value;
+            const toDate = document.getElementById('tbTo_page').value;
+            
+            // Fetch accounts and transactions
             const accounts = await fetchAccountsForTB();
-            const rows = accounts.map(a => ({ account_number: a.account_number || '', account_name: a.account_name || '', balance: Number(a.balance || 0) }));
+            
+            // Fetch all transactions to calculate cumulative balances
+            const transResponse = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: ADMIN_ID })
+            });
+            let transData = await transResponse.json();
+            if (transData && typeof transData.body === 'string') {
+                try { transData = JSON.parse(transData.body); } catch (e) {}
+            }
+            let allTransactions = Array.isArray(transData) ? transData :
+                                 Array.isArray(transData.body) ? transData.body :
+                                 Array.isArray(transData.transactions) ? transData.transactions : [];
+            
+            // Filter transactions for cumulative calculation
+            let transactionsToInclude = allTransactions;
+            
+            if (asOfDate) {
+                // For "As of" date, include all transactions up to and including that date
+                transactionsToInclude = allTransactions.filter(t => {
+                    const transDate = new Date(t.created_at || t.date).toISOString().split('T')[0];
+                    return transDate <= asOfDate;
+                });
+            } else if (fromDate || toDate) {
+                // For period reporting, we need opening balances + period transactions
+                let openingBalanceTransactions = [];
+                let periodTransactions = [];
+                
+                if (fromDate) {
+                    // Get all transactions before the "from" date for opening balances
+                    openingBalanceTransactions = allTransactions.filter(t => {
+                        const transDate = new Date(t.created_at || t.date).toISOString().split('T')[0];
+                        return transDate < fromDate;
+                    });
+                    
+                    // Get transactions within the period
+                    periodTransactions = allTransactions.filter(t => {
+                        const transDate = new Date(t.created_at || t.date).toISOString().split('T')[0];
+                        const withinPeriod = transDate >= fromDate && (!toDate || transDate <= toDate);
+                        return withinPeriod;
+                    });
+                    
+                    // Combine opening + period for cumulative effect
+                    transactionsToInclude = [...openingBalanceTransactions, ...periodTransactions];
+                } else if (toDate) {
+                    // Just "to" date specified - cumulative up to that date
+                    transactionsToInclude = allTransactions.filter(t => {
+                        const transDate = new Date(t.created_at || t.date).toISOString().split('T')[0];
+                        return transDate <= toDate;
+                    });
+                }
+            }
+            // If no dates specified, use all transactions (default behavior)
+            
+            // Calculate cumulative account balances
+            const accountBalances = {};
+            accounts.forEach(acc => {
+                // Start with the account's stored balance as the opening balance
+                accountBalances[acc.id] = Number(acc.balance || 0);
+            });
+            
+            // Only include approved transactions in trial balance
+            const approvedTransactions = transactionsToInclude.filter(t => 
+                (t.status || '').toLowerCase() === 'approved'
+            );
+            
+            // Apply transactions on top of opening balances
+            approvedTransactions.forEach(trans => {
+                // Process debit accounts
+                if (trans.debit_account_ids_array && trans.debit_amounts_array) {
+                    trans.debit_account_ids_array.forEach((accountId, index) => {
+                        if (accountBalances.hasOwnProperty(accountId)) {
+                            accountBalances[accountId] += (trans.debit_amounts_array[index] || 0);
+                        }
+                    });
+                }
+                
+                // Process credit accounts
+                if (trans.credit_account_ids_array && trans.credit_amounts_array) {
+                    trans.credit_account_ids_array.forEach((accountId, index) => {
+                        if (accountBalances.hasOwnProperty(accountId)) {
+                            accountBalances[accountId] -= (trans.credit_amounts_array[index] || 0);
+                        }
+                    });
+                }
+            });
+            
+            // Create trial balance rows with calculated balances
+            const rows = accounts.map(a => ({
+                account_number: a.account_number || '',
+                account_name: a.account_name || '',
+                balance: accountBalances[a.id] || 0
+            }));
+            
             let totalDebit = 0, totalCredit = 0;
             const tbRows = rows.map(r => {
                 const bal = Number(r.balance) || 0;
                 let debit = 0, credit = 0;
                 if (bal >= 0) { debit = bal; totalDebit += bal; } else { credit = Math.abs(bal); totalCredit += Math.abs(bal); }
-                return { account_number: r.account_number, account_name: r.account_name, debit, credit };
+                return { account_number: r.account_number, account_name: r.account_name, debit, credit, balance: bal };
             });
 
-            let html = `<div style="overflow:auto;"><table style="width:100%; border-collapse:collapse;"><thead><tr><th style="text-align:left; padding:8px;">Account Number</th><th style="text-align:left; padding:8px;">Account Name</th><th style="text-align:right; padding:8px;">Debit</th><th style="text-align:right; padding:8px;">Credit</th></tr></thead><tbody>`;
-            tbRows.forEach(r => { html += `<tr><td style="padding:8px;">${r.account_number}</td><td style="padding:8px;">${r.account_name}</td><td style="padding:8px; text-align:right">${formatAccounting(r.debit)}</td><td style="padding:8px; text-align:right">${formatAccounting(r.credit)}</td></tr>`; });
-            html += `<tr style="font-weight:bold;"><td colspan="2" style="padding:8px; text-align:right">Totals</td><td style="padding:8px; text-align:right">${formatAccounting(totalDebit)}</td><td style="padding:8px; text-align:right">${formatAccounting(totalCredit)}</td></tr>`;
+            // Add date range info to the header
+            let dateInfo = '';
+            if (asOfDate) {
+                dateInfo += `Trial Balance as of ${asOfDate}`;
+            } else if (fromDate || toDate) {
+                dateInfo += `Trial Balance for period ${fromDate || 'Beginning'} to ${toDate || 'Current'}`;
+            } else {
+                dateInfo += 'Trial Balance - All Time';
+            }
+
+            let html = `<div style="overflow:auto;">`;
+            html += `<p style="font-weight:bold; margin-bottom:12px; color:#333; font-size:1.1em;">${dateInfo}</p>`;
+            html += `<p style="margin-bottom:8px; color:#666; font-size:0.9em;">Based on ${approvedTransactions.length} approved transactions</p>`;
+            html += `<table style="width:100%; border-collapse:collapse;"><thead><tr><th style="text-align:left; padding:8px; border-bottom:2px solid #333;">Account Number</th><th style="text-align:left; padding:8px; border-bottom:2px solid #333;">Account Name</th><th style="text-align:right; padding:8px; border-bottom:2px solid #333;">Debit</th><th style="text-align:right; padding:8px; border-bottom:2px solid #333;">Credit</th></tr></thead><tbody>`;
+            tbRows.forEach(r => { 
+                html += `<tr><td style="padding:8px;">${r.account_number}</td><td style="padding:8px;">${r.account_name}</td><td style="padding:8px; text-align:right">${formatAccounting(r.debit)}</td><td style="padding:8px; text-align:right">${formatAccounting(r.credit)}</td></tr>`; 
+            });
+            html += `<tr style="font-weight:bold; border-top:2px solid #333;"><td colspan="2" style="padding:8px; text-align:right">Totals</td><td style="padding:8px; text-align:right">${formatAccounting(totalDebit)}</td><td style="padding:8px; text-align:right">${formatAccounting(totalCredit)}</td></tr>`;
             html += `</tbody></table></div>`;
             resultsEl.innerHTML = html;
-            lastTB = { rows: tbRows, totalDebit, totalCredit, generatedAt: new Date().toISOString() };
+            lastTB = { rows: tbRows, totalDebit, totalCredit, generatedAt: new Date().toISOString(), dateInfo };
         } catch (err) {
             resultsEl.innerHTML = `<p style="color:red;">Error generating trial balance: ${err.message}</p>`;
         }
@@ -737,6 +1050,8 @@ async function loadJournal() {
     let entries = [];
     let searchTerm = '';
     let statusFilter = 'all';
+    let dateFromFilter = '';
+    let dateToFilter = '';
     const sortState = { col: 'date', asc: false };
 
     async function fetchJournalEntries() {
@@ -1110,7 +1425,7 @@ window.editJournalEntry = (id) => {
                     .sort((a, b) => a.account_number.localeCompare(b.account_number))
                     .forEach(acc => {
                         const option = document.createElement('option');
-                        option.value = acc.account_number;
+                        option.value = acc.id; // Use integer ID for selection and payload
                         option.textContent = `${acc.account_number} - ${acc.account_name}`;
                         selectElement.appendChild(option);
                     });
@@ -1290,11 +1605,11 @@ window.editJournalEntry = (id) => {
 
             // Collect account rows
             const rows = Array.from(accountRowsContainer.querySelectorAll('.account-row')).map(row => {
-                const account_number = row.querySelector('select').value;
+                const account_id = row.querySelector('select').value; // Now integer ID
                 const debit = parseFloat(row.querySelector('.debitInput').value) || 0;
                 const credit = parseFloat(row.querySelector('.creditInput').value) || 0;
-                return { account_number, debit, credit };
-            }).filter(r => r.account_number && (r.debit > 0 || r.credit > 0));
+                return { account_id, debit, credit };
+            }).filter(r => r.account_id && (r.debit > 0 || r.credit > 0));
 
             if (rows.length === 0) { 
                 alert('Please fill at least one account row with debit or credit.'); 
@@ -1309,11 +1624,11 @@ window.editJournalEntry = (id) => {
 
             rows.forEach(r => {
                 if (r.debit > 0) {
-                    debitAccounts.push(r.account_number);
+                    debitAccounts.push(r.account_id);
                     debitAmounts.push(r.debit);
                 }
                 if (r.credit > 0) {
-                    creditAccounts.push(r.account_number);
+                    creditAccounts.push(r.account_id);
                     creditAmounts.push(r.credit);
                 }
             });
@@ -1373,6 +1688,21 @@ document.getElementById('newJournalEntryBtn').addEventListener('click', showNewE
             );
         }
 
+        // Add date filtering
+        if (dateFromFilter) {
+            filtered = filtered.filter(e => {
+                const entryDate = new Date(e.date).toISOString().split('T')[0];
+                return entryDate >= dateFromFilter;
+            });
+        }
+        
+        if (dateToFilter) {
+            filtered = filtered.filter(e => {
+                const entryDate = new Date(e.date).toISOString().split('T')[0];
+                return entryDate <= dateToFilter;
+            });
+        }
+
         if (sortState.col) {
             filtered.sort((a, b) => {
                 let aVal = a[sortState.col];
@@ -1423,38 +1753,49 @@ document.getElementById('newJournalEntryBtn').addEventListener('click', showNewE
         render();
     });
 
+    document.getElementById('journalFilterFrom').addEventListener('change', (e) => {
+        dateFromFilter = e.target.value;
+        render();
+    });
+
+    document.getElementById('journalFilterTo').addEventListener('change', (e) => {
+        dateToFilter = e.target.value;
+        render();
+    });
+
     // Initial load
     fetchJournalEntries();
 }
 
 // Simple account details modal (reuse behavior from admin module)
 function showAccountModal(accountNumber) {
-    // The accounts for this module live in the closure of loadChartOfAccounts (accounts variable) —
-    // fall back to fetching a lightweight placeholder if not available here.
-    // Try to find the account in any tables present on the page.
     let acc = null;
+    let accountId = null;
+    
     try {
         // Search DOM rows for a matching data-account-number attribute
         const el = document.querySelector(`[data-account-number='${accountNumber}']`);
         if (el) {
-            // gather fields from cells (best effort)
             const cells = el.querySelectorAll('td');
             acc = { account_number: accountNumber };
             if (cells && cells.length) {
-                // cell positions: account_number (0), account_name (1), category (2), subcategory (3), balance (4), statement (5), description (6)
-                acc.account_number = cells[0] ? cells[0].textContent.trim() : accountNumber;
-                acc.account_name = cells[1] ? cells[1].textContent.trim() : '';
-                acc.category = cells[2] ? cells[2].textContent.trim() : '';
-                acc.subcategory = cells[3] ? cells[3].textContent.trim() : '';
-                acc.balance = cells[4] ? cells[4].textContent.trim() : '';
-                acc.statement = cells[5] ? cells[5].textContent.trim() : '';
-                acc.description = cells[6] ? cells[6].textContent.trim() : '';
+                acc.account_name = cells[1]?.textContent || '';
+                acc.category = cells[2]?.textContent || '';
+                acc.subcategory = cells[3]?.textContent || '';
+                acc.balance = cells[4]?.textContent || '';
+                acc.statement = cells[5]?.textContent || '';
+                acc.description = cells[6]?.textContent || '';
             }
+        }
+        
+        // Always map account number to account ID using availableAccounts
+        if (window.availableAccounts && Array.isArray(window.availableAccounts)) {
+            const found = window.availableAccounts.find(a => String(a.account_number) === String(accountNumber));
+            if (found) accountId = Number(found.id || found.account_id);
         }
     } catch (e) { acc = null; }
 
     if (!acc) {
-        // Best-effort fallback: show a minimal modal indicating the account number
         acc = { account_number: accountNumber, account_name: '', category: '', subcategory: '', balance: '', statement: '', description: '' };
     }
 
@@ -1482,26 +1823,84 @@ function showAccountModal(accountNumber) {
     bodyDiv.innerHTML = `
         <label style="font-size:1.2em; font-weight:700; margin-bottom:12px; display:block;">Account Name: ${acc.account_name || ''}</label>
         <label style="font-weight:600; margin-bottom:8px; display:block;">Account Number: ${acc.account_number || ''}</label>
-        <table border:none; border-collapse:collapse; cellpadding="8" cellspacing="0" 
-       style="width:100%; max-width:800px; margin-bottom:12px; border-collapse:collapse;">
-        <tr>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:300px;">Description</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Debit</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Credit</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
-        </tr>
-        <tr>
-            <td style="text-align:center; padding:12px; font-size:1em;">loading... </td>
-            <td style="padding:12px; font-size:1em;">loading...</td>
-            <td style="padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-        </tr>
-        </table>    
+        <div id="accountTransTableWrap"><p>Loading transactions...</p></div>
     `;
 
     modal.style.display = 'flex';
+
+    // Fetch transactions for this account and populate the table
+    (async () => {
+        try {
+            const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: ADMIN_ID})
+            });
+            let data = await response.json();
+            if (data && typeof data.body === 'string') {
+                try { data = JSON.parse(data.body); } catch (e) {}
+            }
+            let entries = Array.isArray(data) ? data :
+                         Array.isArray(data.body) ? data.body :
+                         Array.isArray(data.transactions) ? data.transactions : [];
+            
+            // Filter for this account using account ID
+            let filtered = [];
+            if (accountId) {
+                filtered = entries.filter(e =>
+                    (Array.isArray(e.debit_account_ids_array) && e.debit_account_ids_array.includes(accountId)) ||
+                    (Array.isArray(e.credit_account_ids_array) && e.credit_account_ids_array.includes(accountId))
+                );
+            }
+            
+            let html = `<table border="none" border-collapse="collapse" cellpadding="8" cellspacing="0" style="width:100%; max-width:800px; margin-bottom:12px; border-collapse:collapse;">
+                <tr>
+                    <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
+                    <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
+                    <th style="text-align:center; padding:12px; font-size:1.1em; min-width:300px;">Description</th>
+                    <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Debit</th>
+                    <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Credit</th>
+                    <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
+                </tr>`;
+            
+            if (!filtered.length) {
+                html += `<tr><td colspan="6" style="text-align:center; color:#c00; padding:16px;">No transactions found for this account.</td></tr>`;
+            } else {
+                let runningBalance = 0;
+                filtered.forEach(e => {
+                    const isDebit = e.debit_account_ids_array && e.debit_account_ids_array.includes(accountId);
+                    const isCredit = e.credit_account_ids_array && e.credit_account_ids_array.includes(accountId);
+                    
+                    let debitAmount = 0;
+                    let creditAmount = 0;
+                    
+                    if (isDebit) {
+                        const debitIndex = e.debit_account_ids_array.indexOf(accountId);
+                        debitAmount = e.debit_amounts_array[debitIndex] || 0;
+                        runningBalance += debitAmount;
+                    }
+                    
+                    if (isCredit) {
+                        const creditIndex = e.credit_account_ids_array.indexOf(accountId);
+                        creditAmount = e.credit_amounts_array[creditIndex] || 0;
+                        runningBalance -= creditAmount;
+                    }
+                    
+                    html += `<tr>
+                        <td style="text-align:center; padding:8px;">${new Date(e.created_at).toLocaleDateString()}</td>
+                        <td style="text-align:center; padding:8px;">${e.id || ''}</td>
+                        <td style="text-align:left; padding:8px;">${e.description || ''}</td>
+                        <td style="text-align:right; padding:8px;">${debitAmount ? formatAccounting(debitAmount) : ''}</td>
+                        <td style="text-align:right; padding:8px;">${creditAmount ? formatAccounting(creditAmount) : ''}</td>
+                        <td style="text-align:right; padding:8px;">${formatAccounting(runningBalance)}</td>
+                    </tr>`;
+                });
+            }
+            
+            html += `</table>`;
+            document.getElementById('accountTransTableWrap').innerHTML = html;
+        } catch (err) {
+            document.getElementById('accountTransTableWrap').innerHTML = `<p style="color:red;">Error loading transactions: ${err.message}</p>`;
+        }
+    })();
 }
