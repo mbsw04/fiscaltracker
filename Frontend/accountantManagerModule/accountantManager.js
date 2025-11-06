@@ -51,6 +51,7 @@ function showLogoutModal() {
         modal.querySelector('#confirmLogoutBtn').addEventListener('click', () => { try { localStorage.removeItem('user'); } catch (e) {}; window.location.href = '../LoginModule/index.html'; });
     }
     modal.style.display = 'flex';
+ 
 }
 
 const actionContent = document.getElementById('actionContent');
@@ -591,13 +592,13 @@ async function loadTrialBalance() {
     actionContent.innerHTML = `
         <h2>Trial Balance</h2>
         <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
-            <label style="display:flex; flex-direction:column;">As of Date
+            <label style="display:flex; flex-direction:column;">As of Date:
                 <input type="date" id="tbAsOf_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
             </label>
-            <label style="display:flex; flex-direction:column;">From
+            <label style="display:flex; flex-direction:column;">From:
                 <input type="date" id="tbFrom_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
             </label>
-            <label style="display:flex; flex-direction:column;">To
+            <label style="display:flex; flex-direction:column;">To:
                 <input type="date" id="tbTo_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
             </label>
             <div style="display:flex; gap:8px; margin-left:auto;">
@@ -1449,29 +1450,130 @@ function showAccountModal(accountNumber) {
     }
 
     const bodyDiv = modal.querySelector('#accountViewBody');
-    bodyDiv.innerHTML = `
-        <label style="font-size:1.2em; font-weight:700; margin-bottom:12px; display:block;">Account Name: ${acc.account_name || ''}</label>
-        <label style="font-weight:600; margin-bottom:8px; display:block;">Account Number: ${acc.account_number || ''}</label>
-        <table border:none; border-collapse:collapse; cellpadding="8" cellspacing="0" 
-       style="width:100%; max-width:800px; margin-bottom:12px; border-collapse:collapse;">
-        <tr>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:300px;">Description</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Debit</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Credit</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
-        </tr>
-        <tr>
-            <td style="text-align:center; padding:12px; font-size:1em;">loading... </td>
-            <td style="padding:12px; font-size:1em;">loading...</td>
-            <td style="padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-        </tr>
-        </table>    
-    `;
+        bodyDiv.innerHTML = `
+                <label style="font-size:1.2em; font-weight:700; margin-bottom:12px; display:block;">Account Name: ${acc.account_name || ''}</label>
+                <label style="font-weight:600; margin-bottom:8px; display:block;">Account Number: ${acc.account_number || ''}</label>
+                <div style="width:100%; overflow:auto; max-height:60vh; margin-bottom:12px;">
+                    <table class="account-trans-table" style="width:100%; min-width:720px; border-collapse:collapse; border:1px solid #e6e6e6; font-size:0.95em;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left; padding:10px 12px; background:#f5f7fa; border-bottom:1px solid #e6e6e6;">Date</th>
+                                <th style="text-align:left; padding:10px 12px; background:#f5f7fa; border-bottom:1px solid #e6e6e6;">Reference No.</th>
+                                <th style="text-align:left; padding:10px 12px; background:#f5f7fa; border-bottom:1px solid #e6e6e6;">Description</th>
+                                <th style="text-align:right; padding:10px 12px; background:#f5f7fa; border-bottom:1px solid #e6e6e6;">Debit</th>
+                                <th style="text-align:right; padding:10px 12px; background:#f5f7fa; border-bottom:1px solid #e6e6e6;">Credit</th>
+                                <th style="text-align:right; padding:10px 12px; background:#f5f7fa; border-bottom:1px solid #e6e6e6;">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding:18px; color:#666;">Loading transactions...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+        `;
 
     modal.style.display = 'flex';
+
+    // small helper: escape HTML to avoid injection in table cells
+    function escapeHtmlLocal(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // Load transactions for this account and populate the table body
+    (async function loadAccountTransactions() {
+        try {
+            const table = bodyDiv.querySelector('table');
+            if (!table) return;
+            const tbody = table.querySelector('tbody') || (function(){ const b = document.createElement('tbody'); table.appendChild(b); return b; })();
+            tbody.innerHTML = `<tr><td colspan="6">Loading transactions...</td></tr>`;
+
+            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_list', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: ADMIN_ID, account_number: accountNumber })
+            });
+            let data = await res.json();
+            if (data && typeof data.body === 'string') {
+                try { data = JSON.parse(data.body); } catch (e) { /* leave as-is */ }
+            }
+
+            let rows = [];
+            if (Array.isArray(data)) rows = data;
+            else if (Array.isArray(data.rows)) rows = data.rows;
+            else if (Array.isArray(data.transactions)) rows = data.transactions;
+            else if (Array.isArray(data.body)) rows = data.body;
+            else rows = [];
+
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="6">No transactions found for account ${escapeHtmlLocal(accountNumber)}.</td></tr>`;
+                return;
+            }
+
+            // Build table rows and running balance
+            let running = 0;
+            let totalDebit = 0, totalCredit = 0;
+            let html = '';
+
+            rows.forEach(tx => {
+                const dateRaw = tx.date || tx.created_at || tx.createdAt || tx.posted_at || tx.transaction_date || '';
+                const date = dateRaw ? new Date(dateRaw).toLocaleDateString() : '';
+                const ref = tx.ref_no || tx.reference || tx.id || tx.trans_id || tx.transaction_id || '';
+                const desc = tx.description || tx.memo || tx.narration || '';
+
+                // Determine amounts that affect this account. Try multiple shapes returned by backend.
+                let debit = 0, credit = 0;
+                if (tx.debit !== undefined || tx.credit !== undefined) {
+                    debit = Number(tx.debit) || 0;
+                    credit = Number(tx.credit) || 0;
+                } else {
+                    // Try arrays: debit_account_numbers / debit_amounts_array etc.
+                    const dAccs = tx.debit_account_numbers || tx.debit_account_names || tx.debit_account_array || [];
+                    const cAccs = tx.credit_account_numbers || tx.credit_account_names || tx.credit_account_array || [];
+                    const dAmts = Array.isArray(tx.debit_amounts_array) ? tx.debit_amounts_array : (Array.isArray(tx.debit_amounts) ? tx.debit_amounts : []);
+                    const cAmts = Array.isArray(tx.credit_amounts_array) ? tx.credit_amounts_array : (Array.isArray(tx.credit_amounts) ? tx.credit_amounts : []);
+
+                    if (Array.isArray(dAccs) && Array.isArray(dAmts)) {
+                        const idx = dAccs.findIndex(a => String(a) === String(accountNumber));
+                        if (idx >= 0) debit = Number(dAmts[idx]) || 0;
+                    }
+                    if (Array.isArray(cAccs) && Array.isArray(cAmts)) {
+                        const idx = cAccs.findIndex(a => String(a) === String(accountNumber));
+                        if (idx >= 0) credit = Number(cAmts[idx]) || 0;
+                    }
+                }
+
+                totalDebit += debit;
+                totalCredit += credit;
+                running += debit - credit;
+
+                html += `<tr>`;
+                html += `<td style="text-align:center;padding:8px;">${escapeHtmlLocal(date)}</td>`;
+                html += `<td style="padding:8px;">${escapeHtmlLocal(ref)}</td>`;
+                html += `<td style="padding:8px;">${escapeHtmlLocal(desc)}</td>`;
+                html += `<td style="text-align:right;padding:8px;">${formatAccounting(debit)}</td>`;
+                html += `<td style="text-align:right;padding:8px;">${formatAccounting(credit)}</td>`;
+                html += `<td style="text-align:right;padding:8px;">${formatAccounting(running)}</td>`;
+                html += `</tr>`;
+            });
+
+            // Totals row
+            html += `<tr style="font-weight:bold;"><td colspan="3" style="padding:8px; text-align:right;">Totals</td><td style="padding:8px; text-align:right">${formatAccounting(totalDebit)}</td><td style="padding:8px; text-align:right">${formatAccounting(totalCredit)}</td><td style="padding:8px; text-align:right">${formatAccounting(running)}</td></tr>`;
+
+            tbody.innerHTML = html;
+        } catch (err) {
+            try {
+                const table = bodyDiv.querySelector('table');
+                const tbody = table ? (table.querySelector('tbody') || table.appendChild(document.createElement('tbody'))) : null;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="color:red;">Error loading transactions: ${escapeHtmlLocal(err.message || String(err))}</td></tr>`;
+            } catch (e) { console.error('Failed to render transaction error', e); }
+            console.error('Error fetching account transactions', err);
+        }
+    })();
 }
