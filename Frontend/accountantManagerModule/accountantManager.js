@@ -51,6 +51,7 @@ function showLogoutModal() {
         modal.querySelector('#confirmLogoutBtn').addEventListener('click', () => { try { localStorage.removeItem('user'); } catch (e) {}; window.location.href = '../LoginModule/index.html'; });
     }
     modal.style.display = 'flex';
+ 
 }
 
 const actionContent = document.getElementById('actionContent');
@@ -793,10 +794,10 @@ async function loadReports() {
             <label style="display:flex; flex-direction:column;">As of Date
                 <input type="date" id="tbAsOf_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
             </label>
-            <label style="display:flex; flex-direction:column;">From
+            <label style="display:flex; flex-direction:column;">From:
                 <input type="date" id="tbFrom_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
             </label>
-            <label style="display:flex; flex-direction:column;">To
+            <label style="display:flex; flex-direction:column;">To:
                 <input type="date" id="tbTo_page" style="padding:8px; border-radius:6px; border:1px solid #ccc;">
             </label>
             <div style="display:flex; gap:8px; margin-left:auto;">
