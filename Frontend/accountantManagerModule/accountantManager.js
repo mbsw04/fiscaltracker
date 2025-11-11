@@ -1364,6 +1364,7 @@ window.editJournalEntry = (id) => {
                             </button>
                         </div>
 
+                        <div id="journalFormError" style="display:none;text-align:center;margin-bottom:8px;color:#b00020;font-weight:600;"></div>
                         <div id="balanceDisplay" style="text-align:center;margin-bottom:16px;font-weight:600;font-size:20px;color:green;">
                             Balance: 0.00
                         </div>
@@ -1390,12 +1391,18 @@ window.editJournalEntry = (id) => {
                 files = [];
                 accountRowsContainer.innerHTML = '';
                 balanceDisplay.textContent = 'Balance: 0.00';
+                const fe = modal.querySelector('#journalFormError'); if (fe) { fe.textContent = ''; fe.style.display = 'none'; }
             }
 
             const accountRowsContainer = modal.querySelector('#accountRowsContainer');
             const balanceDisplay = modal.querySelector('#balanceDisplay');
             const form = modal.querySelector('#journalNewForm');
-
+            const formError = modal.querySelector('#journalFormError');
+            function setFormError(msg) {
+                if (!formError) return;
+                formError.textContent = msg || '';
+                formError.style.display = msg ? 'block' : 'none';
+            }
 
             let files = [];
             let availableAccounts = [];
@@ -1596,59 +1603,71 @@ window.editJournalEntry = (id) => {
         // Set today's date
         modal.querySelector('#newJournalDate').value = new Date().toISOString().split('T')[0];
 
-         form.addEventListener('submit', async e => {
+            // Submit form with validation (inline errors shown above balance)
+        form.addEventListener('submit', async e => {
             e.preventDefault();
-
+            setFormError('');
             const formData = new FormData(form);
-            const description = formData.get('description');
-            const date = formData.get('date');
+            const description = (formData.get('description') || '').toString().trim();
+            const date = (formData.get('date') || '').toString().trim();
 
-            // Collect account rows
-            const rows = Array.from(accountRowsContainer.querySelectorAll('.account-row')).map(row => {
-                const account_id = row.querySelector('select').value; // Now integer ID
-                const debit = parseFloat(row.querySelector('.debitInput').value) || 0;
-                const credit = parseFloat(row.querySelector('.creditInput').value) || 0;
-                return { account_id, debit, credit };
-            }).filter(r => r.account_id && (r.debit > 0 || r.credit > 0));
+            // Basic validations
+            if (!date) { setFormError('Please select a date for the journal entry.'); const dEl = modal.querySelector('#newJournalDate'); dEl && dEl.focus(); return; }
+            if (!description) { setFormError('Please enter a description for the journal entry.'); const descEl = modal.querySelector('#newJournalDescription'); descEl && descEl.focus(); return; }
 
-            if (rows.length === 0) { 
-                alert('Please fill at least one account row with debit or credit.'); 
-                return; 
+            // Validate each account row: select present & account chosen, and debit xor credit entered
+            const allRows = Array.from(accountRowsContainer.querySelectorAll('.account-row'));
+            if (!allRows.length) { setFormError('Please add at least one account row.'); return; }
+
+            const validatedRows = [];
+            for (let i = 0; i < allRows.length; i++) {
+                const row = allRows[i];
+                const sel = row.querySelector('select');
+                const debitEl = row.querySelector('.debitInput');
+                const creditEl = row.querySelector('.creditInput');
+                if (!sel) continue;
+                const account_number = (sel.value || '').toString().trim();
+                const debit = parseFloat(debitEl && debitEl.value) || 0;
+                const credit = parseFloat(creditEl && creditEl.value) || 0;
+
+                if (!account_number) { setFormError('Please select an account in every dropdown (or remove unused rows).'); sel.focus(); return; }
+                if (debit === 0 && credit === 0) { setFormError('Please enter either a debit or credit amount for all account '); (debitEl || creditEl || sel).focus(); return; }
+                if (debit > 0 && credit > 0) { setFormError('Please enter either a debit or credit for account ' + account_number + ', not both.'); (debitEl || creditEl || sel).focus(); return; }
+
+                // Only include rows that have an account and a non-zero amount
+                if (account_number && (debit > 0 || credit > 0)) validatedRows.push({ account_number, debit, credit });
             }
 
-            // Transform rows into flattened arrays for Lambda
-            const debitAccounts = [];
-            const creditAccounts = [];
-            const debitAmounts = [];
-            const creditAmounts = [];
+            if (validatedRows.length === 0) { setFormError('Please fill at least one account row with debit or credit.'); return; }
 
-            rows.forEach(r => {
-                if (r.debit > 0) {
-                    debitAccounts.push(r.account_id);
-                    debitAmounts.push(r.debit);
+            // Ensure debits equal credits (balance must be zero)
+            const totalDebit = validatedRows.reduce((s, r) => s + (parseFloat(r.debit) || 0), 0);
+            const totalCredit = validatedRows.reduce((s, r) => s + (parseFloat(r.credit) || 0), 0);
+            const diff = totalDebit - totalCredit;
+            const EPS = 0.005; // small tolerance for floating math
+            if (Math.abs(diff) > EPS) {
+                setFormError(`Entries are not balanced. Total Debit: ${totalDebit.toFixed(2)}, Total Credit: ${totalCredit.toFixed(2)}. Please adjust amounts so the balance is zero.`);
+                // focus first offending input: prefer first row's debit or credit
+                const firstRow = accountRowsContainer.querySelector('.account-row');
+                if (firstRow) {
+                    const debitEl = firstRow.querySelector('.debitInput');
+                    const creditEl = firstRow.querySelector('.creditInput');
+                    (debitEl || creditEl).focus();
                 }
-                if (r.credit > 0) {
-                    creditAccounts.push(r.account_id);
-                    creditAmounts.push(r.credit);
-                }
-            });
-
-            const payload = {
-                user_id: ADMIN_ID,
-                date,
-                description,
-                status: 'pending',
-                debit_account_id: debitAccounts.join(','),
-                credit_account_id: creditAccounts.join(','),
-                debit: debitAmounts.join(','),
-                credit: creditAmounts.join(',')
-            };
+                return;
+            }
 
             try {
                 const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_trans', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        admin_id: ADMIN_ID,
+                        date,
+                        description,
+                        transactions: validatedRows,
+                        status: 'pending'
+                    })
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Failed to create transaction');
