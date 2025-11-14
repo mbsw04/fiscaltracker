@@ -36,16 +36,16 @@ export const handler = async (event) => {
       database: RDS_DB,
     });
 
-    // 1. Check if admin exists and has correct role
-    const [adminRows] = await connection.execute(
-      "SELECT id, role FROM Users WHERE id = ? AND role = 'administrator'",
+    // 1. Check if user exists and has correct role (allow administrator, manager, or accountant)
+    const [userRows] = await connection.execute(
+      "SELECT id, role FROM Users WHERE id = ? AND role IN ('administrator', 'manager', 'accountant')",
       [admin_id]
     );
 
-    if (adminRows.length === 0) {
+    if (userRows.length === 0) {
       return {
         statusCode: 403,
-        body: JSON.stringify({ error: "Not authorized or admin not found" }),
+        body: JSON.stringify({ error: "Not authorized or user not found" }),
       };
     }
 

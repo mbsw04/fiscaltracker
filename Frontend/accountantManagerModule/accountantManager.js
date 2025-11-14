@@ -64,6 +64,162 @@ try {
     if (user && user.role) CURRENT_ROLE = (user.role || '').toString().toLowerCase();
 } catch (e) {}
 
+// Global variables for email functionality
+let allUsers = [];
+
+// Global user fetching function
+async function fetchUsers() {
+  try {
+    const res = await fetch(
+      'https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_user_list',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_id: ADMIN_ID }),
+      }
+    );
+
+    let data = await res.json();
+    if (data.body) {
+      data = JSON.parse(data.body);
+    }
+
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
+
+    const filtered = data.users.filter(u => {
+      const role = (u.role || '').toLowerCase();
+      return role === 'manager' || role === 'accountant';
+    });
+
+    console.log('Fetched + filtered users:', filtered);
+    return filtered;
+
+  } catch (err) {
+    console.error('fetchUsers error:', err);
+    return [];
+  }
+}
+
+// Fetch users immediately when the script loads
+(async () => {
+    try {
+        allUsers = await fetchUsers();
+        console.log('Global allUsers populated:', allUsers);
+    } catch (err) {
+        console.error('Failed to populate global users:', err);
+    }
+})();
+
+// Global email modal function
+async function openEmailModal() {
+    // Fetch admin info from localStorage
+    let admin = { first_name: '', last_name: '', email: '' };
+    try {
+        const u = JSON.parse(localStorage.getItem('user'));
+        if (u) admin = { first_name: u.first_name || '', last_name: u.last_name || '', email: u.email || '' };
+    } catch (e) {}
+
+    // Create modal if not exists
+    let modal = document.getElementById('emailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'emailModal';
+        modal.className = 'modal-overlay';
+        modal.style.display = 'none';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+        modal.style.background = 'rgba(0,0,0,0.4)';
+        modal.style.zIndex = '1002';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+
+        modal.innerHTML = `
+            <div class="modal-content" style="background:#fff; padding:32px 28px; border-radius:16px; max-width:500px; width:90%; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+                <button type="button" id="closeEmailUserModal" class="modal-close-x" style="position:absolute; top:12px; right:12px; font-size:1.5em; background:none; border:none; cursor:pointer;">&times;</button>
+                <h3 style="text-align:center; margin-bottom:18px;">Send Email</h3>
+                <form id="emailForm" style="display:flex; flex-direction:column; gap:12px;">
+                    <label>Recipient Email
+                        <input type="email" id="emailRecipient" required placeholder="user@example.com" style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc;">
+                    </label>
+                    <label>Subject
+                        <input type="text" id="emailSubject" required placeholder="Subject" style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc;">
+                    </label>
+                    <label>Message
+                        <textarea id="emailMessage" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc; height:120px;"></textarea>
+                    </label>
+                    <div id="emailError" style="color:red; min-height:18px;"></div>
+                    <div style="display:flex; justify-content:flex-end; gap:12px;">
+                        <button type="submit" class="email-user-btn" style="background-color:#9e9e9e; border-color:#757575; color:#fff; padding:8px 16px; border-radius:7px;">Send Email</button>
+                        <button type="button" id="clearEmailForm" style="padding:8px 16px; border-radius:7px; border:1px solid #ccc; background:#f8f9fa; color:#333;">Clear</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Close modal
+        modal.querySelector('#closeEmailUserModal').onclick = () => { modal.style.display = 'none'; };
+
+        // Clear form
+        modal.querySelector('#clearEmailForm').onclick = () => {
+            modal.querySelector('#emailForm').reset();
+            modal.querySelector('#emailError').textContent = '';
+        };
+
+        // Handle form submission
+        const emailForm = modal.querySelector('#emailForm');
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            modal.querySelector('#emailError').textContent = '';
+
+            const userEmail = modal.querySelector('#emailRecipient').value.trim();
+            const subject = modal.querySelector('#emailSubject').value.trim();
+            const message = modal.querySelector('#emailMessage').value.trim();
+            
+            if (!userEmail || !subject || !message) { 
+                modal.querySelector('#emailError').textContent = 'Please fill all fields';
+                return;
+            }
+
+            try {
+                const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_send_email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        admin_id: ADMIN_ID,
+                        admin_email: admin.email,
+                        user_email: userEmail,
+                        first_name: '',
+                        last_name: '',
+                        message: `Subject: ${subject}\n\n${message}`
+                    })
+                });
+
+                let data = await res.json();
+                if (data.body && typeof data.body === 'string') {
+                    try { data = { ...data, ...JSON.parse(data.body) }; } catch(e) {}
+                }
+
+                if (!res.ok) throw new Error(data.error || 'Failed to send email');
+
+                alert(data.message || 'Email sent successfully');
+                emailForm.reset();
+                modal.style.display = 'none';
+
+            } catch (err) {
+                modal.querySelector('#emailError').textContent = err.message;
+            }
+        });
+    }
+
+    // Show modal
+    modal.style.display = 'flex';
+}
+
 // Helper: format number in accounting style (commas, two decimals, parentheses for negative)
 function formatAccounting(value) {
     let n = 0;
@@ -482,188 +638,6 @@ async function loadChartOfAccounts() {
     let searchTerm = '';
     const sortState = { col: null, asc: true };
 
-    let allUsers = []; // will be filled from your Lambda
-
-    async function fetchUsers() {
-        try {
-            const res = await fetch(
-                'https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_user_list',
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ admin_id: ADMIN_ID }),
-                }
-            );
-
-            // get the top-level JSON
-            let data = await res.json();
-
-            // parse the body string from the Lambda response
-            if (data.body) {
-                try { data = JSON.parse(data.body); } catch (e) {}
-            }
-
-            if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
-
-            // Filter only managers & accountants (case-insensitive)
-            const filtered = data.users.filter(u => {
-                const role = (u.role || '').toLowerCase();
-                return role === 'manager' || role === 'accountant';
-            });
-
-            console.log('Fetched + filtered users:', filtered);
-            return filtered;
-
-        } catch (err) {
-            console.error('fetchUsers error:', err);
-            return [];
-        }
-    }
-
-    allUsers = await fetchUsers();
-
-    async function openEmailModal() {
-        // Fetch admin info from localStorage
-        let admin = { first_name: '', last_name: '', email: '' };
-        try {
-            const u = JSON.parse(localStorage.getItem('user'));
-            if (u) admin = { first_name: u.first_name || '', last_name: u.last_name || '', email: u.email || '' };
-        } catch (e) {}
-
-        // Create modal if not exists
-        let modal = document.getElementById('emailModal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'emailModal';
-            modal.className = 'modal-overlay';
-            modal.style.display = 'none';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100vw';
-            modal.style.height = '100vh';
-            modal.style.background = 'rgba(0,0,0,0.4)';
-            modal.style.zIndex = '1002';
-            modal.style.display = 'flex';
-            modal.style.alignItems = 'center';
-            modal.style.justifyContent = 'center';
-
-            modal.innerHTML = `
-                <div class="modal-content" style="background:#fff; padding:32px 28px; border-radius:16px; max-width:500px; width:90%; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
-                    <button type="button" id="closeEmailUserModal" class="modal-close-x" style="position:absolute; top:12px; right:12px; font-size:1.5em; background:none; border:none; cursor:pointer;">&times;</button>
-                    <h3 style="text-align:center; margin-bottom:18px;">Send Email</h3>
-                    <form id="emailForm" style="display:flex; flex-direction:column; gap:12px;">
-                        <label>Role
-                            <select id="emailRoleSelect" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc;">
-                                <option value="">Select Role</option>
-                                <option value="manager">Manager</option>
-                                <option value="accountant">Accountant</option>
-                            </select>
-                        </label>
-                        <label>User
-                            <select id="emailUserSelect" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc;">
-                                <option value="">Select User</option>
-                            </select>
-                        </label>
-                        <label>Message
-                            <textarea id="emailMessage" required style="width:100%; padding:8px; border-radius:7px; border:1px solid #ccc; height:120px;"></textarea>
-                        </label>
-                        <div id="emailError" style="color:red; min-height:18px;"></div>
-                        <div style="display:flex; justify-content:flex-end; gap:12px;">
-                            <button type="submit" class="email-user-btn" style="background-color:#9e9e9e; border-color:#757575; color:#fff; padding:8px 16px; border-radius:7px;">Send Email</button>
-                            <button type="button" id="clearEmailForm" style="padding:8px 16px; border-radius:7px; border:1px solid #ccc; background:#f8f9fa; color:#333;">Clear</button>
-                        </div>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            // Close modal
-            modal.querySelector('#closeEmailUserModal').onclick = () => { modal.style.display = 'none'; };
-
-            // Clear form
-            modal.querySelector('#clearEmailForm').onclick = () => {
-                modal.querySelector('#emailRoleSelect').value = '';
-                modal.querySelector('#emailUserSelect').innerHTML = '<option value="">Select User</option>';
-                modal.querySelector('#emailMessage').value = '';
-                modal.querySelector('#emailError').textContent = '';
-            };
-
-            // Populate user dropdown when role changes
-            const roleSelect = modal.querySelector('#emailRoleSelect');
-            const userSelect = modal.querySelector('#emailUserSelect');
-            roleSelect.addEventListener('change', () => {
-                const selectedRole = roleSelect.value.toLowerCase();
-                userSelect.innerHTML = '<option value="">Select User</option>';
-                const filteredUsers = allUsers.filter(u => (u.role || '').toLowerCase() === selectedRole);
-                filteredUsers.forEach(user => {
-                    const opt = document.createElement('option');
-                    opt.value = user.email;
-                    opt.textContent = `${user.first_name} ${user.last_name}`;
-                    opt.dataset.firstName = user.first_name;
-                    opt.dataset.lastName = user.last_name;
-                    userSelect.appendChild(opt);
-                });
-            });
-
-            // Handle form submission
-            const emailForm = modal.querySelector('#emailForm');
-            emailForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const errorDiv = modal.querySelector('#emailError');
-                errorDiv.textContent = '';
-
-                const userEmail = modal.querySelector('#emailUserSelect').value;
-                const message = modal.querySelector('#emailMessage').value;
-                const selectedOption = modal.querySelector('#emailUserSelect').selectedOptions[0];
-
-                if (!userEmail || !message) {
-                    errorDiv.textContent = 'Please fill all fields.';
-                    return;
-                }
-
-                const firstName = selectedOption?.dataset.firstName || '';
-                const lastName = selectedOption?.dataset.lastName || '';
-
-                try {
-                    const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_send_email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            admin_id: ADMIN_ID,
-                            admin_email: admin.email,
-                            user_email: userEmail,
-                            first_name: firstName,
-                            last_name: lastName,
-                            message: message
-                        })
-                    });
-
-                    let data = await res.json();
-                    if (typeof data.body === 'string') {
-                        try { data = { ...data, ...JSON.parse(data.body) }; } catch (e) {}
-                    }
-
-                    if (!res.ok) throw new Error(data.error || 'Failed to send email');
-
-                    alert('Email sent successfully!');
-                    modal.style.display = 'none';
-                    // Clear form
-                    modal.querySelector('#emailRoleSelect').value = '';
-                    modal.querySelector('#emailUserSelect').innerHTML = '<option value="">Select User</option>';
-                    modal.querySelector('#emailMessage').value = '';
-
-                } catch (err) {
-                    console.error('Email error:', err);
-                    errorDiv.textContent = err.message || 'Failed to send email';
-                }
-            });
-        }
-
-        // Show modal
-        modal.style.display = 'flex';
-    }
-
     // Attach to button
     document.getElementById('sendEmailBtn').addEventListener('click', () => openEmailModal());
 
@@ -1031,7 +1005,7 @@ async function loadJournal() {
     actionContent.innerHTML = `
         <h2>Journal Entries</h2>
         <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
-            <input id="journalSearch" placeholder="Search journal entries (account, amount, date)" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
+            <input id="journalSearch" placeholder="Search journal entries by account name" style="flex:1; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:1em;">
             <select id="journalFilterStatus" style="padding:8px; border-radius:8px; border:1px solid #ccc;">
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -1333,7 +1307,7 @@ window.editJournalEntry = (id) => {
                             <div id="dragDropArea" 
                                 style="border:2px dashed #ccc;border-radius:8px;padding:18px;text-align:center;margin-bottom:15px;background:#f9f9f9;cursor:pointer;">
                                 <div id="dragDropText" style="color:#666;">Drag and drop files here or click to upload</div>
-                                <input type="file" id="fileInput" multiple style="display:none">
+                                <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" style="display:none">
                                 <div id="fileList" style="margin-top:10px;text-align:left;"></div>
                             </div>
                         </div>
@@ -1578,7 +1552,38 @@ window.editJournalEntry = (id) => {
             dragDropArea.addEventListener('drop', e => { e.preventDefault(); dragDropArea.style.background = '#f9f9f9'; handleFiles(Array.from(e.dataTransfer.files)); });
 
             function handleFiles(newFiles) {
-                files = [...files, ...newFiles];
+                const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.jpg', '.jpeg', '.png'];
+                const allowedMimeTypes = [
+                    'application/pdf',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'text/csv',
+                    'image/jpeg',
+                    'image/png'
+                ];
+                
+                const validFiles = [];
+                const invalidFiles = [];
+                
+                newFiles.forEach(file => {
+                    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                    const isValidExtension = allowedExtensions.includes(fileExtension);
+                    const isValidMimeType = allowedMimeTypes.includes(file.type);
+                    
+                    if (isValidExtension || isValidMimeType) {
+                        validFiles.push(file);
+                    } else {
+                        invalidFiles.push(file.name);
+                    }
+                });
+                
+                if (invalidFiles.length > 0) {
+                    alert(`The following files were not added because they are not allowed file types:\n\n${invalidFiles.join('\n')}\n\nAllowed types: PDF, Word (.doc, .docx), Excel (.xls, .xlsx), CSV, JPG, PNG`);
+                }
+                
+                files = [...files, ...validFiles];
                 updateFileList();
             }
 
@@ -1755,9 +1760,8 @@ document.getElementById('newJournalEntryBtn').addEventListener('click', showNewE
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(e => 
-                (e.description || '').toLowerCase().includes(term) ||
-                (e.account_number || '').toString().includes(term) ||
-                (e.account_name || '').toLowerCase().includes(term)
+                (e.debit_account_names || '').toLowerCase().includes(term) ||
+                (e.credit_account_names || '').toLowerCase().includes(term)
             );
         }
 
@@ -1924,9 +1928,37 @@ function showAccountModal(accountNumber) {
                     (Array.isArray(e.debit_account_ids_array) && e.debit_account_ids_array.includes(accountId)) ||
                     (Array.isArray(e.credit_account_ids_array) && e.credit_account_ids_array.includes(accountId))
                 );
+                
+                // Only show approved transactions
+                filtered = filtered.filter(e => (e.status || '').toLowerCase() === 'approved');
             }
             
-            let html = `<table border="none" border-collapse="collapse" cellpadding="8" cellspacing="0" style="width:100%; max-width:800px; margin-bottom:12px; border-collapse:collapse;">
+            // Fetch file counts for all transactions
+            const fileCountsMap = {};
+            await Promise.all(filtered.map(async (e) => {
+                try {
+                    const fileResponse = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_file_get', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            transaction_id: e.id,
+                            requested_by: ADMIN_ID,
+                            list_files_only: true
+                        })
+                    });
+                    const fileData = await fileResponse.json();
+                    if (fileData && typeof fileData.body === 'string') {
+                        try { fileData = JSON.parse(fileData.body); } catch (err) {}
+                    }
+                    const files = fileData.files || [];
+                    fileCountsMap[e.id] = files.length;
+                } catch (err) {
+                    console.error(`Error fetching files for transaction ${e.id}:`, err);
+                    fileCountsMap[e.id] = 0;
+                }
+            }));
+            
+            let html = `<table border="none" border-collapse="collapse" cellpadding="8" cellspacing="0" style="width:100%; max-width:900px; margin-bottom:12px; border-collapse:collapse;">
                 <tr>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
@@ -1934,10 +1966,11 @@ function showAccountModal(accountNumber) {
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Debit</th>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Credit</th>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
+                    <th style="text-align:center; padding:12px; font-size:1.1em; min-width:80px;">Files</th>
                 </tr>`;
             
             if (!filtered.length) {
-                html += `<tr><td colspan="6" style="text-align:center; color:#c00; padding:16px;">No transactions found for this account.</td></tr>`;
+                html += `<tr><td colspan="7" style="text-align:center; color:#c00; padding:16px;">No transactions found for this account.</td></tr>`;
             } else {
                 let runningBalance = 0;
                 filtered.forEach(e => {
@@ -1966,6 +1999,7 @@ function showAccountModal(accountNumber) {
                         <td style="text-align:right; padding:8px;">${debitAmount ? formatAccounting(debitAmount) : ''}</td>
                         <td style="text-align:right; padding:8px;">${creditAmount ? formatAccounting(creditAmount) : ''}</td>
                         <td style="text-align:right; padding:8px;">${formatAccounting(runningBalance)}</td>
+                        <td style="text-align:center; padding:8px;">${fileCountsMap[e.id] || 0}</td>
                     </tr>`;
                 });
             }
