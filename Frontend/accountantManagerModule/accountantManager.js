@@ -2461,5 +2461,5 @@ function showAccountModal(accountNumber) {
         } catch (err) {
             document.getElementById('accountTransTableWrap').innerHTML = `<p style="color:red;">Error loading transactions: ${err.message}</p>`;
         }
-    })();
+    });
 }
