@@ -2163,9 +2163,70 @@ document.getElementById('newJournalEntryBtn').addEventListener('click', showNewE
     fetchJournalEntries();
 }
 
+// Global function to populate account dropdown
+function populateAccountDropdown(selectElement) {
+    selectElement.innerHTML = '<option value="">Select account</option>';
+    if (window.availableAccounts && window.availableAccounts.length > 0) {
+        // Get already selected account IDs from other dropdowns in the same container
+        const container = selectElement.closest('.modal-content') || selectElement.closest('#actionContent');
+        const selectedIds = [];
+        if (container) {
+            // Look for both account and account_number selects
+            const otherSelects = container.querySelectorAll('select[name="account"], select[name="account_number"], .accountSelect');
+            otherSelects.forEach(select => {
+                if (select !== selectElement && select.value) {
+                    selectedIds.push(parseInt(select.value));
+                }
+            });
+        }
+
+        window.availableAccounts
+            .sort((a, b) => a.account_number.localeCompare(b.account_number))
+            .forEach(acc => {
+                // Skip already selected accounts
+                if (!selectedIds.includes(acc.id)) {
+                    const option = document.createElement('option');
+                    option.value = acc.id; // Use integer ID for selection and payload
+                    option.textContent = `${acc.account_number} - ${acc.account_name}`;
+                    selectElement.appendChild(option);
+                }
+            });
+    }
+}
+
+// Global function to update all account dropdowns to prevent duplicates
+function updateAccountOptions() {
+    // Find the container (either modal or main content)
+    const container = document.querySelector('.modal-content:not([style*="display: none"])') || 
+                     document.querySelector('#actionContent');
+    
+    if (!container) return;
+
+    // Look for both account and account_number selects
+    const accountSelects = container.querySelectorAll('select[name="account"], select[name="account_number"], .accountSelect');
+    if (accountSelects.length === 0) return;
+
+    const selectedAccounts = Array.from(accountSelects)
+        .map(s => s.value)
+        .filter(v => v);
+
+    accountSelects.forEach(select => {
+        const currentValue = select.value; 
+        populateAccountDropdown(select);     
+        select.value = currentValue;         
+
+        Array.from(select.options).forEach(option => {
+            if (option.value && option.value !== currentValue && selectedAccounts.includes(option.value)) {
+                option.disabled = true;
+            }
+        });
+    });
+}
+
 // Global function to show transaction details modal
 window.showTransactionDetails = (transactionId) => {
-    const entry = globalJournalEntries.find(e => e.id === transactionId);
+    // Handle both string and number transaction IDs
+    const entry = globalJournalEntries.find(e => e.id == transactionId || e.id === parseInt(transactionId) || e.id === transactionId.toString());
     if (!entry) {
         alert('Transaction not found');
         return;
@@ -2366,6 +2427,7 @@ function showAccountModal(accountNumber) {
                 body: JSON.stringify({ user_id: ADMIN_ID})
             });
             let data = await response.json();
+            
             if (data && typeof data.body === 'string') {
                 try { data = JSON.parse(data.body); } catch (e) {}
             }
@@ -2376,40 +2438,18 @@ function showAccountModal(accountNumber) {
             // Filter for this account using account ID
             let filtered = [];
             if (accountId) {
-                filtered = entries.filter(e =>
-                    (Array.isArray(e.debit_account_ids_array) && e.debit_account_ids_array.includes(accountId)) ||
-                    (Array.isArray(e.credit_account_ids_array) && e.credit_account_ids_array.includes(accountId))
-                );
+                const accountIdInt = parseInt(accountId); // Convert to integer for comparison
+                
+                filtered = entries.filter(e => {
+                    const hasDebit = Array.isArray(e.debit_account_ids_array) && e.debit_account_ids_array.includes(accountIdInt);
+                    const hasCredit = Array.isArray(e.credit_account_ids_array) && e.credit_account_ids_array.includes(accountIdInt);
+                    return hasDebit || hasCredit;
+                });
                 
                 // Only show approved transactions
                 filtered = filtered.filter(e => (e.status || '').toLowerCase() === 'approved');
             }
-            
-            // Fetch file counts for all transactions
-            const fileCountsMap = {};
-            await Promise.all(filtered.map(async (e) => {
-                try {
-                    const fileResponse = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_file_get', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            transaction_id: e.id,
-                            requested_by: ADMIN_ID,
-                            list_files_only: true
-                        })
-                    });
-                    const fileData = await fileResponse.json();
-                    if (fileData && typeof fileData.body === 'string') {
-                        try { fileData = JSON.parse(fileData.body); } catch (err) {}
-                    }
-                    const files = fileData.files || [];
-                    fileCountsMap[e.id] = files.length;
-                } catch (err) {
-                    console.error(`Error fetching files for transaction ${e.id}:`, err);
-                    fileCountsMap[e.id] = 0;
-                }
-            }));
-            
+
             let html = `<table border="none" border-collapse="collapse" cellpadding="8" cellspacing="0" style="width:100%; max-width:900px; margin-bottom:12px; border-collapse:collapse;">
                 <tr>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
@@ -2418,40 +2458,39 @@ function showAccountModal(accountNumber) {
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Debit</th>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Credit</th>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
-                    <th style="text-align:center; padding:12px; font-size:1.1em; min-width:80px;">Files</th>
                 </tr>`;
             
             if (!filtered.length) {
-                html += `<tr><td colspan="7" style="text-align:center; color:#c00; padding:16px;">No transactions found for this account.</td></tr>`;
+                html += `<tr><td colspan="6" style="text-align:center; color:#c00; padding:16px;">No transactions found for this account.</td></tr>`;
             } else {
                 let runningBalance = 0;
                 filtered.forEach(e => {
-                    const isDebit = e.debit_account_ids_array && e.debit_account_ids_array.includes(accountId);
-                    const isCredit = e.credit_account_ids_array && e.credit_account_ids_array.includes(accountId);
+                    const accountIdInt = parseInt(accountId); // Use integer for comparison
+                    const isDebit = e.debit_account_ids_array && e.debit_account_ids_array.includes(accountIdInt);
+                    const isCredit = e.credit_account_ids_array && e.credit_account_ids_array.includes(accountIdInt);
                     
                     let debitAmount = 0;
                     let creditAmount = 0;
                     
                     if (isDebit) {
-                        const debitIndex = e.debit_account_ids_array.indexOf(accountId);
+                        const debitIndex = e.debit_account_ids_array.indexOf(accountIdInt);
                         debitAmount = e.debit_amounts_array[debitIndex] || 0;
                         runningBalance += debitAmount;
                     }
                     
                     if (isCredit) {
-                        const creditIndex = e.credit_account_ids_array.indexOf(accountId);
+                        const creditIndex = e.credit_account_ids_array.indexOf(accountIdInt);
                         creditAmount = e.credit_amounts_array[creditIndex] || 0;
                         runningBalance -= creditAmount;
                     }
                     
                     html += `<tr>
                         <td style="text-align:center; padding:8px;">${new Date(e.created_at).toLocaleDateString()}</td>
-                        <td style="text-align:center; padding:8px;">${e.id || ''}</td>
+                        <td style="text-align:center; padding:8px;"><a href="#" onclick="switchToJournalAndShowTransaction('${e.id}'); return false;" style="color:#007bff; text-decoration:underline; cursor:pointer;">${e.id || ''}</a></td>
                         <td style="text-align:left; padding:8px;">${e.description || ''}</td>
                         <td style="text-align:right; padding:8px;">${debitAmount ? formatAccounting(debitAmount) : ''}</td>
                         <td style="text-align:right; padding:8px;">${creditAmount ? formatAccounting(creditAmount) : ''}</td>
                         <td style="text-align:right; padding:8px;">${formatAccounting(runningBalance)}</td>
-                        <td style="text-align:center; padding:8px;">${fileCountsMap[e.id] || 0}</td>
                     </tr>`;
                 });
             }
@@ -2461,5 +2500,25 @@ function showAccountModal(accountNumber) {
         } catch (err) {
             document.getElementById('accountTransTableWrap').innerHTML = `<p style="color:red;">Error loading transactions: ${err.message}</p>`;
         }
-    });
+    })();
+}
+
+// Function to switch to journal tab and show transaction details
+function switchToJournalAndShowTransaction(transactionId) {
+    // Close the account modal first
+    const accountModal = document.getElementById('accountViewModal');
+    if (accountModal) {
+        accountModal.style.display = 'none';
+    }
+    
+    // Switch to journal tab
+    const journalTab = document.querySelector('button[data-tab="journal"]');
+    if (journalTab) {
+        journalTab.click();
+    }
+    
+    // Wait for tab to load and then show transaction details
+    setTimeout(() => {
+        showTransactionDetails(transactionId);
+    }, 1000);
 }
