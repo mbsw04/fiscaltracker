@@ -37,8 +37,8 @@ function showLogoutModal() {
         modal.id = 'logoutConfirmModal';
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content">
-                <button type="button" id="closeLogoutModal" class="modal-close-x">&times;</button>
+            <div class="modal-content" style="position: relative;">
+                <button type="button" id="closeLogoutModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h3>Confirm Logout</h3>
                 <p>Are you sure you want to log out?</p>
                 <div class="modal-actions">
@@ -455,8 +455,8 @@ async function loadEventLog() {
             modal.id = 'eventDetailModal';
             modal.className = 'modal-overlay';
             modal.innerHTML = `
-                <div class="modal-content" style="max-width:1200px; width:95%;">
-                    <button type="button" id="closeEventModalX" class="modal-close-x">&times;</button>
+                <div class="modal-content" style="max-width:1200px; width:95%; position:relative;">
+                    <button type="button" id="closeEventModalX" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                     <h3>Event Details</h3>
                     <div style="display:flex; gap:16px; align-items:flex-start;">
                         <div style="flex:1;">
@@ -1563,8 +1563,8 @@ window.editJournalEntry = (id) => {
             modal.id = 'transactionRejectModal';
             modal.className = 'modal-overlay';
             modal.innerHTML = `
-                <div class="modal-content" style="min-width:420px">
-                    <button type="button" id="closeRejectModalX" class="modal-close-x">&times;</button>
+                <div class="modal-content" style="min-width:420px; position:relative;">
+                    <button type="button" id="closeRejectModalX" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                     <h3>Reject Transaction</h3>
                     <form id="rejectForm">
                         <input type="hidden" id="rejectTransId">
@@ -2334,8 +2334,8 @@ function showAccountModal(accountNumber) {
         modal.id = 'accountViewModal';
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content">
-                <button type="button" id="closeAccountViewModal" class="modal-close-x">&times;</button>
+            <div class="modal-content" style="position:relative;">
+                <button type="button" id="closeAccountViewModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h3>Account Details</h3>
                 <div id="accountViewBody" style="min-width:320px;"></div>
                 <div style="display:flex; justify-content:center; margin-top:12px;">
