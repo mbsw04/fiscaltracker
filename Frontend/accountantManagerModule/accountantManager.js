@@ -1590,7 +1590,7 @@ window.editJournalEntry = (id) => {
                     // Try to call a server-side reject endpoint if it exists
                     const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_reject_trans', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ manager_id: ADMIN_ID, trans_id: id, comment: reason })
+                        body: JSON.stringify({ manager_id: ADMIN_ID, trans_id: id, rejection_reason: reason })
                     });
                     if (res.ok) {
                         modal.style.display = 'none';
