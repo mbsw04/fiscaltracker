@@ -1171,6 +1171,21 @@ async function loadJournal() {
                     <input type="hidden" name="id" id="editJournalId">
                     
                     <div style="margin-bottom:14px">
+                        <div id="editDragDropArea" 
+                            style="border:2px dashed #ccc;border-radius:8px;padding:18px;text-align:center;margin-bottom:15px;background:#f9f9f9;cursor:pointer;">
+                            <div id="editDragDropText" style="color:#666;">Drag and drop files here or click to upload</div>
+                            <input type="file" id="editFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" style="display:none">
+                            <div id="editFileList" style="margin-top:10px;text-align:left;"></div>
+                        </div>
+                        <div style="text-align:center;margin-bottom:10px;">
+                            <label style="display:inline-flex;align-items:center;cursor:pointer;">
+                                <input type="checkbox" id="replaceExistingFiles" style="margin-right:8px;">
+                                Replace existing files (if any)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:14px">
                         <label style="display:block;margin-bottom:4px;font-weight:500;">Description*</label>
                         <textarea name="description" id="editJournalDescription" required 
                             style="width:100%;min-height:60px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;resize:vertical;"></textarea>
@@ -1242,7 +1257,151 @@ async function loadJournal() {
         const balanceDisplay = modal.querySelector('#editBalanceDisplay');
         const form = modal.querySelector('#journalEditForm');
         
-        let availableAccounts = [];
+        // File management for edit modal
+        let editFiles = []; // New files to be added
+        let existingFiles = []; // Files currently stored in S3
+        let filesToRemove = []; // Track which existing files to remove
+
+        // Load existing files when modal opens
+        const loadExistingFiles = async (transactionId) => {
+            try {
+                const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_file_get', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transaction_id: transactionId,
+                        requested_by: ADMIN_ID
+                    })
+                });
+
+                let result = await response.json();
+                
+                // Handle Lambda response format
+                if (result.body && typeof result.body === 'string') {
+                    try {
+                        result = JSON.parse(result.body);
+                    } catch (e) {
+                        console.error('Failed to parse Lambda response body:', e);
+                    }
+                }
+
+                if (response.ok && result.zip_content) {
+                    // Extract existing files from zip
+                    const zip = new JSZip();
+                    const extractedZip = await zip.loadAsync(result.zip_content, {base64: true});
+                    
+                    existingFiles = [];
+                    for (const fileName of Object.keys(extractedZip.files)) {
+                        const file = extractedZip.files[fileName];
+                        if (!file.dir) {
+                            const blob = await file.async('blob');
+                            const fileObj = new File([blob], fileName, { type: blob.type });
+                            fileObj.isExisting = true;
+                            existingFiles.push(fileObj);
+                        }
+                    }
+                } else {
+                    existingFiles = [];
+                }
+                
+                filesToRemove = [];
+                updateEditFileList();
+                
+            } catch (error) {
+                console.error('Error loading existing files:', error);
+                existingFiles = [];
+                updateEditFileList();
+            }
+        };
+
+        // File upload handling for edit modal
+        const editDragDropArea = modal.querySelector('#editDragDropArea');
+        const editFileInput = modal.querySelector('#editFileInput');
+        const editFileList = modal.querySelector('#editFileList');
+
+        editDragDropArea.addEventListener('click', () => editFileInput.click());
+        editFileInput.addEventListener('change', e => handleEditFiles(Array.from(e.target.files)));
+        editDragDropArea.addEventListener('dragover', e => { e.preventDefault(); editDragDropArea.style.background = '#e9e9e9'; });
+        editDragDropArea.addEventListener('dragleave', () => editDragDropArea.style.background = '#f9f9f9');
+        editDragDropArea.addEventListener('drop', e => { e.preventDefault(); editDragDropArea.style.background = '#f9f9f9'; handleEditFiles(Array.from(e.dataTransfer.files)); });
+
+        function handleEditFiles(newFiles) {
+            const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.jpg', '.jpeg', '.png'];
+            const allowedMimeTypes = [
+                'application/pdf', 'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'text/csv', 'image/jpeg', 'image/png'
+            ];
+            
+            const validFiles = [];
+            const invalidFiles = [];
+            
+            newFiles.forEach(file => {
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                const isValidExtension = allowedExtensions.includes(fileExtension);
+                const isValidMimeType = allowedMimeTypes.includes(file.type);
+                
+                if (isValidExtension || isValidMimeType) {
+                    validFiles.push(file);
+                } else {
+                    invalidFiles.push(file.name);
+                }
+            });
+            
+            if (invalidFiles.length > 0) {
+                alert(`The following files were not added because they are not allowed file types:\\n\\n${invalidFiles.join('\\n')}\\n\\nAllowed types: PDF, Word (.doc, .docx), Excel (.xls, .xlsx), CSV, JPG, PNG`);
+            }
+            
+            editFiles = [...editFiles, ...validFiles];
+            updateEditFileList();
+        }
+
+        function updateEditFileList() {
+            const allFiles = [
+                ...existingFiles.filter(file => !filesToRemove.includes(file.name)),
+                ...editFiles
+            ];
+            
+            if (allFiles.length === 0) {
+                editFileList.innerHTML = '<div style="color:#666; font-style:italic; padding:10px;">No files selected</div>';
+                return;
+            }
+            
+            editFileList.innerHTML = allFiles.map((file, index) => {
+                const isExisting = file.isExisting && !filesToRemove.includes(file.name);
+                const isNew = !file.isExisting;
+                
+                return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; margin:4px 0; background:#fff; border:1px solid #ddd; border-radius:4px;">
+                        <div style="display:flex; align-items:center;">
+                            <span style="margin-right:8px;">
+                                ${isExisting ? '📁' : '📄'}
+                            </span>
+                            <span style="font-weight:500;">${file.name}</span>
+                            <span style="margin-left:8px; font-size:11px; color:#666; background:${isExisting ? '#e3f2fd' : '#f3e5f5'}; padding:2px 6px; border-radius:10px;">
+                                ${isExisting ? 'Existing' : 'New'}
+                            </span>
+                        </div>
+                        <button onclick="removeEditFile('${file.name}', ${isExisting})" 
+                                style="background:#dc3545; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px;">
+                            Remove
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Function to remove files (both existing and new)
+        window.removeEditFile = (fileName, isExisting) => {
+            if (isExisting) {
+                filesToRemove.push(fileName);
+            } else {
+                editFiles = editFiles.filter(file => file.name !== fileName);
+            }
+            updateEditFileList();
+        };
 
         // Fetch accounts for dropdowns FIRST, then populate modal
         fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
@@ -1331,6 +1490,9 @@ async function loadJournal() {
             
             // Update account options to prevent duplicates
             setTimeout(updateAccountOptions, 150);
+            
+            // Load existing files for this transaction
+            loadExistingFiles(entry.id);
         }
 
         function updateAccountOptions() {
@@ -1512,6 +1674,31 @@ async function loadJournal() {
                 credit: creditAmounts.join(',')
             };
 
+            // Handle file upload - create new zip with remaining existing files + new files
+            const remainingExistingFiles = existingFiles.filter(file => !filesToRemove.includes(file.name));
+            const allFilesToZip = [...remainingExistingFiles, ...editFiles];
+            
+            if (allFilesToZip.length > 0) {
+                try {
+                    const zip = new JSZip();
+                    for (const file of allFilesToZip) {
+                        zip.file(file.name, file);
+                    }
+                    const zipContent = await zip.generateAsync({type: "base64"});
+                    
+                    const replaceFilesCheckbox = modal.querySelector('#replaceExistingFiles');
+                    payload.files = {
+                        zip_content: zipContent,
+                        file_count: allFilesToZip.length,
+                        replace_existing: true // Always replace since we're sending the complete new file set
+                    };
+                } catch (err) {
+                    console.error('Error processing files:', err);
+                    showError('Error processing files: ' + err.message);
+                    return;
+                }
+            }
+
             try {
                 const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_trans', {
                     method: 'POST',
@@ -1522,7 +1709,28 @@ async function loadJournal() {
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Failed to update transaction');
 
-                alert('Journal entry updated successfully.');
+                if (result.file_upload_error) {
+                    console.warn('File upload warning:', result.file_upload_error);
+                    alert(`Transaction updated successfully, but file upload failed: ${result.file_upload_error}`);
+                } else if (allFilesToZip.length > 0) {
+                    const removedCount = filesToRemove.length;
+                    const addedCount = editFiles.length;
+                    const totalCount = allFilesToZip.length;
+                    
+                    let message = `Transaction updated successfully with ${totalCount} file(s).`;
+                    if (removedCount > 0 && addedCount > 0) {
+                        message += ` (${removedCount} removed, ${addedCount} added)`;
+                    } else if (removedCount > 0) {
+                        message += ` (${removedCount} removed)`;
+                    } else if (addedCount > 0) {
+                        message += ` (${addedCount} added)`;
+                    }
+                    
+                    alert(message);
+                } else {
+                    alert('Journal entry updated successfully.');
+                }
+                
                 modal.style.display = 'none';
                 await fetchJournalEntries(); // refresh
             } catch (err) {
@@ -2039,6 +2247,44 @@ window.editJournalEntry = (id) => {
                 credit: creditAmounts.join(',')
             };
 
+            // Handle file upload if files are attached
+            if (files.length > 0) {
+                try {
+                    // Load JSZip library dynamically if not loaded
+                    if (typeof JSZip === 'undefined') {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                        document.head.appendChild(script);
+                        await new Promise((resolve, reject) => {
+                            script.onload = resolve;
+                            script.onerror = reject;
+                        });
+                    }
+
+                    // Create zip file with all uploaded files
+                    const zip = new JSZip();
+                    
+                    for (const file of files) {
+                        const arrayBuffer = await file.arrayBuffer();
+                        zip.file(file.name, arrayBuffer);
+                    }
+                    
+                    // Generate zip as base64
+                    const zipContent = await zip.generateAsync({type: 'base64'});
+                    
+                    // Add files to payload
+                    payload.files = {
+                        zip_content: zipContent,
+                        file_count: files.length
+                    };
+                } catch (fileError) {
+                    console.error('Error processing files:', fileError);
+                    if (!confirm('Error processing files. Continue without files?')) {
+                        return;
+                    }
+                }
+            }
+
             try {
                 const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_trans', {
                     method: 'POST',
@@ -2048,7 +2294,16 @@ window.editJournalEntry = (id) => {
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Failed to create transaction');
 
-                alert('Journal entry created successfully!');
+                let message = 'Journal entry created successfully!';
+                if (result.files) {
+                    if (result.files.error) {
+                        message += `\n\nNote: Files could not be uploaded: ${result.files.error}`;
+                    } else {
+                        message += `\n\nFiles uploaded: ${result.files.file_count} files`;
+                    }
+                }
+
+                alert(message);
                 modal.style.display = 'none';
                 await fetchJournalEntries();
             } catch (err) {
@@ -2352,9 +2607,333 @@ window.showTransactionDetails = (transactionId) => {
                 Total Credit: ${formatAccounting(entry.credit_amounts_array?.reduce((sum, amt) => sum + (parseFloat(amt) || 0), 0) || 0)}
             </p>
         </div>
+        
+        <!-- Transaction Files Section -->
+        <div style="margin-top:20px; padding:16px; background:#fafafa; border-radius:8px; border:1px solid #e0e0e0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h4 style="margin:0; color:#333;">Attached Files</h4>
+                <button id="loadTransactionFiles" onclick="loadTransactionFiles(${entry.id})" style="background:#007bff; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px;">
+                    Load Files
+                </button>
+            </div>
+            <div id="transactionFilesContainer" style="min-height:40px; color:#666; font-style:italic;">
+                Click "Load Files" to view attached files
+            </div>
+        </div>
     `;
 
     modal.style.display = 'flex';
+};
+
+// Function to load and display transaction files
+window.loadTransactionFiles = async (transactionId) => {
+    const container = document.getElementById('transactionFilesContainer');
+    const loadButton = document.getElementById('loadTransactionFiles');
+    
+    // Update UI to show loading state
+    loadButton.disabled = true;
+    loadButton.textContent = 'Loading...';
+    container.innerHTML = '<div style="color:#666;">Loading files...</div>';
+    
+    try {
+        const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_file_get', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                transaction_id: transactionId,
+                requested_by: ADMIN_ID
+            })
+        });
+
+        let result = await response.json();
+        
+        // Handle Lambda response format - if result has body property, parse it
+        if (result.body && typeof result.body === 'string') {
+            try {
+                result = JSON.parse(result.body);
+            } catch (e) {
+                console.error('Failed to parse Lambda response body:', e);
+            }
+        }
+        
+        if (!response.ok || result.error) {
+            throw new Error(result.error || 'Failed to load files');
+        }
+
+        if (result.message === 'No files found for this transaction.') {
+            container.innerHTML = '<div style="color:#666; font-style:italic;">No files attached to this transaction</div>';
+            return;
+        }
+
+        // Debug: Check what we received
+        console.log('File response:', result);
+        console.log('Response keys:', Object.keys(result));
+        
+        if (!result.zip_content) {
+            throw new Error(`No zip content received from server. Response: ${JSON.stringify(result)}`);
+        }
+
+        // Extract zip file using JSZip
+        const zip = new JSZip();
+        // The result.zip_content should be base64 encoded
+        let extractedZip;
+        try {
+            extractedZip = await zip.loadAsync(result.zip_content, {base64: true});
+        } catch (zipError) {
+            console.error('Zip loading error:', zipError);
+            console.log('Zip content type:', typeof result.zip_content);
+            console.log('Zip content length:', result.zip_content?.length);
+            throw new Error('Failed to extract zip file: ' + zipError.message);
+        }
+        
+        // Display file list
+        const fileNames = Object.keys(extractedZip.files);
+        
+        if (fileNames.length === 0) {
+            container.innerHTML = '<div style="color:#666; font-style:italic;">No files found in archive</div>';
+            return;
+        }
+
+        const fileListHtml = fileNames.map(fileName => {
+            const file = extractedZip.files[fileName];
+            if (file.dir) return ''; // Skip directories
+            
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const isViewable = ['txt', 'csv', 'json', 'xml', 'html', 'css', 'js', 'md'].includes(fileExtension);
+            const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(fileExtension);
+            
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; margin:4px 0; background:white; border:1px solid #ddd; border-radius:4px;">
+                    <span style="font-weight:500; color:#333;">📄 ${fileName}</span>
+                    <div>
+                        ${isViewable || isImage ? `
+                            <button onclick="viewFileContent('${fileName}', '${transactionId}')" 
+                                    style="background:#17a2b8; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px; margin-right:4px;">
+                                View
+                            </button>
+                        ` : ''}
+                        <button onclick="downloadExtractedFile('${fileName}', '${transactionId}')" 
+                                style="background:#28a745; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px;">
+                            Download
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).filter(html => html).join('');
+
+        container.innerHTML = `
+            <div style="margin-bottom:8px; color:#333; font-weight:500;">
+                ${fileNames.filter(name => !extractedZip.files[name].dir).length} file(s) found:
+            </div>
+            ${fileListHtml}
+        `;
+        
+        // Store extracted zip data for download function
+        window.currentExtractedZip = extractedZip;
+
+    } catch (error) {
+        console.error('Error loading transaction files:', error);
+        container.innerHTML = `<div style="color:#d32f2f;">Error loading files: ${error.message}</div>`;
+    } finally {
+        loadButton.disabled = false;
+        loadButton.textContent = 'Reload Files';
+    }
+};
+
+// Function to download individual extracted files
+window.downloadExtractedFile = async (fileName, transactionId) => {
+    try {
+        if (!window.currentExtractedZip || !window.currentExtractedZip.files[fileName]) {
+            alert('File data not available. Please reload the files.');
+            return;
+        }
+
+        const file = window.currentExtractedZip.files[fileName];
+        const blob = await file.async('blob');
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+    } catch (error) {
+        console.error('Error downloading file:', error);
+        alert('Error downloading file: ' + error.message);
+    }
+};
+
+// Function to view file content in a modal
+window.viewFileContent = async (fileName, transactionId) => {
+    try {
+        if (!window.currentExtractedZip || !window.currentExtractedZip.files[fileName]) {
+            alert('File data not available. Please reload the files.');
+            return;
+        }
+
+        const file = window.currentExtractedZip.files[fileName];
+        const fileExtension = fileName.split('.').pop().toLowerCase();
+        
+        // Create or get the file content modal
+        let contentModal = document.getElementById('fileContentModal');
+        if (!contentModal) {
+            contentModal = document.createElement('div');
+            contentModal.id = 'fileContentModal';
+            contentModal.className = 'modal-overlay';
+            contentModal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.7); display: none; align-items: center; 
+                justify-content: center; z-index: 1100;
+            `;
+            
+            contentModal.innerHTML = `
+                <div class="modal-content" style="background:#fff; padding:20px; border-radius:8px; max-width:90%; width:800px; max-height:80vh; overflow:hidden; position:relative; display:flex; flex-direction:column;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:12px;">
+                        <h3 style="margin:0; color:#333;" id="fileContentTitle">File Content</h3>
+                        <button style="background:none; border:none; font-size:20px; cursor:pointer; color:#666; padding:4px;" onclick="document.getElementById('fileContentModal').style.display='none'">&times;</button>
+                    </div>
+                    <div id="fileContentBody" style="flex:1; overflow:auto; background:#f8f9fa; padding:16px; border-radius:4px; border:1px solid #e9ecef;">
+                        <div style="text-align:center; color:#666;">Loading...</div>
+                    </div>
+                    <div style="margin-top:12px; text-align:right;">
+                        <button onclick="downloadExtractedFile('${fileName}', '${transactionId}')" style="background:#28a745; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">
+                            Download File
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(contentModal);
+            
+            // Close modal when clicking outside
+            contentModal.onclick = (e) => {
+                if (e.target === contentModal) contentModal.style.display = 'none';
+            };
+        }
+        
+        // Update modal title and show modal
+        document.getElementById('fileContentTitle').textContent = fileName;
+        contentModal.style.display = 'flex';
+        
+        const contentBody = document.getElementById('fileContentBody');
+        contentBody.innerHTML = '<div style="text-align:center; color:#666;">Loading file content...</div>';
+        
+        // Handle different file types
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(fileExtension)) {
+            // Display image
+            const arrayBuffer = await file.async('arraybuffer');
+            const blob = new Blob([arrayBuffer]);
+            const imageUrl = URL.createObjectURL(blob);
+            
+            contentBody.innerHTML = `
+                <div style="text-align:center;">
+                    <img src="${imageUrl}" style="max-width:100%; max-height:500px; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.1);" alt="${fileName}">
+                </div>
+            `;
+            
+            // Cleanup URL after a delay
+            setTimeout(() => URL.revokeObjectURL(imageUrl), 10000);
+            
+        } else if (['txt', 'csv', 'json', 'xml', 'html', 'css', 'js', 'md', 'log'].includes(fileExtension)) {
+            // Display text content
+            const textContent = await file.async('text');
+            const isJson = fileExtension === 'json';
+            const isXml = fileExtension === 'xml';
+            const isCsv = fileExtension === 'csv';
+            
+            let displayContent = textContent;
+            
+            // Format JSON
+            if (isJson) {
+                try {
+                    const parsed = JSON.parse(textContent);
+                    displayContent = JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                    displayContent = textContent; // Use original if parsing fails
+                }
+            }
+            
+            // Create appropriate display based on file type
+            if (isCsv) {
+                // Try to display CSV as a table
+                const lines = textContent.split('\n').filter(line => line.trim());
+                if (lines.length > 0) {
+                    const headers = lines[0].split(',').map(h => h.trim());
+                    const rows = lines.slice(1).map(line => line.split(',').map(cell => cell.trim()));
+                    
+                    let tableHtml = '<div style="overflow:auto;"><table style="width:100%; border-collapse:collapse; font-size:12px;">';
+                    tableHtml += '<thead><tr style="background:#e9ecef;">';
+                    headers.forEach(header => {
+                        tableHtml += `<th style="padding:8px; border:1px solid #dee2e6; text-align:left;">${header}</th>`;
+                    });
+                    tableHtml += '</tr></thead><tbody>';
+                    
+                    rows.slice(0, 50).forEach(row => { // Limit to 50 rows for performance
+                        tableHtml += '<tr>';
+                        row.forEach(cell => {
+                            tableHtml += `<td style="padding:6px; border:1px solid #dee2e6;">${cell}</td>`;
+                        });
+                        tableHtml += '</tr>';
+                    });
+                    
+                    tableHtml += '</tbody></table></div>';
+                    if (rows.length > 50) {
+                        tableHtml += `<div style="margin-top:8px; color:#666; font-style:italic;">Showing first 50 rows of ${rows.length} total rows</div>`;
+                    }
+                    
+                    contentBody.innerHTML = tableHtml;
+                } else {
+                    contentBody.innerHTML = `<pre style="margin:0; white-space:pre-wrap; font-family:monospace; font-size:12px;">${displayContent}</pre>`;
+                }
+            } else {
+                // Display as formatted text
+                contentBody.innerHTML = `
+                    <pre style="margin:0; white-space:pre-wrap; font-family:monospace; font-size:12px; line-height:1.4;">${displayContent}</pre>
+                `;
+            }
+            
+        } else if (['pdf'].includes(fileExtension)) {
+            // For PDF files, show a message with download option
+            contentBody.innerHTML = `
+                <div style="text-align:center; padding:40px; color:#666;">
+                    <div style="font-size:48px; margin-bottom:16px;">📄</div>
+                    <h4 style="margin:0 0 8px 0;">PDF Document</h4>
+                    <p style="margin:0 0 20px 0;">PDF files cannot be previewed directly.<br>Click download to view the file.</p>
+                    <button onclick="downloadExtractedFile('${fileName}', '${transactionId}')" style="background:#dc3545; color:white; border:none; padding:12px 24px; border-radius:4px; cursor:pointer; font-size:14px;">
+                        Download PDF
+                    </button>
+                </div>
+            `;
+        } else {
+            // For other file types, show file info and download option
+            const blob = await file.async('blob');
+            const sizeInKB = (blob.size / 1024).toFixed(1);
+            
+            contentBody.innerHTML = `
+                <div style="text-align:center; padding:40px; color:#666;">
+                    <div style="font-size:48px; margin-bottom:16px;">📁</div>
+                    <h4 style="margin:0 0 8px 0;">${fileName}</h4>
+                    <p style="margin:0 0 8px 0;">File Type: ${fileExtension.toUpperCase()}</p>
+                    <p style="margin:0 0 20px 0;">Size: ${sizeInKB} KB</p>
+                    <p style="margin:0 0 20px 0; font-style:italic;">This file type cannot be previewed.<br>Use the download button to view the file.</p>
+                    <button onclick="downloadExtractedFile('${fileName}', '${transactionId}')" style="background:#007bff; color:white; border:none; padding:12px 24px; border-radius:4px; cursor:pointer; font-size:14px;">
+                        Download File
+                    </button>
+                </div>
+            `;
+        }
+        
+    } catch (error) {
+        console.error('Error viewing file content:', error);
+        alert('Error viewing file: ' + error.message);
+    }
 };
 
 // Simple account details modal (reuse behavior from admin module)

@@ -1,5 +1,8 @@
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import mysql from "mysql2/promise";
-const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB } = process.env;
+
+const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB, S3_BUCKET_NAME } = process.env;
+const s3Client = new S3Client({ region: 'us-east-1' });
 
 export const handler = async (event) => {
   let body = event;
@@ -8,7 +11,7 @@ export const handler = async (event) => {
     catch { return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) }; }
   }
 
-  const { user_id, credit_account_id, credit, debit_account_id, debit, description, comment, type } = body;
+  const { user_id, credit_account_id, credit, debit_account_id, debit, description, comment, type, files } = body;
 
   // Validate transaction type
   const validTypes = ['standard', 'reversal', 'adjustment', 'closing'];
@@ -111,8 +114,73 @@ export const handler = async (event) => {
       ['Transactions', result.insertId, 'CREATE TRANSACTION', JSON.stringify(createdRow || {}), user_id]
     );
 
+    // Handle file upload if files are provided
+    let fileUploadResult = null;
+    if (files && files.zip_content) {
+      try {
+        // Use transaction ID as filename with .zip extension
+        const s3Key = `transactions/${result.insertId}.zip`;
+        
+        // Decode base64 zip content
+        const fileBuffer = Buffer.from(files.zip_content, 'base64');
+        
+        // Upload to S3
+        const uploadParams = {
+          Bucket: S3_BUCKET_NAME,
+          Key: s3Key,
+          Body: fileBuffer,
+          ContentType: 'application/zip',
+          Metadata: {
+            'transaction-id': String(result.insertId),
+            'uploaded-by': String(user_id),
+            'file-count': String(files.file_count || 0)
+          }
+        };
+
+        const uploadResult = await s3Client.send(new PutObjectCommand(uploadParams));
+        const publicUrl = `https://${S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com/${s3Key}`;
+
+        // Log the file upload event
+        await conn.execute(
+          `INSERT INTO Event_Logs (table_name, record_id, action, after_image, changed_by)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            'Transactions',
+            result.insertId,
+            'UPLOAD FILES',
+            JSON.stringify({
+              s3_key: s3Key,
+              file_count: files.file_count || 0,
+              file_size: fileBuffer.length,
+              etag: uploadResult.ETag,
+              public_url: publicUrl
+            }),
+            user_id
+          ]
+        );
+
+        fileUploadResult = {
+          s3_key: s3Key,
+          public_url: publicUrl,
+          file_count: files.file_count || 0,
+          file_size: fileBuffer.length
+        };
+      } catch (fileErr) {
+        console.error('Error uploading files:', fileErr);
+        // Don't fail the transaction creation if file upload fails
+        fileUploadResult = { error: fileErr.message };
+      }
+    }
+
     // created - event logged to DB
-    return { statusCode: 201, body: JSON.stringify({ message: "Transaction created successfully" }) };
+    return { 
+      statusCode: 201, 
+      body: JSON.stringify({ 
+        message: "Transaction created successfully",
+        transaction_id: result.insertId,
+        files: fileUploadResult
+      }) 
+    };
   } catch (err) {
     console.error('Error in AA_create_trans:', err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message, stack: err.stack }) };
