@@ -41,7 +41,7 @@ function showLogoutModal() {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content" style="position: relative;">
-                <button class="modal-close-x" id="closeLogoutModal">&times;</button>
+                <button class="modal-close-x" id="closeLogoutModal" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h3>Confirm Logout</h3>
                 <p>Are you sure you want to log out?</p>
                 <div class="modal-actions">
@@ -79,7 +79,7 @@ function showSuspendModal(userId) {
         const defaultTo = format(defaultToDate);
         modal.innerHTML = `
             <div class="modal-content" style="position: relative;">
-                <button class="modal-close-x" id="closeSuspendModal">&times;</button>
+                <button class="modal-close-x" id="closeSuspendModal" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h3>Suspend User</h3>
                 <p>Select suspension start and end dates:</p>
                 <div style="display:flex; gap:10px; justify-content:center; margin-top:8px;">
@@ -228,7 +228,7 @@ async function loadChartOfAccounts() {
     actionContent.insertAdjacentHTML("beforeend", `
         <div id="createAccModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
-                <button class="modal-close-x" id="closeCreateAccModal">&times;</button>
+                <button class="modal-close-x" id="closeCreateAccModal" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Create New Chart</h2>
                 <form id="createAccForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">Account Name
@@ -816,7 +816,7 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
             modal.className = 'modal-overlay';
             modal.innerHTML = `
                 <div class="modal-content" style="position: relative;">
-                    <button class="modal-close-x" id="closeEditAccModal">&times;</button>
+                    <button class="modal-close-x" id="closeEditAccModal" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                     <h3>Edit Account</h3>
                     <form id="editAccForm" style="display:flex; flex-direction:column; gap:10px;">
                         <input type="hidden" id="originalAccountNumber">
@@ -1452,7 +1452,7 @@ async function loadManageUsers() {
         <button id="createUserBtn" style="margin-bottom:20px; font-size:1.1em; padding:10px 20px; border-radius:8px; background:#4CAF50; color:#fff; border:none; font-weight:bold; cursor:pointer;">Create New User</button>
         <div id="createUserModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
-                <button class="modal-close-x" id="closeCreateUserModal">&times;</button>
+                <button class="modal-close-x" id="closeCreateUserModal" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Create New User</h2>
                 <form id="createUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">First Name
@@ -1679,7 +1679,7 @@ function showEmailUserModal(user) {
         modal.style.justifyContent = 'center';
         modal.innerHTML = `
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
-                <button type="button" id="closeEmailUserModal" class="modal-close-x">&times;</button>
+                <button type="button" id="closeEmailUserModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Send Email to User</h2>
                 <form id="emailUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">To (User Email)
@@ -1817,7 +1817,7 @@ function showEditUserModal(user) {
         modal.style.justifyContent = 'center';
         modal.innerHTML = `
             <div style="background:#fff; padding:32px 28px 24px 28px; border-radius:16px; min-width:340px; max-width:95vw; margin:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.25);">
-                <button type="button" id="closeEditUserModal" class="modal-close-x">&times;</button>
+                <button type="button" id="closeEditUserModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h2 style="margin-top:0; margin-bottom:18px; text-align:center; color:#333;">Edit User Info</h2>
                 <form id="editUserForm" style="display:flex; flex-direction:column; gap:14px;">
                     <label style="font-weight:500; color:#222;">First Name
@@ -2019,8 +2019,8 @@ function showDeactivateModal(userId) {
         modal.id = 'deactivateConfirmModal';
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content">
-                <button type="button" id="closeDeactivateModal" class="modal-close-x">&times;</button>
+            <div class="modal-content" style="position:relative;">
+                <button type="button" id="closeDeactivateModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h3>Confirm Deactivation</h3>
                 <p>Are you sure you want to deactivate this user?</p>
                 <p>They will lose access until reactivated.</p>
@@ -2054,8 +2054,8 @@ function showActivateModal(userId) {
         modal.id = 'activateConfirmModal';
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content">
-                <button type="button" id="closeActivateModal" class="modal-close-x">&times;</button>
+            <div class="modal-content" style="position:relative;">
+                <button type="button" id="closeActivateModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h3>Confirm Activation</h3>
                 <p>Are you sure you want to activate this user? They will regain access.</p>
                 <div class="modal-actions">

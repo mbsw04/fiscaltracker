@@ -1,4 +1,4 @@
-import { S3Client, HeadObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { S3Client, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import mysql from "mysql2/promise";
 
 const { RDS_HOST, RDS_USER, RDS_PASSWORD, RDS_DB, S3_BUCKET_NAME } = process.env;
@@ -17,7 +17,11 @@ export const handler = async (event) => {
   // Validate required fields
   if (!transaction_id || !requested_by) {
     return { 
-      statusCode: 400, 
+      statusCode: 400,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({ 
         error: "transaction_id and requested_by are required" 
       }) 
@@ -31,67 +35,118 @@ export const handler = async (event) => {
     // Verify transaction exists
     const [transRows] = await conn.execute(`SELECT id FROM Transactions WHERE id = ?`, [transaction_id]);
     if (!transRows || transRows.length === 0) {
-      return { statusCode: 404, body: JSON.stringify({ error: 'Transaction not found' }) };
+      return { 
+        statusCode: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Transaction not found' }) 
+      };
     }
 
     if (list_files_only) {
-      // List files for this transaction (now using transaction ID as filename)
-      const listParams = {
-        Bucket: S3_BUCKET_NAME,
-        Prefix: `transactions/${transaction_id}`
-      };
-
-      const listResult = await s3Client.send(new ListObjectsV2Command(listParams));
+      // Check for zip file for this transaction
+      const zipKey = `transactions/${transaction_id}.zip`;
       
-      const files = (listResult.Contents || []).map(obj => ({
-        s3_key: obj.Key,
-        file_name: obj.Key ? obj.Key.replace('transactions/', '') : 'unknown',
-        size: obj.Size,
-        last_modified: obj.LastModified
-      }));
-
-      // Log the file list access
-      await conn.execute(
-        `INSERT INTO Event_Logs (table_name, record_id, action, after_image, changed_by)
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          'Transactions',
-          transaction_id,
-          'LIST FILES',
-          JSON.stringify({ file_count: files.length, files: files.map(f => f.s3_key) }),
-          requested_by
-        ]
-      );
-
-      return { 
-        statusCode: 200, 
-        body: JSON.stringify({ 
-          transaction_id: transaction_id,
-          files: files
-        }) 
-      };
-    } else if (s3_key) {
-      // Get specific file - return presigned URL for download
-      const getParams = {
-        Bucket: S3_BUCKET_NAME,
-        Key: s3_key
-      };
-
-      // Verify the file belongs to this transaction (transaction ID as filename)
-      const expectedKey = `transactions/${transaction_id}`;
-      if (!s3_key.startsWith(expectedKey)) {
-        return { 
-          statusCode: 403, 
-          body: JSON.stringify({ error: 'File does not belong to specified transaction' }) 
-        };
-      }
-
       try {
-        // Check if file exists using HeadObject
-        await s3Client.send(new HeadObjectCommand(getParams));
+        // Check if zip file exists
+        const headResult = await s3Client.send(new HeadObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: zipKey
+        }));
         
-        // Generate public URL for the file
-        const publicUrl = `https://${S3_BUCKET_NAME}.s3.${AWS_REGION || 'us-east-1'}.amazonaws.com/${s3_key}`;
+        // Return zip file info
+        const zipFile = {
+          s3_key: zipKey,
+          file_name: `${transaction_id}.zip`,
+          size: headResult.ContentLength,
+          last_modified: headResult.LastModified,
+          content_type: headResult.ContentType,
+          file_count: headResult.Metadata ? parseInt(headResult.Metadata['file-count'] || '0') : 0,
+          public_url: `https://${S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com/${zipKey}`
+        };
+
+        // Log the file list access
+        await conn.execute(
+          `INSERT INTO Event_Logs (table_name, record_id, action, after_image, changed_by)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            'Transactions',
+            transaction_id,
+            'LIST FILES',
+            JSON.stringify({ 
+              has_zip: true, 
+              file_count: zipFile.file_count,
+              zip_size: zipFile.size 
+            }),
+            requested_by
+          ]
+        );
+
+        return { 
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
+          body: JSON.stringify({ 
+            transaction_id: transaction_id,
+            has_files: true,
+            zip_file: zipFile
+          }) 
+        };
+      } catch (s3Error) {
+        if (s3Error.name === 'NoSuchKey' || s3Error.name === 'NotFound') {
+          // No zip file exists for this transaction
+          await conn.execute(
+            `INSERT INTO Event_Logs (table_name, record_id, action, after_image, changed_by)
+             VALUES (?, ?, ?, ?, ?)`,
+            [
+              'Transactions',
+              transaction_id,
+              'LIST FILES',
+              JSON.stringify({ has_zip: false, file_count: 0 }),
+              requested_by
+            ]
+          );
+
+          return { 
+            statusCode: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({ 
+              transaction_id: transaction_id,
+              has_files: false,
+              zip_file: null
+            }) 
+          };
+        }
+        throw s3Error;
+      }
+    } else {
+      // Download the zip file content for this transaction
+      const zipKey = `transactions/${transaction_id}.zip`;
+      
+      try {
+        // Get the zip file from S3
+        const getObjectResult = await s3Client.send(new GetObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: zipKey
+        }));
+        
+        // Convert stream to buffer then to base64
+        const chunks = [];
+        for await (const chunk of getObjectResult.Body) {
+          chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+        const base64Content = buffer.toString('base64');
+        
+        // Get metadata from the object
+        const metadata = getObjectResult.Metadata || {};
 
         // Log the file access
         await conn.execute(
@@ -100,38 +155,58 @@ export const handler = async (event) => {
           [
             'Transactions',
             transaction_id,
-            'ACCESS FILE',
-            JSON.stringify({ s3_key: s3_key, access_type: 'public_url' }),
+            'DOWNLOAD ZIP',
+            JSON.stringify({ 
+              s3_key: zipKey, 
+              access_type: 'content_download',
+              file_size: buffer.length 
+            }),
             requested_by
           ]
         );
 
         return { 
-          statusCode: 200, 
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
           body: JSON.stringify({ 
-            public_url: publicUrl,
-            s3_key: s3_key,
-            transaction_id: transaction_id
+            zip_content: base64Content,
+            metadata: {
+              transaction_id: transaction_id,
+              file_count: metadata['file-count'] || '0',
+              uploader: metadata['uploader'] || 'unknown',
+              upload_date: getObjectResult.LastModified
+            },
+            s3_key: zipKey,
+            file_name: `${transaction_id}.zip`
           }) 
         };
       } catch (s3Error) {
-        if (s3Error.name === 'NoSuchKey') {
-          return { statusCode: 404, body: JSON.stringify({ error: 'File not found' }) };
+        if (s3Error.name === 'NoSuchKey' || s3Error.name === 'NotFound') {
+          return { 
+            statusCode: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({ 
+              message: 'No files found for this transaction.'
+            }) 
+          };
         }
         throw s3Error;
       }
-    } else {
-      return { 
-        statusCode: 400, 
-        body: JSON.stringify({ 
-          error: "Either s3_key (for specific file) or list_files_only=true (for file list) must be provided" 
-        }) 
-      };
     }
   } catch (err) {
     console.error('Error in AA_trans_file_get:', err);
     return { 
-      statusCode: 500, 
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({ 
         error: err.message, 
         stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
