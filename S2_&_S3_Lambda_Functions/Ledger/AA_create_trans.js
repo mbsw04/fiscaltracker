@@ -22,15 +22,40 @@ export const handler = async (event) => {
     };
   }
 
-  // Convert arrays to comma-separated strings with 2 decimal places
+  // Validate and convert arrays to comma-separated strings with 2 decimal places
   const creditAccountStr = Array.isArray(credit_account_id) ? credit_account_id.join(',') : String(credit_account_id || '');
-  const creditStr = Array.isArray(credit) ? 
-    credit.map(amt => parseFloat(amt).toFixed(2)).join(',') : 
-    parseFloat(credit || 0).toFixed(2);
+  
+  // Handle credit amounts - can be array or comma-separated string
+  let creditArray = [];
+  if (Array.isArray(credit)) {
+    creditArray = credit.filter(amt => amt && parseFloat(amt) > 0).map(amt => parseFloat(amt));
+  } else if (credit && typeof credit === 'string' && credit.includes(',')) {
+    creditArray = credit.split(',').map(amt => parseFloat(amt.trim())).filter(amt => !isNaN(amt) && amt > 0);
+  } else if (credit && parseFloat(credit) > 0) {
+    creditArray = [parseFloat(credit)];
+  }
+  const creditStr = creditArray.map(amt => amt.toFixed(2)).join(',');
+  
   const debitAccountStr = Array.isArray(debit_account_id) ? debit_account_id.join(',') : String(debit_account_id || '');
-  const debitStr = Array.isArray(debit) ? 
-    debit.map(amt => parseFloat(amt).toFixed(2)).join(',') : 
-    parseFloat(debit || 0).toFixed(2);
+  
+  // Handle debit amounts - can be array or comma-separated string
+  let debitArray = [];
+  if (Array.isArray(debit)) {
+    debitArray = debit.filter(amt => amt && parseFloat(amt) > 0).map(amt => parseFloat(amt));
+  } else if (debit && typeof debit === 'string' && debit.includes(',')) {
+    debitArray = debit.split(',').map(amt => parseFloat(amt.trim())).filter(amt => !isNaN(amt) && amt > 0);
+  } else if (debit && parseFloat(debit) > 0) {
+    debitArray = [parseFloat(debit)];
+  }
+  const debitStr = debitArray.map(amt => amt.toFixed(2)).join(',');
+
+  // Basic validation
+  if (!creditAccountStr && !debitAccountStr) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'At least one account must be specified' }) };
+  }
+  if (!creditStr && !debitStr) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'At least one amount must be specified' }) };
+  }
 
   let conn;
   try {
@@ -40,6 +65,35 @@ export const handler = async (event) => {
     const user = userRows && userRows[0] ? userRows[0] : null;
     if (!user) {
       return { statusCode: 404, body: JSON.stringify({ error: 'User not found' }) };
+    }
+
+    // Validate account IDs exist
+    const allAccountIds = [...(Array.isArray(credit_account_id) ? credit_account_id : [credit_account_id]), 
+                          ...(Array.isArray(debit_account_id) ? debit_account_id : [debit_account_id])]
+                          .filter(id => id).map(id => parseInt(id));
+    
+    if (allAccountIds.length > 0) {
+      const [accountCheck] = await conn.execute(
+        `SELECT id FROM Accounts WHERE id IN (${allAccountIds.map(() => '?').join(',')}) AND is_active = 1`,
+        allAccountIds
+      );
+      if (accountCheck.length !== allAccountIds.length) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'One or more account IDs are invalid or inactive' }) };
+      }
+    }
+
+    // Validate transaction balance
+    const totalCredit = creditArray.reduce((sum, amt) => sum + amt, 0);
+    const totalDebit = debitArray.reduce((sum, amt) => sum + amt, 0);
+    const EPS = 0.005; // Small epsilon for floating point comparison
+    
+    if (Math.abs(totalCredit - totalDebit) > EPS) {
+      return { 
+        statusCode: 400, 
+        body: JSON.stringify({ 
+          error: `Transaction not balanced: Credit ${totalCredit.toFixed(2)} ≠ Debit ${totalDebit.toFixed(2)}` 
+        }) 
+      };
     }
 
     const [result] = await conn.execute(

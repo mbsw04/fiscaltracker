@@ -1000,6 +1000,9 @@ async function loadReports() {
     document.getElementById('printTB_page').addEventListener('click', printTBPage);
 }
 
+// Global variable to store journal entries for transaction details modal
+let globalJournalEntries = [];
+
 // Journal tab: show role-specific journal entries view
 async function loadJournal() {
     actionContent.innerHTML = `
@@ -1019,7 +1022,7 @@ async function loadJournal() {
         <div id="journalTableContainer">Loading journal entries...</div>
     `;
 
-    const container = document.getElementById('journalTableContainer');
+    const journalContainer = document.getElementById('journalTableContainer');
     const searchEl = document.getElementById('journalSearch');
     const filterStatusEl = document.getElementById('journalFilterStatus');
     let entries = [];
@@ -1045,20 +1048,49 @@ async function loadJournal() {
             entries = Array.isArray(data) ? data : 
                      Array.isArray(data.body) ? data.body :
                      Array.isArray(data.transactions) ? data.transactions : [];
+            
             // normalize some fields to make client usage easier
-            entries = entries.map(e => ({
-                ...e,
-                date: e.created_at || e.date || e.createdAt || e.created_at,
-                credit_account_names: e.credit_account_names || e.credit_account_names || '',
-                debit_account_names: e.debit_account_names || e.debit_account_names || '',
-                credit_amounts_array: e.credit_amounts_array || e.credit_amounts_array || (e.credit ? String(e.credit).split(',').map(x=>parseFloat(x)) : []),
-                debit_amounts_array: e.debit_amounts_array || e.debit_amounts_array || (e.debit ? String(e.debit).split(',').map(x=>parseFloat(x)) : []),
-                status: (e.status || 'pending').toString().toLowerCase()
-            }));
+            entries = entries.map(e => {
+                // Parse credit amounts - prioritize arrays from Lambda, fall back to raw parsing
+                let creditAmounts = [];
+                if (e.credit_amounts_array && Array.isArray(e.credit_amounts_array)) {
+                    creditAmounts = e.credit_amounts_array.filter(x => x > 0);
+                } else if (e.credit) {
+                    creditAmounts = String(e.credit).split(',').map(x => {
+                        const val = parseFloat(x.trim());
+                        return isNaN(val) ? 0 : val;
+                    }).filter(x => x > 0);
+                }
+                
+                // Parse debit amounts - prioritize arrays from Lambda, fall back to raw parsing
+                let debitAmounts = [];
+                if (e.debit_amounts_array && Array.isArray(e.debit_amounts_array)) {
+                    debitAmounts = e.debit_amounts_array.filter(x => x > 0);
+                } else if (e.debit) {
+                    debitAmounts = String(e.debit).split(',').map(x => {
+                        const val = parseFloat(x.trim());
+                        return isNaN(val) ? 0 : val;
+                    }).filter(x => x > 0);
+                }
+                
+                return {
+                    ...e,
+                    date: e.created_at || e.date || e.createdAt || e.created_at,
+                    credit_account_names: e.credit_account || e.credit_account_names || '',
+                    debit_account_names: e.debit_account || e.debit_account_names || '',
+                    credit_amounts_array: creditAmounts,
+                    debit_amounts_array: debitAmounts,
+                    status: (e.status || 'pending').toString().toLowerCase()
+                };
+            });
+            
+            // Update global entries for transaction details modal
+            globalJournalEntries = [...entries];
+            
             render();
         } catch (err) {
             console.error('Error fetching journal entries:', err);
-            container.innerHTML = 'Error loading journal entries. Please try again.';
+            journalContainer.innerHTML = 'Error loading journal entries. Please try again.';
         }
     }
 
@@ -1070,11 +1102,13 @@ async function loadJournal() {
             <thead>
                 <tr>
                     <th class="sortable" data-col="date">Date</th>
+                    <th class="sortable" data-col="id">Transaction ID</th>
                     <th class="sortable" data-col="description">Description</th>
                     <th class="sortable" data-col="account">Account</th>
                     <th class="sortable" data-col="debit">Debit</th>
                     <th class="sortable" data-col="credit">Credit</th>
                     <th class="sortable" data-col="status">Status</th>
+                    <th class="sortable" data-col="comment">Comments</th>
                     ${CURRENT_ROLE === 'manager' ? '<th>Actions</th>' : ''}
                 </tr>
             </thead>
@@ -1082,11 +1116,13 @@ async function loadJournal() {
                 ${rows.map(entry => `
                     <tr data-id="${entry.id}">
                         <td>${new Date(entry.date).toLocaleDateString()}</td>
+                        <td><button onclick="showTransactionDetails(${entry.id})" class="action-link" style="background:none;border:none;color:#007bff;cursor:pointer;text-decoration:underline;padding:0;">#${entry.id}</button></td>
                         <td>${entry.description || ''}</td>
-                        <td>${(entry.debit_account_names || entry.debit_account_names) || ''} ${(entry.credit_account_names ? (' / ' + entry.credit_account_names) : '')}</td>
-                        <td style="text-align:right">${(entry.debit_amounts_array && entry.debit_amounts_array.length) ? entry.debit_amounts_array.map(a=>formatAccounting(a)).join(', ') : ''}</td>
-                        <td style="text-align:right">${(entry.credit_amounts_array && entry.credit_amounts_array.length) ? entry.credit_amounts_array.map(a=>formatAccounting(a)).join(', ') : ''}</td>
-                        <td>${(entry.status || 'pending')}</td>
+                        <td>${(entry.debit_account_names || '') + (entry.credit_account_names ? (' / ' + entry.credit_account_names) : '')}</td>
+                        <td style="text-align:right">${formatAccounting(entry.debit_amounts_array?.reduce((sum, amt) => sum + (parseFloat(amt) || 0), 0) || 0)}</td>
+                        <td style="text-align:right">${formatAccounting(entry.credit_amounts_array?.reduce((sum, amt) => sum + (parseFloat(amt) || 0), 0) || 0)}</td>
+                        <td><span style="text-transform:capitalize; padding:4px 8px; border-radius:4px; background:${entry.status === 'approved' ? '#e8f5e8' : entry.status === 'rejected' ? '#ffeaea' : '#fff3cd'}; color:${entry.status === 'approved' ? '#2e7d32' : entry.status === 'rejected' ? '#d32f2f' : '#856404'};">${entry.status || 'pending'}</span></td>
+                        <td>${entry.comment || ''}</td></td>
                         ${CURRENT_ROLE === 'manager' ? `
                             <td style="white-space:nowrap">
                                 ${entry.status === 'pending' ? `
@@ -1104,61 +1140,383 @@ async function loadJournal() {
     }
 
     function showEditModal(entry) {
-    let modal = document.getElementById('journalEditModal');
-    if (!modal) {
-        modal = document.createElement('div');
+        // Remove existing modal if it exists to ensure clean state
+        let existingModal = document.getElementById('journalEditModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        const modal = document.createElement('div');
         modal.id = 'journalEditModal';
         modal.className = 'modal-overlay';
+        modal.style.display = 'flex';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.4)';
+        modal.style.zIndex = '1000';
         modal.innerHTML = `
-            <div class="modal-content" style="min-width:400px">
-                <button type="button" id="closeJournalEditModal" class="modal-close-x">&times;</button>
-                <h3>Edit Journal Entry</h3>
+            <div class="modal-content" 
+                style="min-width:500px;max-width:600px;max-height:80vh;overflow-y:auto; background:#fff;border-radius:10px;padding:24px 32px; box-shadow:0 4px 20px rgba(0,0,0,0.15);position:relative;">
+                <button type="button" id="closeJournalEditModal" class="modal-close-x" 
+                    style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
+
+                <h3 style="text-align:center;margin-top:0;margin-bottom:20px;font-size:1.3rem;font-weight:600;">Edit Journal Entry</h3>
+
                 <form id="journalEditForm">
                     <input type="hidden" name="id" id="editJournalId">
-                    <div style="margin-bottom:12px">
-                        <label style="display:block;margin-bottom:4px">Description</label>
-                        <textarea name="description" id="editJournalDescription" style="width:100%;min-height:60px" required></textarea>
+                    
+                    <div style="margin-bottom:14px">
+                        <label style="display:block;margin-bottom:4px;font-weight:500;">Description*</label>
+                        <textarea name="description" id="editJournalDescription" required 
+                            style="width:100%;min-height:60px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;resize:vertical;"></textarea>
                     </div>
-                    <div style="display:flex;gap:12px;margin-bottom:12px">
-                        <div style="flex:1">
-                            <label style="display:block;margin-bottom:4px">Debit</label>
-                            <input type="number" name="debit" id="editJournalDebit" step="0.01" min="0">
-                        </div>
-                        <div style="flex:1">
-                            <label style="display:block;margin-bottom:4px">Credit</label>
-                            <input type="number" name="credit" id="editJournalCredit" step="0.01" min="0">
-                        </div>
+
+                    <div style="margin-bottom:14px">
+                        <label style="display:block;margin-bottom:4px;font-weight:500;">Comment</label>
+                        <textarea name="comment" id="editJournalComment"
+                            style="width:100%;min-height:40px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;resize:vertical;"></textarea>
                     </div>
-                    <div style="display:flex;justify-content:space-between;margin-top:20px">
-                        <button type="button" class="cancel-btn" id="cancelJournalEdit">Cancel</button>
-                        <button type="submit" class="confirm-btn">Save Changes</button>
+
+                    <div style="margin-bottom:14px">
+                        <label style="display:block;margin-bottom:4px;font-weight:500;">Transaction Type</label>
+                        <select name="type" id="editJournalType" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+                            <option value="standard">Standard</option>
+                            <option value="reversal">Reversal</option>
+                            <option value="adjustment">Adjustment</option>
+                            <option value="closing">Closing</option>
+                        </select>
+                    </div>
+
+                    <div style="display:flex;">
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:30px;">Accounts</label>
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:115px;">Debit</label>
+                        <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:120px;">Credit</label>
+                    </div>
+
+                    <div id="editAccountRowsContainer"></div>
+
+                    <div style="text-align:right;margin-bottom:16px;">
+                        <button type="button" id="addEditAccountBtn" 
+                            style="background:#007bff;color:#fff;padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:500;">
+                            + Add New Account
+                        </button>
+                    </div>
+
+                    <div id="editBalanceDisplay" style="text-align:center;margin-bottom:16px;font-weight:600;font-size:20px;color:green;">
+                        Balance: 0.00
+                    </div>
+
+                    <div id="editFormError" style="display:none;text-align:center;margin-bottom:12px;color:#c00;font-weight:600;font-size:0.95em;padding:8px;background:#ffe6e6;border-radius:6px;"></div>
+
+                    <div style="display:flex;justify-content:space-between;margin-top:20px;">
+                        <button type="button" class="cancel-btn" id="cancelJournalEdit" 
+                            style="background:#f2f2f2;color:#555;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;">Cancel</button>
+                        <button type="submit" class="confirm-btn" 
+                            style="background:#2ecc71;color:#fff;padding:8px 16px;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Save Changes</button>
                     </div>
                 </form>
             </div>
         `;
         document.body.appendChild(modal);
 
-        modal.querySelector('#closeJournalEditModal').addEventListener('click', () => modal.style.display = 'none');
-        modal.querySelector('#cancelJournalEdit').addEventListener('click', () => modal.style.display = 'none');
+        // Close modal handlers
+        modal.querySelector('#closeJournalEditModal').addEventListener('click', closeEditModal);
+        modal.querySelector('#cancelJournalEdit').addEventListener('click', closeEditModal);
 
-        modal.querySelector('#journalEditForm').addEventListener('submit', async (e) => {
+        function closeEditModal() {
+            modal.style.display = 'none';
+            const form = modal.querySelector('#journalEditForm');
+            form.reset();
+            const editContainer = modal.querySelector('#editAccountRowsContainer');
+            editContainer.innerHTML = '';
+            const balanceDisplay = modal.querySelector('#editBalanceDisplay');
+            balanceDisplay.textContent = 'Balance: 0.00';
+        }
+
+        const accountRowsContainer = modal.querySelector('#editAccountRowsContainer');
+        const balanceDisplay = modal.querySelector('#editBalanceDisplay');
+        const form = modal.querySelector('#journalEditForm');
+        
+        let availableAccounts = [];
+
+        // Fetch accounts for dropdowns FIRST, then populate modal
+        fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.body && typeof data.body === 'string') {
+                try { 
+                    const parsedBody = JSON.parse(data.body);
+                    availableAccounts = Array.isArray(parsedBody) ? parsedBody : [];
+                } catch (e) {
+                    console.error('Error parsing accounts body:', e);
+                    availableAccounts = [];
+                }
+            } else {
+                availableAccounts = Array.isArray(data.accounts) ? data.accounts : [];
+            }
+            
+            // Now populate the modal with transaction data
+            populateEditModal(entry);
+        })
+        .catch(err => {
+            console.error('Error fetching accounts:', err);
+            availableAccounts = [];
+            populateEditModal(entry);
+        });
+
+        function populateAccountDropdown(selectElement) {
+            selectElement.innerHTML = '<option value="">Select account</option>';
+            if (availableAccounts && availableAccounts.length > 0) {
+                availableAccounts
+                    .sort((a, b) => a.account_number.localeCompare(b.account_number))
+                    .forEach(acc => {
+                        const option = document.createElement('option');
+                        option.value = acc.id; // Use integer ID for selection and payload
+                        option.textContent = `${acc.account_number} - ${acc.account_name}`;
+                        selectElement.appendChild(option);
+                    });
+            }
+        }
+        
+        function populateEditModal(entry) {
+            // Populate modal with current entry data
+            modal.querySelector('#editJournalId').value = entry.id;
+            modal.querySelector('#editJournalDescription').value = entry.description || '';
+            modal.querySelector('#editJournalComment').value = entry.comment || '';
+            modal.querySelector('#editJournalType').value = entry.type || 'standard';
+
+            // Clear existing rows
+            accountRowsContainer.innerHTML = '';
+
+            // Populate account rows based on current transaction data
+            if (entry.debit_account_ids_array && entry.debit_amounts_array) {
+                for (let i = 0; i < entry.debit_account_ids_array.length; i++) {
+                    const accountId = entry.debit_account_ids_array[i];
+                    const amount = entry.debit_amounts_array[i] || 0;
+                    if (accountId && amount > 0) {
+                        const row = createAccountRow(accountId, amount, '');
+                        accountRowsContainer.appendChild(row);
+                    }
+                }
+            }
+
+            if (entry.credit_account_ids_array && entry.credit_amounts_array) {
+                for (let i = 0; i < entry.credit_account_ids_array.length; i++) {
+                    const accountId = entry.credit_account_ids_array[i];
+                    const amount = entry.credit_amounts_array[i] || 0;
+                    if (accountId && amount > 0) {
+                        const row = createAccountRow(accountId, '', amount);
+                        accountRowsContainer.appendChild(row);
+                    }
+                }
+            }
+
+            // Ensure at least one empty row if no data
+            if (accountRowsContainer.children.length === 0) {
+                const row = createAccountRow();
+                accountRowsContainer.appendChild(row);
+            }
+
+            // Update balance display
+            setTimeout(updateBalance, 100);
+            
+            // Update account options to prevent duplicates
+            setTimeout(updateAccountOptions, 150);
+        }
+
+        function updateAccountOptions() {
+            const selectedAccounts = Array.from(accountRowsContainer.querySelectorAll('select'))
+                .map(s => s.value)
+                .filter(v => v);
+
+            accountRowsContainer.querySelectorAll('select').forEach(select => {
+                const currentValue = select.value; 
+                populateAccountDropdown(select);     
+                select.value = currentValue;         
+
+                Array.from(select.options).forEach(option => {
+                    if (option.value && option.value !== currentValue && selectedAccounts.includes(option.value)) {
+                        option.disabled = true;
+                    }
+                });
+            });
+        }
+
+        function createAccountRow(accountId = '', debitAmount = '', creditAmount = '') {
+            const row = document.createElement('div');
+            row.className = 'account-row';
+            row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+
+            row.innerHTML = `
+                <select style="flex:1;padding:6px;border:1px solid #ccc;border-radius:4px;">
+                    <option value="">Select Account</option>
+                </select>
+                <input type="number" class="debitInput" placeholder="0.00" step="0.01" min="0" 
+                    value="${debitAmount}" style="width:100px;padding:6px;border:1px solid #ccc;border-radius:4px;">
+                <input type="number" class="creditInput" placeholder="0.00" step="0.01" min="0" 
+                    value="${creditAmount}" style="width:100px;padding:6px;border:1px solid #ccc;border-radius:4px;">
+                <button type="button" class="removeAccountBtn" style="background:#dc3545;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;">×</button>
+            `;
+
+            // Add event listeners
+            const select = row.querySelector('select');
+            const debitInput = row.querySelector('.debitInput');
+            const creditInput = row.querySelector('.creditInput');
+            
+            // Populate dropdown using the proper function
+            populateAccountDropdown(select);
+            
+            // Set the selected account if provided
+            if (accountId) {
+                select.value = accountId;
+            }
+            
+            // Update account options to prevent duplicates
+            setTimeout(() => updateAccountOptions(), 10);
+            const removeBtn = row.querySelector('.removeAccountBtn');
+
+            [select, debitInput, creditInput].forEach(input => {
+                input.addEventListener('input', updateBalance);
+                input.addEventListener('change', updateBalance);
+            });
+
+            // Add account selection change listener to prevent duplicates
+            select.addEventListener('change', updateAccountOptions);
+
+            // Prevent both debit and credit on same row
+            debitInput.addEventListener('input', () => {
+                if (parseFloat(debitInput.value) > 0) creditInput.value = '';
+                updateBalance();
+            });
+            creditInput.addEventListener('input', () => {
+                if (parseFloat(creditInput.value) > 0) debitInput.value = '';
+                updateBalance();
+            });
+
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+                updateBalance();
+                updateAccountOptions();
+            });
+
+            return row;
+        }
+
+        function updateBalance() {
+            const rows = Array.from(accountRowsContainer.querySelectorAll('.account-row'));
+            let totalDebit = 0;
+            let totalCredit = 0;
+
+            rows.forEach(row => {
+                const debit = parseFloat(row.querySelector('.debitInput').value) || 0;
+                const credit = parseFloat(row.querySelector('.creditInput').value) || 0;
+                totalDebit += debit;
+                totalCredit += credit;
+            });
+
+            const diff = totalDebit - totalCredit;
+            const isBalanced = Math.abs(diff) < 0.005;
+            
+            balanceDisplay.textContent = `Balance: ${diff.toFixed(2)}`;
+            balanceDisplay.style.color = isBalanced ? 'green' : 'red';
+        }
+
+        // Add account button
+        modal.querySelector('#addEditAccountBtn').addEventListener('click', () => {
+            const newRow = createAccountRow();
+            accountRowsContainer.appendChild(newRow);
+            updateBalance();
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
             const formData = new FormData(e.target);
-            const data = {
-                trans_id: formData.get('id'),
-                description: formData.get('description'),
-                debit: parseFloat(formData.get('debit')) || 0,
-                credit: parseFloat(formData.get('credit')) || 0,
+            const description = formData.get('description');
+            const comment = formData.get('comment');
+            const type = formData.get('type');
+            const trans_id = formData.get('id');
+            
+            function showError(msg) {
+                const errorDiv = modal.querySelector('#editFormError');
+                errorDiv.textContent = msg;
+                errorDiv.style.display = 'block';
+            }
+
+            // Validate and collect account rows
+            const rows = Array.from(accountRowsContainer.querySelectorAll('.account-row'));
+            const validatedRows = [];
+            
+            for (const row of rows) {
+                const account_id = parseInt(row.querySelector('select').value);
+                const debit = parseFloat(row.querySelector('.debitInput').value) || 0;
+                const credit = parseFloat(row.querySelector('.creditInput').value) || 0;
+                
+                if (account_id && (debit > 0 || credit > 0)) {
+                    validatedRows.push({ account_id, debit, credit });
+                }
+            }
+            
+            if (validatedRows.length === 0) {
+                showError('Please fill at least one account row with debit or credit');
+                return;
+            }
+            
+            // Check balance
+            const totalDebit = validatedRows.reduce((sum, r) => sum + r.debit, 0);
+            const totalCredit = validatedRows.reduce((sum, r) => sum + r.credit, 0);
+            const diff = totalDebit - totalCredit;
+            const EPS = 0.005;
+            
+            if (Math.abs(diff) > EPS) {
+                showError(`Entries not balanced: Debit ${totalDebit.toFixed(2)} ≠ Credit ${totalCredit.toFixed(2)}`);
+                return;
+            }
+
+            // Transform rows into flattened arrays for Lambda
+            const debitAccounts = [];
+            const creditAccounts = [];
+            const debitAmounts = [];
+            const creditAmounts = [];
+
+            validatedRows.forEach(r => {
+                if (r.debit > 0) {
+                    debitAccounts.push(r.account_id);
+                    debitAmounts.push(r.debit);
+                }
+                if (r.credit > 0) {
+                    creditAccounts.push(r.account_id);
+                    creditAmounts.push(r.credit);
+                }
+            });
+
+            const payload = {
+                user_id: ADMIN_ID,
+                trans_id,
+                description,
+                comment,
+                type,
+                debit_account_id: debitAccounts.join(','),
+                credit_account_id: creditAccounts.join(','),
+                debit: debitAmounts.join(','),
+                credit: creditAmounts.join(',')
             };
 
             try {
                 const response = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_trans', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_id: ADMIN_ID,
-                        ...data,
-                    }),
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
@@ -1169,19 +1527,10 @@ async function loadJournal() {
                 await fetchJournalEntries(); // refresh
             } catch (err) {
                 console.error('Error updating journal entry:', err);
-                alert('Failed to update journal entry. Please try again.');
+                showError('Failed to update journal entry: ' + (err.message || 'Unknown error'));
             }
         });
     }
-
-    // Populate modal with current entry data
-    modal.querySelector('#editJournalId').value = entry.id;
-    modal.querySelector('#editJournalDescription').value = entry.description || '';
-    modal.querySelector('#editJournalDebit').value = entry.debit || '';
-    modal.querySelector('#editJournalCredit').value = entry.credit || '';
-
-    modal.style.display = 'flex';
-}
 
 // Triggered when Edit button is clicked
 window.editJournalEntry = (id) => {
@@ -1395,36 +1744,6 @@ window.editJournalEntry = (id) => {
                 addAccountRow();
             })
             .catch(err => console.error('Error loading accounts:', err));
-
-            function populateAccountDropdown(selectElement) {
-                selectElement.innerHTML = '<option value="">Select account</option>';
-                availableAccounts
-                    .sort((a, b) => a.account_number.localeCompare(b.account_number))
-                    .forEach(acc => {
-                        const option = document.createElement('option');
-                        option.value = acc.id; // Use integer ID for selection and payload
-                        option.textContent = `${acc.account_number} - ${acc.account_name}`;
-                        selectElement.appendChild(option);
-                    });
-            }
-
-            function updateAccountOptions() {
-                const selectedAccounts = Array.from(accountRowsContainer.querySelectorAll('select'))
-                    .map(s => s.value)
-                    .filter(v => v);
-
-                accountRowsContainer.querySelectorAll('select').forEach(select => {
-                    const currentValue = select.value; 
-                    populateAccountDropdown(select);     
-                    select.value = currentValue;         
-
-                    Array.from(select.options).forEach(option => {
-                        if (option.value && option.value !== currentValue && selectedAccounts.includes(option.value)) {
-                            option.disabled = true;
-                        }
-                    });
-                });
-            }
 
             // Add a new account row
             function addAccountRow() {
@@ -1803,10 +2122,10 @@ document.getElementById('newJournalEntryBtn').addEventListener('click', showNewE
             });
         }
 
-        container.innerHTML = buildTable(filtered);
+        journalContainer.innerHTML = buildTable(filtered);
 
         // Add sort handlers
-        container.querySelectorAll('th.sortable').forEach(th => {
+        journalContainer.querySelectorAll('th.sortable').forEach(th => {
             th.style.cursor = 'pointer';
             th.onclick = () => {
                 const col = th.getAttribute('data-col');
@@ -1843,6 +2162,139 @@ document.getElementById('newJournalEntryBtn').addEventListener('click', showNewE
     // Initial load
     fetchJournalEntries();
 }
+
+// Global function to show transaction details modal
+window.showTransactionDetails = (transactionId) => {
+    const entry = globalJournalEntries.find(e => e.id === transactionId);
+    if (!entry) {
+        alert('Transaction not found');
+        return;
+    }
+
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('transactionDetailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'transactionDetailsModal';
+        modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.5); display: none; align-items: center; 
+            justify-content: center; z-index: 1000;
+        `;
+        
+        modal.innerHTML = `
+            <div class="modal-content" style="background:#fff; padding:24px; border-radius:12px; max-width:700px; width:90%; max-height:80vh; overflow-y:auto; position:relative;">
+                <span class="close" style="position:absolute; top:12px; right:16px; font-size:24px; cursor:pointer; color:#666;">&times;</span>
+                <h2 style="margin-top:0; color:#333;">Transaction Details</h2>
+                <div id="transactionDetailsContent"></div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close modal handlers
+        modal.querySelector('.close').onclick = () => modal.style.display = 'none';
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        };
+    }
+
+    // Populate modal content
+    const content = document.getElementById('transactionDetailsContent');
+    let debitAccountsHtml = '';
+    let creditAccountsHtml = '';
+    
+    // Build debit accounts table
+    if (entry.debit_account_ids_array && entry.debit_amounts_array) {
+        debitAccountsHtml = `
+            <h3 style="color:#d32f2f; margin-bottom:8px;">Debited Accounts</h3>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+                <thead>
+                    <tr style="background:#f5f5f5;">
+                        <th style="padding:8px; text-align:left; border:1px solid #ddd;">Account</th>
+                        <th style="padding:8px; text-align:right; border:1px solid #ddd;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${entry.debit_account_ids_array.map((accountId, index) => {
+                        const amount = entry.debit_amounts_array[index] || 0;
+                        const accountName = entry.debit_account_names ? entry.debit_account_names.split(',')[index]?.trim() || `Account ID: ${accountId}` : `Account ID: ${accountId}`;
+                        return `
+                            <tr>
+                                <td style="padding:8px; border:1px solid #ddd;">${accountName}</td>
+                                <td style="padding:8px; text-align:right; border:1px solid #ddd;">${formatAccounting(amount)}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+    
+    // Build credit accounts table
+    if (entry.credit_account_ids_array && entry.credit_amounts_array) {
+        creditAccountsHtml = `
+            <h3 style="color:#388e3c; margin-bottom:8px;">Credited Accounts</h3>
+            <table style="width:100%; border-collapse:collapse; margin-bottom:16px;">
+                <thead>
+                    <tr style="background:#f5f5f5;">
+                        <th style="padding:8px; text-align:left; border:1px solid #ddd;">Account</th>
+                        <th style="padding:8px; text-align:right; border:1px solid #ddd;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${entry.credit_account_ids_array.map((accountId, index) => {
+                        const amount = entry.credit_amounts_array[index] || 0;
+                        const accountName = entry.credit_account_names ? entry.credit_account_names.split(',')[index]?.trim() || `Account ID: ${accountId}` : `Account ID: ${accountId}`;
+                        return `
+                            <tr>
+                                <td style="padding:8px; border:1px solid #ddd;">${accountName}</td>
+                                <td style="padding:8px; text-align:right; border:1px solid #ddd;">${formatAccounting(amount)}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    content.innerHTML = `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+            <div>
+                <p><strong>Transaction ID:</strong> #${entry.id}</p>
+                <p><strong>Date:</strong> ${new Date(entry.date).toLocaleDateString()}</p>
+                <p><strong>Status:</strong> <span style="text-transform:capitalize; padding:4px 8px; border-radius:4px; background:${entry.status === 'approved' ? '#e8f5e8' : entry.status === 'rejected' ? '#ffeaea' : '#fff3cd'}; color:${entry.status === 'approved' ? '#2e7d32' : entry.status === 'rejected' ? '#d32f2f' : '#856404'};">${entry.status || 'pending'}</span></p>
+            </div>
+            <div>
+                <p><strong>Description:</strong> ${entry.description || 'No description'}</p>
+                <p><strong>Type:</strong> ${entry.type || 'standard'}</p>
+                <p><strong>Created By:</strong> ${entry.created_by || 'Unknown'}</p>
+            </div>
+        </div>
+        
+        ${entry.comment ? `
+            <div style="margin-bottom:20px; padding:12px; background:#f8f9fa; border-left:4px solid #007bff; border-radius:4px;">
+                <h4 style="margin:0 0 8px 0; color:#333;">Comments</h4>
+                <p style="margin:0; color:#555;">${entry.comment}</p>
+            </div>
+        ` : ''}
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div>${debitAccountsHtml}</div>
+            <div>${creditAccountsHtml}</div>
+        </div>
+        
+        <div style="margin-top:20px; padding:12px; background:#f1f3f4; border-radius:6px;">
+            <p style="margin:0; text-align:center; font-weight:bold;">
+                Total Debit: ${formatAccounting(entry.debit_amounts_array?.reduce((sum, amt) => sum + (parseFloat(amt) || 0), 0) || 0)} | 
+                Total Credit: ${formatAccounting(entry.credit_amounts_array?.reduce((sum, amt) => sum + (parseFloat(amt) || 0), 0) || 0)}
+            </p>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+};
 
 // Simple account details modal (reuse behavior from admin module)
 function showAccountModal(accountNumber) {

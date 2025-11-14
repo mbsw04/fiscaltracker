@@ -56,8 +56,14 @@ export const handler = async (event) => {
         debit_account_names: debitAccountNames.join(', '),
         credit_account_ids_array: creditAccountIds,
         debit_account_ids_array: debitAccountIds,
-        credit_amounts_array: row.credit ? String(row.credit).split(',').map(amt => parseFloat(parseFloat(amt.trim()).toFixed(2))) : [],
-        debit_amounts_array: row.debit ? String(row.debit).split(',').map(amt => parseFloat(parseFloat(amt.trim()).toFixed(2))) : []
+        credit_amounts_array: row.credit ? String(row.credit).split(',').map(amt => {
+          const parsed = parseFloat(amt.trim());
+          return isNaN(parsed) ? 0 : parseFloat(parsed.toFixed(2));
+        }).filter(amt => amt > 0) : [],
+        debit_amounts_array: row.debit ? String(row.debit).split(',').map(amt => {
+          const parsed = parseFloat(amt.trim());
+          return isNaN(parsed) ? 0 : parseFloat(parsed.toFixed(2));
+        }).filter(amt => amt > 0) : []
       };
     }));
 
