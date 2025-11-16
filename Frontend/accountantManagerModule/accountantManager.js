@@ -1881,6 +1881,17 @@ window.editJournalEntry = (id) => {
                                 style="width:100%;min-height:60px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;resize:vertical;"></textarea>
                         </div>
 
+                        <div style="margin-bottom:14px">
+                            <label style="display:block;margin-bottom:4px;font-weight:500;">Transaction Type</label>
+                            <select name="type" id="newJournalType" 
+                                style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:6px;">
+                                <option value="standard">Standard</option>
+                                <option value="reversal">Reversal</option>
+                                <option value="adjustment">Adjustment</option>
+                                <option value="closing">Closing</option>
+                            </select>
+                        </div>
+
                         <div style="display:flex;">
                         <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:30px;">Accounts</label>
                         <label style="font-weight:600; margin-top:2px; margin-bottom:6px; margin-left:115px;">Debit</label>
@@ -2137,6 +2148,7 @@ window.editJournalEntry = (id) => {
             const formData = new FormData(form);
             const description = formData.get('description');
             const date = formData.get('date');
+            const type = formData.get('type') || 'standard';
             
             // Clear previous error
             const errorDiv = modal.querySelector('#journalFormError');
@@ -2240,6 +2252,7 @@ window.editJournalEntry = (id) => {
                 user_id: ADMIN_ID,
                 date,
                 description,
+                type,
                 status: 'pending',
                 debit_account_id: debitAccounts.join(','),
                 credit_account_id: creditAccounts.join(','),
