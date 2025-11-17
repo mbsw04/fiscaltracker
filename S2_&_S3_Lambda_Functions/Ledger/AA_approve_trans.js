@@ -54,15 +54,30 @@ export const handler = async (event) => {
     const debitAmts = updatedRow && updatedRow.debit ? 
       String(updatedRow.debit).split(',').map(amt => parseFloat(parseFloat(amt.trim()).toFixed(2))).filter(amt => !isNaN(amt)) : [];
 
-    const computeNewBalance = (acct, amount, isDebitOp) => {
-      const normal = acct && acct.normal_side ? String(acct.normal_side).toLowerCase() : 'debit';
-      let bal = acct && acct.balance != null ? parseFloat(acct.balance) : 0;
-      if (isDebitOp) {
-        if (normal === 'debit') bal += amount; else bal -= amount;
+    const computeNewBalance = (acct, amount, isDebitOperation) => {
+      const normalSide = acct && acct.normal_side ? String(acct.normal_side).toLowerCase() : 'debit';
+      let currentBalance = acct && acct.balance != null ? parseFloat(acct.balance) : 0;
+      
+      // Apply accounting equation principles:
+      // - For accounts with normal debit side (Assets, Expenses): debits increase, credits decrease
+      // - For accounts with normal credit side (Liabilities, Equity, Revenue): credits increase, debits decrease
+      if (isDebitOperation) {
+        // This is a debit transaction
+        if (normalSide === 'debit') {
+          currentBalance += amount; // Debit increases debit-normal accounts
+        } else {
+          currentBalance -= amount; // Debit decreases credit-normal accounts
+        }
       } else {
-        if (normal === 'credit') bal += amount; else bal -= amount;
+        // This is a credit transaction
+        if (normalSide === 'credit') {
+          currentBalance += amount; // Credit increases credit-normal accounts
+        } else {
+          currentBalance -= amount; // Credit decreases debit-normal accounts
+        }
       }
-      return bal;
+      
+      return parseFloat(currentBalance.toFixed(2));
     };
 
     // process credited accounts: increment credit column and adjust balance for each account
@@ -75,7 +90,7 @@ export const handler = async (event) => {
       if (beforeAcct) {
         const newCredit = (parseFloat(beforeAcct.credit) || 0) + creditAmt;
         const newCreditRounded = Number(newCredit.toFixed(2));
-        const newBal = computeNewBalance(beforeAcct, creditAmt, false);
+        const newBal = computeNewBalance(beforeAcct, creditAmt, false); // false = credit operation
         const newBalRounded = Number(newBal.toFixed(2));
         await conn.execute(`UPDATE Accounts SET credit = ?, balance = ? WHERE id = ?`, [newCreditRounded, newBalRounded, creditAccountId]);
         const [afterC] = await conn.execute(`SELECT * FROM Accounts WHERE id = ?`, [creditAccountId]);
@@ -98,7 +113,7 @@ export const handler = async (event) => {
       if (beforeAcct) {
         const newDebit = (parseFloat(beforeAcct.debit) || 0) + debitAmt;
         const newDebitRounded = Number(newDebit.toFixed(2));
-        const newBal = computeNewBalance(beforeAcct, debitAmt, true);
+        const newBal = computeNewBalance(beforeAcct, debitAmt, true); // true = debit operation
         const newBalRounded = Number(newBal.toFixed(2));
         await conn.execute(`UPDATE Accounts SET debit = ?, balance = ? WHERE id = ?`, [newDebitRounded, newBalRounded, debitAccountId]);
         const [afterD] = await conn.execute(`SELECT * FROM Accounts WHERE id = ?`, [debitAccountId]);

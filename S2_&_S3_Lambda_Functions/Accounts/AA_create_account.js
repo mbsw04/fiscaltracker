@@ -11,6 +11,24 @@ export const handler = async (event) => {
 
   const { admin_id, account_number, account_name, description, normal_side, category, subcategory, initial_balance, order, statement, comment } = body;
 
+  // Function to determine normal side based on category
+  function getNormalSide(category) {
+    switch(category) {
+      case 'assets':
+      case 'expenses':
+        return 'debit';
+      case 'liabilities':
+      case 'ownerEquity':
+      case 'revenue':
+        return 'credit';
+      default:
+        return 'debit'; // fallback
+    }
+  }
+
+  // Determine normal side based on category (override any provided normal_side)
+  const calculatedNormalSide = getNormalSide(category);
+
   // Validation: account_number must be digits only (no decimals, spaces, or letters)
   if (!account_number || typeof account_number !== 'string') {
     return { statusCode: 400, body: JSON.stringify({ error: 'account_number is required and must be a string of digits' }) };
@@ -55,7 +73,7 @@ export const handler = async (event) => {
 
     const [result] = await conn.execute(
       'INSERT INTO Accounts (account_number, account_name, description, normal_side, category, subcategory, initial_balance, statement, comment, added_by, balance)\n       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [acctNumClean, account_name, description, normal_side, category, subcategory, initial_balance, statement, comment, admin_id, initial_balance]
+      [acctNumClean, account_name, description, calculatedNormalSide, category, subcategory, initial_balance, statement, comment, admin_id, initial_balance]
     );
     
     // fetch the created row and store the full row JSON in the event log

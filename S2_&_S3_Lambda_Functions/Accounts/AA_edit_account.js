@@ -10,6 +10,24 @@ export const handler = async (event) => {
 
   const { admin_id, original_account_number, account_number, account_name, description, normal_side, category, subcategory, initial_balance, statement, comment } = body;
 
+  // Function to determine normal side based on category
+  function getNormalSide(category) {
+    switch(category) {
+      case 'assets':
+      case 'expenses':
+        return 'debit';
+      case 'liabilities':
+      case 'ownerEquity':
+      case 'revenue':
+        return 'credit';
+      default:
+        return 'debit'; // fallback
+    }
+  }
+
+  // Determine normal side based on category (override any provided normal_side)
+  const calculatedNormalSide = getNormalSide(category);
+
   let conn;
   try {
     conn = await mysql.createConnection({ host: RDS_HOST, user: RDS_USER, password: RDS_PASSWORD, database: RDS_DB });
@@ -32,7 +50,7 @@ export const handler = async (event) => {
     // Update - allow changing the account_number value (rename) by setting account_number = ?
     await conn.execute(
       `UPDATE Accounts SET account_number=?, account_name=?, description=?, normal_side=?, category=?, subcategory=?, initial_balance=?, statement=?, comment=? WHERE account_number=?`,
-      [account_number, account_name, description, normal_side, category, subcategory, initial_balance, statement, comment, lookupAccountNumber]
+      [account_number, account_name, description, calculatedNormalSide, category, subcategory, initial_balance, statement, comment, lookupAccountNumber]
     );
 
     const [afterRows] = await conn.execute(`SELECT * FROM Accounts WHERE account_number = ?`, [account_number]);

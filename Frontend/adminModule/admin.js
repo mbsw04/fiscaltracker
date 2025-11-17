@@ -502,6 +502,21 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
         }
     });
 
+    // Function to determine normal side based on category
+    function getNormalSide(category) {
+        switch(category) {
+            case 'assets':
+            case 'expenses':
+                return 'debit';
+            case 'liabilities':
+            case 'ownerEquity':
+            case 'revenue':
+                return 'credit';
+            default:
+                return 'debit'; // fallback
+        }
+    }
+
     // Hook up the create account form (renamed to avoid id collisions elsewhere)
     const createForm = document.getElementById('createAccForm');
     if (createForm) {
@@ -538,7 +553,7 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
                         account_number,
                         account_name,
                         description,
-                        normal_side: 'debit',
+                        normal_side: getNormalSide(categoryVal),
                         category: categoryVal,
                         subcategory: subcategoryVal,
                         initial_balance,
@@ -870,7 +885,7 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
                     const original_account_number = document.getElementById('originalAccountNumber') ? document.getElementById('originalAccountNumber').value : account_number;
                     const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_edit_account', {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ admin_id: ADMIN_ID, original_account_number, account_number, account_name, description, normal_side: 'debit', category, subcategory, initial_balance, statement, comment: null })
+                            body: JSON.stringify({ admin_id: ADMIN_ID, original_account_number, account_number, account_name, description, normal_side: getNormalSide(category), category, subcategory, initial_balance, statement, comment: null })
                         });
                     let data = await res.json();
                     if (data && typeof data.body === 'string') { try { const parsed = JSON.parse(data.body); data = { ...data, ...parsed, body: parsed }; } catch (e) {} }
