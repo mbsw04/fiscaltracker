@@ -251,7 +251,7 @@ async function loadChartOfAccounts() {
                         </select>
                     </label>
                     <label style="font-weight:500; color:#222;">Account Subcategory
-                        <select id="accountSubcategory" required style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
+                        <select id="accountSubcategory" style="margin-top:4px; padding:8px; border-radius:7px; border:1.5px solid #bbb; font-size:1em;">
                             <option value="">Select</option>
                         </select>
                     </label>
@@ -511,7 +511,7 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
             const account_number = document.getElementById('accountIDNumber').value.trim();
             const initial_balance = parseFloat(document.getElementById('initialBalance').value) || 0;
             const categoryVal = document.getElementById('accountCategory').value;
-            const subcategoryVal = document.getElementById('accountSubcategory').value;
+            const subcategoryVal = document.getElementById('accountSubcategory').value || null;
             const description = document.getElementById('accountDescription').value.trim();
             const statementVal = document.getElementById('accountStatement') ? document.getElementById('accountStatement').value : null;
             const errorDiv = document.getElementById('createAccError');
@@ -863,7 +863,7 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
                 const account_name = document.getElementById('editAccountName').value.trim();
                 const initial_balance = parseFloat(document.getElementById('editInitialBalance').value) || 0;
                 const category = document.getElementById('editAccountCategory').value;
-                const subcategory = document.getElementById('editAccountSubcategory').value;
+                const subcategory = document.getElementById('editAccountSubcategory').value || null;
                 const statement = document.getElementById('editStatement').value;
                 const description = document.getElementById('editDescription').value.trim();
                 try {
@@ -916,7 +916,7 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
         document.getElementById('editDescription').value = acc.description || '';
     }
 
-    // Simple placeholder modal for viewing account details (OK button only)
+    // Account details modal showing only account information (no ledger)
     function showAccountModal(accountNumber) {
         const acc = [...activeAccounts, ...inactiveAccounts].find(a => a.account_number === accountNumber);
         if (!acc) { alert('Account not found.'); return; }
@@ -926,42 +926,54 @@ document.getElementById('sendEmailBtn').addEventListener('click', () => openEmai
             modal = document.createElement('div');
             modal.id = 'accountViewModal';
             modal.className = 'modal-overlay';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.5); display: none; align-items: center; 
+                justify-content: center; z-index: 1000;
+            `;
             modal.innerHTML = `
-                <div class="modal-content">
-                    <div id="accountViewBody" style="min-width:320px;">
-                    </div>
-                    <div style="display:flex; justify-content:center; margin-top:12px;">
-                        <button id="accountViewOk" class="confirm-btn">OK</button>
-                    </div>
+                <div class="modal-content" style="background:#fff; padding:24px; border-radius:12px; max-width:600px; width:90%; max-height:80vh; overflow-y:auto; position:relative;">
+                    <span class="close" style="position:absolute; top:12px; right:16px; font-size:24px; cursor:pointer; color:#666;">&times;</span>
+                    <h2 style="margin-top:0; color:#333;">Account Details</h2>
+                    <div id="accountViewBody"></div>
                 </div>
             `;
             document.body.appendChild(modal);
-            modal.querySelector('#accountViewOk').addEventListener('click', () => { modal.style.display = 'none'; });
+            
+            // Close modal handlers
+            modal.querySelector('.close').onclick = () => modal.style.display = 'none';
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.style.display = 'none';
+            };
         }
 
         const bodyDiv = modal.querySelector('#accountViewBody');
         bodyDiv.innerHTML = `
-       <label style="font-size:1.2em; font-weight:700; margin-bottom:12px; display:block;">Account Name: ${acc.account_name || ''}</label>
-        <label style="font-weight:600; margin-bottom:8px; display:block;">Account Number: ${acc.account_number || ''}</label>
-        <table border:none; border-collapse:collapse; cellpadding="8" cellspacing="0" 
-       style="width:100%; max-width:800px; margin-bottom:12px; border-collapse:collapse;">
-        <tr>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:300px;">Description</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Debit</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:100px;">Credit</th>
-            <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Balance</th>
-        </tr>
-        <tr>
-            <td style="text-align:center; padding:12px; font-size:1em;">loading...</td>
-            <td style="padding:12px; font-size:1em;">loading...</td>
-            <td style="padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-            <td style="text-align:right; padding:12px; font-size:1em;">loading...</td>
-        </tr>
-        </table>   
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+                <div>
+                    <p><strong>Account Number:</strong> ${acc.account_number || 'N/A'}</p>
+                    <p><strong>Account Name:</strong> ${acc.account_name || 'N/A'}</p>
+                    <p><strong>Status:</strong> <span style="text-transform:capitalize; padding:4px 8px; border-radius:4px; background:${acc.is_active ? '#e8f5e8' : '#ffeaea'}; color:${acc.is_active ? '#2e7d32' : '#d32f2f'};">${acc.is_active ? 'Active' : 'Inactive'}</span></p>
+                </div>
+                <div>
+                    <p><strong>Category:</strong> ${acc.category || 'N/A'}</p>
+                    <p><strong>Subcategory:</strong> ${acc.subcategory || 'N/A'}</p>
+                    <p><strong>Statement:</strong> ${acc.statement || 'N/A'}</p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:20px; padding:12px; background:#f1f3f4; border-radius:6px;">
+                <p style="margin:0; text-align:center; font-weight:bold;">
+                    Current Balance: ${formatAccounting(acc.balance || 0)}
+                </p>
+            </div>
+            
+            ${acc.description ? `
+                <div style="margin-bottom:20px; padding:12px; background:#f8f9fa; border-left:4px solid #007bff; border-radius:4px;">
+                    <h4 style="margin:0 0 8px 0; color:#333;">Description</h4>
+                    <p style="margin:0; color:#555;">${acc.description}</p>
+                </div>
+            ` : ''}
         `;
 
         modal.style.display = 'flex';
