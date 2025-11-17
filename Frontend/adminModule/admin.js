@@ -178,11 +178,14 @@ document.addEventListener('click', (ev) => {
 });
 
 // Initial load
-updateContent('chartOfAccounts');
+updateContent('dashboard');
 
 function updateContent(tab) {
     try { console.debug('[updateContent] tab=', tab); } catch (e) {}
     switch(tab) {
+        case 'dashboard':
+            loadDashboard();
+            break;
         case 'chartOfAccounts':
             loadChartOfAccounts();
             break;
@@ -208,6 +211,58 @@ function updateContent(tab) {
         default:
             actionContent.innerHTML = '';
     }
+}
+
+// ----------------------
+// DASHBOARD TAB
+// ----------------------
+async function loadDashboard() {
+    actionContent.innerHTML = `
+        <h2>Dashboard</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Current Ratio</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Current Ratio -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Return on Assets</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Return on Assets -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Return on Equity</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Return on Equity -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Net Profit Margin</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Net Profit Margin -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Asset Turnover</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Asset Turnover -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Quick Ratio</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Quick Ratio -->
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // ----------------------
