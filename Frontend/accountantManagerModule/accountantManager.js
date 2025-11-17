@@ -9,6 +9,19 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (user && user.first_name) {
             document.getElementById('profileName').textContent = user.first_name;
         }
+        
+        // Set dashboard title based on role
+        const role = (user && user.role) ? user.role.toString().toLowerCase() : 'accountant';
+        const dashboardTitle = document.getElementById('dashboardTitle');
+        if (dashboardTitle) {
+            if (role === 'manager') {
+                dashboardTitle.textContent = 'Manager Dashboard';
+            } else if (role === 'accountant') {
+                dashboardTitle.textContent = 'Accountant Dashboard';
+            } else {
+                dashboardTitle.textContent = 'Dashboard';
+            }
+        }
     } catch (e) {}
     // Attach logout handler to clear user and redirect to login
     try {
@@ -250,10 +263,11 @@ document.addEventListener('click', (ev) => {
 });
 
 // initial load
-updateContent('chartOfAccounts');
+updateContent('dashboard');
 
 function updateContent(tab) {
     switch(tab) {
+        case 'dashboard': loadDashboard(); break;
         case 'chartOfAccounts': loadChartOfAccounts(); break;
         case 'reports': loadReports(); break;
         case 'journal': loadJournal(); break;
@@ -333,6 +347,140 @@ function initButtonTooltips() {
         observer.observe(target, { childList: true, subtree: true });
     } catch (err) {
         console.error('initButtonTooltips failed', err);
+    }
+}
+
+// ----------------------
+// DASHBOARD TAB (accountant/manager)
+// ----------------------
+async function loadDashboard() {
+    actionContent.innerHTML = `
+        <h2>Dashboard</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Current Ratio</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Current Ratio -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Return on Assets</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Return on Assets -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Return on Equity</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Return on Equity -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Net Profit Margin</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Net Profit Margin -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Asset Turnover</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Asset Turnover -->
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #333;">Quick Ratio</h3>
+                <div style="color: #666; min-height: 150px;">
+                    <!-- Content for Quick Ratio -->
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadRecentActivity() {
+    const container = document.getElementById('dashboardRecentActivity');
+    try {
+        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_event_log_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        });
+        let data = await res.json();
+        if (data && typeof data.body === 'string') {
+            try { data = JSON.parse(data.body); } catch (e) {}
+        }
+        const events = Array.isArray(data) ? data : (Array.isArray(data.rows) ? data.rows : []);
+        
+        // Get the 5 most recent events
+        const recentEvents = events.slice(0, 5);
+        
+        if (recentEvents.length === 0) {
+            container.innerHTML = '<p style="color: #999; font-style: italic;">No recent activity</p>';
+            return;
+        }
+        
+        let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+        recentEvents.forEach(event => {
+            const date = new Date(event.changed_at).toLocaleString();
+            html += `
+                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 0.9em;">
+                    <div style="font-weight: 600; color: #333;">${event.action} - ${event.table_name}</div>
+                    <div style="color: #666; font-size: 0.85em;">${date}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = '<p style="color: #d32f2f;">Error loading recent activity</p>';
+    }
+}
+
+async function loadPendingItems() {
+    const container = document.getElementById('dashboardPendingItems');
+    try {
+        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        });
+        let data = await res.json();
+        if (data && typeof data.body === 'string') {
+            try { data = JSON.parse(data.body); } catch (e) {}
+        }
+        let entries = Array.isArray(data) ? data : (Array.isArray(data.body) ? data.body : (Array.isArray(data.transactions) ? data.transactions : []));
+        
+        // Filter pending transactions
+        const pendingEntries = entries.filter(e => (e.status || '').toLowerCase() === 'pending');
+        
+        if (pendingEntries.length === 0) {
+            container.innerHTML = '<p style="color: #999; font-style: italic;">No pending items</p>';
+            return;
+        }
+        
+        let html = `<div style="display: flex; flex-direction: column; gap: 8px;">`;
+        html += `<div style="font-weight: 600; margin-bottom: 8px; color: #333;">${pendingEntries.length} pending transaction(s)</div>`;
+        pendingEntries.slice(0, 5).forEach(entry => {
+            const date = new Date(entry.created_at || entry.date).toLocaleDateString();
+            html += `
+                <div style="padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 0.9em; border-left: 3px solid #856404;">
+                    <div style="font-weight: 600; color: #333;">#${entry.id} - ${entry.description || 'No description'}</div>
+                    <div style="color: #666; font-size: 0.85em;">${date}</div>
+                </div>
+            `;
+        });
+        if (pendingEntries.length > 5) {
+            html += `<div style="text-align: center; margin-top: 8px;"><button onclick="document.querySelector('[data-tab=journal]').click()" class="action-btn" style="font-size: 0.9em;">View All</button></div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = '<p style="color: #d32f2f;">Error loading pending items</p>';
     }
 }
 
