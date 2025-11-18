@@ -220,42 +220,42 @@ async function loadDashboard() {
     actionContent.innerHTML = `
         <h2>Dashboard</h2>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;">
-            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                 <h3 style="margin-top: 0; color: #333;">Current Ratio</h3>
                 <div id="currentRatioContent" style="color: #666; min-height: 150px;">
                     <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
-            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                 <h3 style="margin-top: 0; color: #333;">Return on Assets</h3>
                 <div id="roaContent" style="color: #666; min-height: 150px;">
                     <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
-            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                 <h3 style="margin-top: 0; color: #333;">Return on Equity</h3>
                 <div id="roeContent" style="color: #666; min-height: 150px;">
                     <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
-            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                 <h3 style="margin-top: 0; color: #333;">Net Profit Margin</h3>
                 <div id="npmContent" style="color: #666; min-height: 150px;">
                     <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
-            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                 <h3 style="margin-top: 0; color: #333;">Asset Turnover</h3>
                 <div id="assetTurnoverContent" style="color: #666; min-height: 150px;">
                     <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
-            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                 <h3 style="margin-top: 0; color: #333;">Quick Ratio</h3>
                 <div id="quickRatioContent" style="color: #666; min-height: 150px;">
                     <p style="text-align: center; padding-top: 40px;">Loading...</p>
