@@ -3398,25 +3398,48 @@ function showAccountModal(accountNumber) {
         modal = document.createElement('div');
         modal.id = 'accountViewModal';
         modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.5); display: none; align-items: center; 
+            justify-content: center; z-index: 1000; overflow-y: auto;
+        `;
         modal.innerHTML = `
-            <div class="modal-content" style="position:relative;">
-                <button type="button" id="closeAccountViewModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
-                <h3>Account Details</h3>
-                <div id="accountViewBody" style="min-width:320px;"></div>
-                <div style="display:flex; justify-content:center; margin-top:12px;">
-                    <button id="accountViewOk" class="confirm-btn">OK</button>
-                </div>
+            <div class="modal-content" style="background:#fff; padding:24px 24px 24px 24px; border-radius:12px; max-width:95%; width:1100px; max-height:90vh; overflow-y:auto; position:relative; margin:20px auto;">
+                <span class="close" style="position:absolute; top:10px; right:16px; font-size:28px; cursor:pointer; color:#666; z-index:10;">&times;</span>
+                <h2 style="margin-top:0; margin-bottom:20px; color:#333;">Account Details</h2>
+                <div id="accountViewBody"></div>
             </div>
         `;
         document.body.appendChild(modal);
-        modal.querySelector('#accountViewOk').addEventListener('click', () => { modal.style.display = 'none'; });
-        modal.querySelector('#closeAccountViewModal').addEventListener('click', () => { modal.style.display = 'none'; });
+        
+        // Close modal handlers
+        modal.querySelector('.close').onclick = () => modal.style.display = 'none';
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        };
     }
 
     const bodyDiv = modal.querySelector('#accountViewBody');
     bodyDiv.innerHTML = `
-        <label style="font-size:1.2em; font-weight:700; margin-bottom:12px; display:block;">Account Name: ${acc.account_name || ''}</label>
-        <label style="font-weight:600; margin-bottom:8px; display:block;">Account Number: ${acc.account_number || ''}</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+            <div>
+                <p><strong>Account Number:</strong> ${acc.account_number || 'N/A'}</p>
+                <p><strong>Account Name:</strong> ${acc.account_name || 'N/A'}</p>
+                <p><strong>Status:</strong> <span style="text-transform:capitalize; padding:4px 8px; border-radius:4px; background:#e8f5e8; color:#2e7d32;">Active</span></p>
+            </div>
+            <div>
+                <p><strong>Category:</strong> ${acc.category || 'N/A'}</p>
+                <p><strong>Subcategory:</strong> ${acc.subcategory || 'N/A'}</p>
+                <p><strong>Statement:</strong> ${acc.statement || 'N/A'}</p>
+            </div>
+        </div>
+        
+        <div style="margin-bottom:20px; padding:12px; background:#f1f3f4; border-radius:6px;">
+            <p style="margin:0; text-align:center; font-weight:bold;">
+                Current Balance: ${formatAccounting(acc.balance || 0)}
+            </p>
+        </div>
+        
         <div id="accountTransTableWrap"><p>Loading transactions...</p></div>
     `;
 
@@ -3462,7 +3485,7 @@ function showAccountModal(accountNumber) {
                 });
             }
 
-            let html = `<table border="none" border-collapse="collapse" cellpadding="8" cellspacing="0" style="width:100%; max-width:900px; margin-bottom:12px; border-collapse:collapse;">
+            let html = `<table border="none" border-collapse="collapse" cellpadding="8" cellspacing="0" style="width:100%; max-width:1000px; margin:0 auto 12px auto; border-collapse:collapse;">
                 <tr>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
