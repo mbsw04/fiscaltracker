@@ -9,6 +9,19 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if (user && user.first_name) {
             document.getElementById('profileName').textContent = user.first_name;
         }
+        
+        // Set dashboard title based on role
+        const role = (user && user.role) ? user.role.toString().toLowerCase() : 'accountant';
+        const dashboardTitle = document.getElementById('dashboardTitle');
+        if (dashboardTitle) {
+            if (role === 'manager') {
+                dashboardTitle.textContent = 'Manager Dashboard';
+            } else if (role === 'accountant') {
+                dashboardTitle.textContent = 'Accountant Dashboard';
+            } else {
+                dashboardTitle.textContent = 'Dashboard';
+            }
+        }
     } catch (e) {}
     // Attach logout handler to clear user and redirect to login
     try {
@@ -250,15 +263,89 @@ document.addEventListener('click', (ev) => {
 });
 
 // initial load
-updateContent('chartOfAccounts');
+updateContent('dashboard');
 
 function updateContent(tab) {
     switch(tab) {
+        case 'dashboard': loadDashboard(); break;
         case 'chartOfAccounts': loadChartOfAccounts(); break;
         case 'reports': loadReports(); break;
         case 'journal': loadJournal(); break;
         case 'eventLog': loadEventLog(); break;
         default: actionContent.innerHTML = '';
+    }
+}
+
+// Function to fetch and update pending journal entries badge
+async function updatePendingJournalBadge() {
+    try {
+        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        });
+        
+        let data = await res.json();
+        
+        // Parse the body if it's a string
+        if (data.body && typeof data.body === 'string') {
+            try {
+                data = JSON.parse(data.body);
+            } catch (e) {
+                console.error('Error parsing trans_list response:', e);
+                return;
+            }
+        }
+        
+        // Handle if data is directly an array or wrapped
+        const transactions = Array.isArray(data) ? data : (data.transactions || []);
+        
+        // Count pending transactions
+        const pendingCount = transactions.filter(t => 
+            (t.status || '').toLowerCase() === 'pending'
+        ).length;
+        
+        // Find or create the journal tab
+        const journalTab = document.querySelector('button[data-tab="journal"]');
+        if (journalTab) {
+            // Remove existing badge if present
+            const existingBadge = journalTab.querySelector('.pending-badge');
+            if (existingBadge) {
+                existingBadge.remove();
+            }
+            
+            // Add badge if there are pending entries
+            if (pendingCount > 0) {
+                const badge = document.createElement('span');
+                badge.className = 'pending-badge';
+                badge.textContent = pendingCount;
+                badge.style.cssText = `
+                    position: absolute;
+                    top: -8px;
+                    right: -8px;
+                    background: #f44336;
+                    color: white;
+                    border-radius: 50%;
+                    width: 24px;
+                    height: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    font-weight: bold;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                `;
+                
+                // Make journal tab position relative if not already
+                if (getComputedStyle(journalTab).position === 'static') {
+                    journalTab.style.position = 'relative';
+                }
+                
+                journalTab.appendChild(badge);
+            }
+        }
+    } catch (err) {
+        console.error('Error fetching pending journal count:', err);
     }
 }
 
@@ -285,6 +372,10 @@ function startTopbarClock() {
 document.addEventListener('DOMContentLoaded', () => {
     startTopbarClock();
     initButtonTooltips();
+    // Fetch pending journal count for managers
+    if (CURRENT_ROLE === 'manager') {
+        updatePendingJournalBadge();
+    }
 });
 
 // Add informative tooltips to buttons that are missing a title attribute.
@@ -333,6 +424,302 @@ function initButtonTooltips() {
         observer.observe(target, { childList: true, subtree: true });
     } catch (err) {
         console.error('initButtonTooltips failed', err);
+    }
+}
+
+// ----------------------
+// DASHBOARD TAB (accountant/manager)
+// ----------------------
+async function loadDashboard() {
+    actionContent.innerHTML = `
+        <h2>Dashboard</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;">
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <h3 style="margin-top: 0; color: #333;">Current Ratio</h3>
+                <div id="currentRatioContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <h3 style="margin-top: 0; color: #333;">Return on Assets</h3>
+                <div id="roaContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <h3 style="margin-top: 0; color: #333;">Return on Equity</h3>
+                <div id="roeContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <h3 style="margin-top: 0; color: #333;">Net Profit Margin</h3>
+                <div id="npmContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <h3 style="margin-top: 0; color: #333;">Asset Turnover</h3>
+                <div id="assetTurnoverContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
+                </div>
+            </div>
+            
+            <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                <h3 style="margin-top: 0; color: #333;">Quick Ratio</h3>
+                <div id="quickRatioContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Fetch accounts and calculate ratios
+    await calculateAndDisplayRatios();
+}
+
+async function calculateAndDisplayRatios() {
+    try {
+        // Fetch all accounts
+        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        });
+        
+        let data = await res.json();
+        if (data.body && typeof data.body === 'string') {
+            data = JSON.parse(data.body);
+        }
+        
+        const accounts = Array.isArray(data) ? data : (data.accounts || []);
+        const activeAccounts = accounts.filter(acc => acc.is_active);
+        
+        // Calculate account totals by category and subcategory
+        let currentAssets = 0;
+        let totalAssets = 0;
+        let currentLiabilities = 0;
+        let totalLiabilities = 0;
+        let totalEquity = 0;
+        let totalRevenue = 0;
+        let netIncome = 0;
+        let inventory = 0;
+        
+        activeAccounts.forEach(acc => {
+            const balance = parseFloat(acc.balance) || 0;
+            const category = (acc.category || '').toLowerCase();
+            const subcategory = (acc.subcategory || '').toLowerCase();
+            
+            // Assets
+            if (category === 'assets' || category === 'asset') {
+                totalAssets += Math.abs(balance);
+                if (subcategory.includes('current')) {
+                    currentAssets += Math.abs(balance);
+                    // Identify inventory accounts (typically named with 'inventory' or 'stock')
+                    if (acc.account_name.toLowerCase().includes('inventory') || 
+                        acc.account_name.toLowerCase().includes('stock')) {
+                        inventory += Math.abs(balance);
+                    }
+                }
+            }
+            
+            // Liabilities
+            if (category === 'liabilities' || category === 'liability') {
+                totalLiabilities += Math.abs(balance);
+                if (subcategory.includes('current')) {
+                    currentLiabilities += Math.abs(balance);
+                }
+            }
+            
+            // Equity
+            if (category === 'ownerequity' || category === 'owner equity' || category === 'equity') {
+                totalEquity += Math.abs(balance);
+            }
+            
+            // Revenue
+            if (category === 'revenue' || category === 'income') {
+                totalRevenue += Math.abs(balance);
+            }
+        });
+        
+        // Calculate net income (revenue - expenses)
+        let totalExpenses = 0;
+        activeAccounts.forEach(acc => {
+            const category = (acc.category || '').toLowerCase();
+            if (category === 'expenses' || category === 'expense') {
+                totalExpenses += Math.abs(parseFloat(acc.balance) || 0);
+            }
+        });
+        netIncome = totalRevenue - totalExpenses;
+        
+        // Helper function to get color based on ratio value and thresholds
+        function getRatioColor(value, goodMin, warningMin) {
+            if (value >= goodMin) return '#4CAF50'; // Green
+            if (value >= warningMin) return '#FFC107'; // Yellow
+            return '#f44336'; // Red
+        }
+        
+        // Helper function to format ratio display
+        function formatRatioDisplay(title, value, formula, goodMin, warningMin, isPercentage = false) {
+            const displayValue = isPercentage ? (value * 100).toFixed(2) + '%' : value.toFixed(2);
+            const color = getRatioColor(value, goodMin, warningMin);
+            
+            return `
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="font-size: 48px; font-weight: bold; color: ${color}; margin-bottom: 10px;">
+                        ${displayValue}
+                    </div>
+                    <div style="font-size: 14px; color: #666; margin-bottom: 15px;">
+                        ${formula}
+                    </div>
+                    <div style="font-size: 12px; color: #999;">
+                        <div>Good: ≥${isPercentage ? (goodMin * 100).toFixed(0) + '%' : goodMin}</div>
+                        <div>Warning: ≥${isPercentage ? (warningMin * 100).toFixed(0) + '%' : warningMin}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 1. Current Ratio = Current Assets / Current Liabilities
+        // Good: ≥2.0, Warning: ≥1.0, Poor: <1.0
+        const currentRatio = currentLiabilities > 0 ? currentAssets / currentLiabilities : 0;
+        document.getElementById('currentRatioContent').innerHTML = 
+            formatRatioDisplay('Current Ratio', currentRatio, 
+                `$${formatAccounting(currentAssets)} / $${formatAccounting(currentLiabilities)}`, 
+                2.0, 1.0);
+        
+        // 2. Return on Assets = Net Income / Total Assets
+        // Good: ≥5%, Warning: ≥2%, Poor: <2%
+        const roa = totalAssets > 0 ? netIncome / totalAssets : 0;
+        document.getElementById('roaContent').innerHTML = 
+            formatRatioDisplay('Return on Assets', roa, 
+                `$${formatAccounting(netIncome)} / $${formatAccounting(totalAssets)}`, 
+                0.05, 0.02, true);
+        
+        // 3. Return on Equity = Net Income / Total Equity
+        // Good: ≥15%, Warning: ≥10%, Poor: <10%
+        const roe = totalEquity > 0 ? netIncome / totalEquity : 0;
+        document.getElementById('roeContent').innerHTML = 
+            formatRatioDisplay('Return on Equity', roe, 
+                `$${formatAccounting(netIncome)} / $${formatAccounting(totalEquity)}`, 
+                0.15, 0.10, true);
+        
+        // 4. Net Profit Margin = Net Income / Revenue
+        // Good: ≥10%, Warning: ≥5%, Poor: <5%
+        const npm = totalRevenue > 0 ? netIncome / totalRevenue : 0;
+        document.getElementById('npmContent').innerHTML = 
+            formatRatioDisplay('Net Profit Margin', npm, 
+                `$${formatAccounting(netIncome)} / $${formatAccounting(totalRevenue)}`, 
+                0.10, 0.05, true);
+        
+        // 5. Asset Turnover = Revenue / Total Assets
+        // Good: ≥1.0, Warning: ≥0.5, Poor: <0.5
+        const assetTurnover = totalAssets > 0 ? totalRevenue / totalAssets : 0;
+        document.getElementById('assetTurnoverContent').innerHTML = 
+            formatRatioDisplay('Asset Turnover', assetTurnover, 
+                `$${formatAccounting(totalRevenue)} / $${formatAccounting(totalAssets)}`, 
+                1.0, 0.5);
+        
+        // 6. Quick Ratio = (Current Assets - Inventory) / Current Liabilities
+        // Good: ≥1.0, Warning: ≥0.5, Poor: <0.5
+        const quickRatio = currentLiabilities > 0 ? (currentAssets - inventory) / currentLiabilities : 0;
+        document.getElementById('quickRatioContent').innerHTML = 
+            formatRatioDisplay('Quick Ratio', quickRatio, 
+                `($${formatAccounting(currentAssets)} - $${formatAccounting(inventory)}) / $${formatAccounting(currentLiabilities)}`, 
+                1.0, 0.5);
+        
+    } catch (err) {
+        console.error('Error calculating ratios:', err);
+        ['currentRatioContent', 'roaContent', 'roeContent', 'npmContent', 'assetTurnoverContent', 'quickRatioContent'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<p style="color: #d32f2f; text-align: center; padding-top: 40px;">Error loading ratio</p>';
+        });
+    }
+}
+
+async function loadRecentActivity() {
+    const container = document.getElementById('dashboardRecentActivity');
+    try {
+        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_event_log_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        });
+        let data = await res.json();
+        if (data && typeof data.body === 'string') {
+            try { data = JSON.parse(data.body); } catch (e) {}
+        }
+        const events = Array.isArray(data) ? data : (Array.isArray(data.rows) ? data.rows : []);
+        
+        // Get the 5 most recent events
+        const recentEvents = events.slice(0, 5);
+        
+        if (recentEvents.length === 0) {
+            container.innerHTML = '<p style="color: #999; font-style: italic;">No recent activity</p>';
+            return;
+        }
+        
+        let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+        recentEvents.forEach(event => {
+            const date = new Date(event.changed_at).toLocaleString();
+            html += `
+                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 0.9em;">
+                    <div style="font-weight: 600; color: #333;">${event.action} - ${event.table_name}</div>
+                    <div style="color: #666; font-size: 0.85em;">${date}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = '<p style="color: #d32f2f;">Error loading recent activity</p>';
+    }
+}
+
+async function loadPendingItems() {
+    const container = document.getElementById('dashboardPendingItems');
+    try {
+        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        });
+        let data = await res.json();
+        if (data && typeof data.body === 'string') {
+            try { data = JSON.parse(data.body); } catch (e) {}
+        }
+        let entries = Array.isArray(data) ? data : (Array.isArray(data.body) ? data.body : (Array.isArray(data.transactions) ? data.transactions : []));
+        
+        // Filter pending transactions
+        const pendingEntries = entries.filter(e => (e.status || '').toLowerCase() === 'pending');
+        
+        if (pendingEntries.length === 0) {
+            container.innerHTML = '<p style="color: #999; font-style: italic;">No pending items</p>';
+            return;
+        }
+        
+        let html = `<div style="display: flex; flex-direction: column; gap: 8px;">`;
+        html += `<div style="font-weight: 600; margin-bottom: 8px; color: #333;">${pendingEntries.length} pending transaction(s)</div>`;
+        pendingEntries.slice(0, 5).forEach(entry => {
+            const date = new Date(entry.created_at || entry.date).toLocaleDateString();
+            html += `
+                <div style="padding: 8px; background: #fff3cd; border-radius: 4px; font-size: 0.9em; border-left: 3px solid #856404;">
+                    <div style="font-weight: 600; color: #333;">#${entry.id} - ${entry.description || 'No description'}</div>
+                    <div style="color: #666; font-size: 0.85em;">${date}</div>
+                </div>
+            `;
+        });
+        if (pendingEntries.length > 5) {
+            html += `<div style="text-align: center; margin-top: 8px;"><button onclick="document.querySelector('[data-tab=journal]').click()" class="action-btn" style="font-size: 0.9em;">View All</button></div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerHTML = '<p style="color: #d32f2f;">Error loading pending items</p>';
     }
 }
 
@@ -1733,6 +2120,10 @@ async function loadJournal() {
                 
                 modal.style.display = 'none';
                 await fetchJournalEntries(); // refresh
+                // Update badge count for managers
+                if (CURRENT_ROLE === 'manager') {
+                    updatePendingJournalBadge();
+                }
             } catch (err) {
                 console.error('Error updating journal entry:', err);
                 showError('Failed to update journal entry: ' + (err.message || 'Unknown error'));
@@ -1757,6 +2148,10 @@ window.editJournalEntry = (id) => {
             });
             if (!res.ok) throw new Error('Approval failed');
             await fetchJournalEntries();
+            // Update badge count
+            if (CURRENT_ROLE === 'manager') {
+                updatePendingJournalBadge();
+            }
         } catch (err) {
             console.error('Error approving transaction', err);
             alert('Failed to approve transaction: ' + (err.message || ''));
@@ -1803,6 +2198,10 @@ window.editJournalEntry = (id) => {
                     if (res.ok) {
                         modal.style.display = 'none';
                         await fetchJournalEntries();
+                        // Update badge count
+                        if (CURRENT_ROLE === 'manager') {
+                            updatePendingJournalBadge();
+                        }
                         return;
                     }
                 } catch (err) {
@@ -1823,6 +2222,10 @@ window.editJournalEntry = (id) => {
                     // Also mark status locally by calling AA_approve_trans? No - better to rely on server-side. We'll refresh.
                     modal.style.display = 'none';
                     await fetchJournalEntries();
+                    // Update badge count
+                    if (CURRENT_ROLE === 'manager') {
+                        updatePendingJournalBadge();
+                    }
                 } catch (err) {
                     console.error('Reject transaction fallback failed', err);
                     alert('Failed to reject transaction.');
@@ -2319,6 +2722,10 @@ window.editJournalEntry = (id) => {
                 alert(message);
                 modal.style.display = 'none';
                 await fetchJournalEntries();
+                // Update badge count for managers
+                if (CURRENT_ROLE === 'manager') {
+                    updatePendingJournalBadge();
+                }
             } catch (err) {
                 console.error('Error creating transaction:', err);
                 alert('Failed to create journal entry. Please try again.');
@@ -2428,7 +2835,12 @@ document.getElementById('newJournalEntryBtn').addEventListener('click', showNewE
     });
 
     // Initial load
-    fetchJournalEntries();
+    await fetchJournalEntries();
+    
+    // Update badge count after loading (for managers)
+    if (CURRENT_ROLE === 'manager') {
+        updatePendingJournalBadge();
+    }
 }
 
 // Global function to populate account dropdown
@@ -2986,25 +3398,48 @@ function showAccountModal(accountNumber) {
         modal = document.createElement('div');
         modal.id = 'accountViewModal';
         modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.5); display: none; align-items: center; 
+            justify-content: center; z-index: 1000; overflow-y: auto;
+        `;
         modal.innerHTML = `
-            <div class="modal-content" style="position:relative;">
-                <button type="button" id="closeAccountViewModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
-                <h3>Account Details</h3>
-                <div id="accountViewBody" style="min-width:320px;"></div>
-                <div style="display:flex; justify-content:center; margin-top:12px;">
-                    <button id="accountViewOk" class="confirm-btn">OK</button>
-                </div>
+            <div class="modal-content" style="background:#fff; padding:24px 24px 24px 24px; border-radius:12px; max-width:95%; width:1100px; max-height:90vh; overflow-y:auto; position:relative; margin:20px auto;">
+                <span class="close" style="position:absolute; top:10px; right:16px; font-size:28px; cursor:pointer; color:#666; z-index:10;">&times;</span>
+                <h2 style="margin-top:0; margin-bottom:20px; color:#333;">Account Details</h2>
+                <div id="accountViewBody"></div>
             </div>
         `;
         document.body.appendChild(modal);
-        modal.querySelector('#accountViewOk').addEventListener('click', () => { modal.style.display = 'none'; });
-        modal.querySelector('#closeAccountViewModal').addEventListener('click', () => { modal.style.display = 'none'; });
+        
+        // Close modal handlers
+        modal.querySelector('.close').onclick = () => modal.style.display = 'none';
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        };
     }
 
     const bodyDiv = modal.querySelector('#accountViewBody');
     bodyDiv.innerHTML = `
-        <label style="font-size:1.2em; font-weight:700; margin-bottom:12px; display:block;">Account Name: ${acc.account_name || ''}</label>
-        <label style="font-weight:600; margin-bottom:8px; display:block;">Account Number: ${acc.account_number || ''}</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+            <div>
+                <p><strong>Account Number:</strong> ${acc.account_number || 'N/A'}</p>
+                <p><strong>Account Name:</strong> ${acc.account_name || 'N/A'}</p>
+                <p><strong>Status:</strong> <span style="text-transform:capitalize; padding:4px 8px; border-radius:4px; background:#e8f5e8; color:#2e7d32;">Active</span></p>
+            </div>
+            <div>
+                <p><strong>Category:</strong> ${acc.category || 'N/A'}</p>
+                <p><strong>Subcategory:</strong> ${acc.subcategory || 'N/A'}</p>
+                <p><strong>Statement:</strong> ${acc.statement || 'N/A'}</p>
+            </div>
+        </div>
+        
+        <div style="margin-bottom:20px; padding:12px; background:#f1f3f4; border-radius:6px;">
+            <p style="margin:0; text-align:center; font-weight:bold;">
+                Current Balance: ${formatAccounting(acc.balance || 0)}
+            </p>
+        </div>
+        
         <div id="accountTransTableWrap"><p>Loading transactions...</p></div>
     `;
 
@@ -3040,9 +3475,17 @@ function showAccountModal(accountNumber) {
                 
                 // Only show approved transactions
                 filtered = filtered.filter(e => (e.status || '').toLowerCase() === 'approved');
+                
+                // Sort chronologically by date, then by ID
+                filtered.sort((a, b) => {
+                    const dateA = new Date(a.created_at).getTime();
+                    const dateB = new Date(b.created_at).getTime();
+                    if (dateA !== dateB) return dateA - dateB;
+                    return a.id - b.id;
+                });
             }
 
-            let html = `<table border="none" border-collapse="collapse" cellpadding="8" cellspacing="0" style="width:100%; max-width:900px; margin-bottom:12px; border-collapse:collapse;">
+            let html = `<table border="none" border-collapse="collapse" cellpadding="8" cellspacing="0" style="width:100%; max-width:1000px; margin:0 auto 12px auto; border-collapse:collapse;">
                 <tr>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:120px;">Date</th>
                     <th style="text-align:center; padding:12px; font-size:1.1em; min-width:14px;">Reference No.</th>
