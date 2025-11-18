@@ -222,47 +222,209 @@ async function loadDashboard() {
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px;">
             <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h3 style="margin-top: 0; color: #333;">Current Ratio</h3>
-                <div style="color: #666; min-height: 150px;">
-                    <!-- Content for Current Ratio -->
+                <div id="currentRatioContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
             <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h3 style="margin-top: 0; color: #333;">Return on Assets</h3>
-                <div style="color: #666; min-height: 150px;">
-                    <!-- Content for Return on Assets -->
+                <div id="roaContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
             <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h3 style="margin-top: 0; color: #333;">Return on Equity</h3>
-                <div style="color: #666; min-height: 150px;">
-                    <!-- Content for Return on Equity -->
+                <div id="roeContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
             <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h3 style="margin-top: 0; color: #333;">Net Profit Margin</h3>
-                <div style="color: #666; min-height: 150px;">
-                    <!-- Content for Net Profit Margin -->
+                <div id="npmContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
             <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h3 style="margin-top: 0; color: #333;">Asset Turnover</h3>
-                <div style="color: #666; min-height: 150px;">
-                    <!-- Content for Asset Turnover -->
+                <div id="assetTurnoverContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
             
             <div style="background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h3 style="margin-top: 0; color: #333;">Quick Ratio</h3>
-                <div style="color: #666; min-height: 150px;">
-                    <!-- Content for Quick Ratio -->
+                <div id="quickRatioContent" style="color: #666; min-height: 150px;">
+                    <p style="text-align: center; padding-top: 40px;">Loading...</p>
                 </div>
             </div>
         </div>
     `;
+    
+    // Fetch accounts and calculate ratios
+    await calculateAndDisplayRatios();
+}
+
+async function calculateAndDisplayRatios() {
+    try {
+        // Fetch all accounts
+        const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: ADMIN_ID })
+        });
+        
+        let data = await res.json();
+        if (data.body && typeof data.body === 'string') {
+            data = JSON.parse(data.body);
+        }
+        
+        const accounts = Array.isArray(data) ? data : (data.accounts || []);
+        const activeAccounts = accounts.filter(acc => acc.is_active);
+        
+        // Calculate account totals by category and subcategory
+        let currentAssets = 0;
+        let totalAssets = 0;
+        let currentLiabilities = 0;
+        let totalLiabilities = 0;
+        let totalEquity = 0;
+        let totalRevenue = 0;
+        let netIncome = 0;
+        let inventory = 0;
+        
+        activeAccounts.forEach(acc => {
+            const balance = parseFloat(acc.balance) || 0;
+            const category = (acc.category || '').toLowerCase();
+            const subcategory = (acc.subcategory || '').toLowerCase();
+            
+            // Assets
+            if (category === 'assets' || category === 'asset') {
+                totalAssets += Math.abs(balance);
+                if (subcategory.includes('current')) {
+                    currentAssets += Math.abs(balance);
+                    // Identify inventory accounts (typically named with 'inventory' or 'stock')
+                    if (acc.account_name.toLowerCase().includes('inventory') || 
+                        acc.account_name.toLowerCase().includes('stock')) {
+                        inventory += Math.abs(balance);
+                    }
+                }
+            }
+            
+            // Liabilities
+            if (category === 'liabilities' || category === 'liability') {
+                totalLiabilities += Math.abs(balance);
+                if (subcategory.includes('current')) {
+                    currentLiabilities += Math.abs(balance);
+                }
+            }
+            
+            // Equity
+            if (category === 'ownerequity' || category === 'owner equity' || category === 'equity') {
+                totalEquity += Math.abs(balance);
+            }
+            
+            // Revenue
+            if (category === 'revenue' || category === 'income') {
+                totalRevenue += Math.abs(balance);
+            }
+        });
+        
+        // Calculate net income (revenue - expenses)
+        let totalExpenses = 0;
+        activeAccounts.forEach(acc => {
+            const category = (acc.category || '').toLowerCase();
+            if (category === 'expenses' || category === 'expense') {
+                totalExpenses += Math.abs(parseFloat(acc.balance) || 0);
+            }
+        });
+        netIncome = totalRevenue - totalExpenses;
+        
+        // Helper function to get color based on ratio value and thresholds
+        function getRatioColor(value, goodMin, warningMin) {
+            if (value >= goodMin) return '#4CAF50'; // Green
+            if (value >= warningMin) return '#FFC107'; // Yellow
+            return '#f44336'; // Red
+        }
+        
+        // Helper function to format ratio display
+        function formatRatioDisplay(title, value, formula, goodMin, warningMin, isPercentage = false) {
+            const displayValue = isPercentage ? (value * 100).toFixed(2) + '%' : value.toFixed(2);
+            const color = getRatioColor(value, goodMin, warningMin);
+            
+            return `
+                <div style="text-align: center; padding: 20px 0;">
+                    <div style="font-size: 48px; font-weight: bold; color: ${color}; margin-bottom: 10px;">
+                        ${displayValue}
+                    </div>
+                    <div style="font-size: 14px; color: #666; margin-bottom: 15px;">
+                        ${formula}
+                    </div>
+                    <div style="font-size: 12px; color: #999;">
+                        <div>Good: ≥${isPercentage ? (goodMin * 100).toFixed(0) + '%' : goodMin}</div>
+                        <div>Warning: ≥${isPercentage ? (warningMin * 100).toFixed(0) + '%' : warningMin}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 1. Current Ratio = Current Assets / Current Liabilities
+        // Good: ≥2.0, Warning: ≥1.0, Poor: <1.0
+        const currentRatio = currentLiabilities > 0 ? currentAssets / currentLiabilities : 0;
+        document.getElementById('currentRatioContent').innerHTML = 
+            formatRatioDisplay('Current Ratio', currentRatio, 
+                `$${formatAccounting(currentAssets)} / $${formatAccounting(currentLiabilities)}`, 
+                2.0, 1.0);
+        
+        // 2. Return on Assets = Net Income / Total Assets
+        // Good: ≥5%, Warning: ≥2%, Poor: <2%
+        const roa = totalAssets > 0 ? netIncome / totalAssets : 0;
+        document.getElementById('roaContent').innerHTML = 
+            formatRatioDisplay('Return on Assets', roa, 
+                `$${formatAccounting(netIncome)} / $${formatAccounting(totalAssets)}`, 
+                0.05, 0.02, true);
+        
+        // 3. Return on Equity = Net Income / Total Equity
+        // Good: ≥15%, Warning: ≥10%, Poor: <10%
+        const roe = totalEquity > 0 ? netIncome / totalEquity : 0;
+        document.getElementById('roeContent').innerHTML = 
+            formatRatioDisplay('Return on Equity', roe, 
+                `$${formatAccounting(netIncome)} / $${formatAccounting(totalEquity)}`, 
+                0.15, 0.10, true);
+        
+        // 4. Net Profit Margin = Net Income / Revenue
+        // Good: ≥10%, Warning: ≥5%, Poor: <5%
+        const npm = totalRevenue > 0 ? netIncome / totalRevenue : 0;
+        document.getElementById('npmContent').innerHTML = 
+            formatRatioDisplay('Net Profit Margin', npm, 
+                `$${formatAccounting(netIncome)} / $${formatAccounting(totalRevenue)}`, 
+                0.10, 0.05, true);
+        
+        // 5. Asset Turnover = Revenue / Total Assets
+        // Good: ≥1.0, Warning: ≥0.5, Poor: <0.5
+        const assetTurnover = totalAssets > 0 ? totalRevenue / totalAssets : 0;
+        document.getElementById('assetTurnoverContent').innerHTML = 
+            formatRatioDisplay('Asset Turnover', assetTurnover, 
+                `$${formatAccounting(totalRevenue)} / $${formatAccounting(totalAssets)}`, 
+                1.0, 0.5);
+        
+        // 6. Quick Ratio = (Current Assets - Inventory) / Current Liabilities
+        // Good: ≥1.0, Warning: ≥0.5, Poor: <0.5
+        const quickRatio = currentLiabilities > 0 ? (currentAssets - inventory) / currentLiabilities : 0;
+        document.getElementById('quickRatioContent').innerHTML = 
+            formatRatioDisplay('Quick Ratio', quickRatio, 
+                `($${formatAccounting(currentAssets)} - $${formatAccounting(inventory)}) / $${formatAccounting(currentLiabilities)}`, 
+                1.0, 0.5);
+        
+    } catch (err) {
+        console.error('Error calculating ratios:', err);
+        ['currentRatioContent', 'roaContent', 'roeContent', 'npmContent', 'assetTurnoverContent', 'quickRatioContent'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<p style="color: #d32f2f; text-align: center; padding-top: 40px;">Error loading ratio</p>';
+        });
+    }
 }
 
 // ----------------------
