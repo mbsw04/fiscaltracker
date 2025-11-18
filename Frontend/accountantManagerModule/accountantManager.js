@@ -2136,18 +2136,28 @@ async function loadJournal() {
 
                 if (response.ok && result.zip_content) {
                     // Extract existing files from zip
-                    const zip = new JSZip();
-                    const extractedZip = await zip.loadAsync(result.zip_content, {base64: true});
-                    
-                    existingFiles = [];
-                    for (const fileName of Object.keys(extractedZip.files)) {
-                        const file = extractedZip.files[fileName];
-                        if (!file.dir) {
-                            const blob = await file.async('blob');
-                            const fileObj = new File([blob], fileName, { type: blob.type });
-                            fileObj.isExisting = true;
-                            existingFiles.push(fileObj);
+                    if (typeof JSZip !== 'undefined' && !window.JSZipLoadFailed) {
+                        try {
+                            const zip = new JSZip();
+                            const extractedZip = await zip.loadAsync(result.zip_content, {base64: true});
+                            
+                            existingFiles = [];
+                            for (const fileName of Object.keys(extractedZip.files)) {
+                                const file = extractedZip.files[fileName];
+                                if (!file.dir) {
+                                    const blob = await file.async('blob');
+                                    const fileObj = new File([blob], fileName, { type: blob.type });
+                                    fileObj.isExisting = true;
+                                    existingFiles.push(fileObj);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error extracting files:', error);
+                            existingFiles = [];
                         }
+                    } else {
+                        console.warn('JSZip not available, cannot load existing files');
+                        existingFiles = [];
                     }
                 } else {
                     existingFiles = [];
@@ -2529,9 +2539,22 @@ async function loadJournal() {
             
             if (allFilesToZip.length > 0) {
                 try {
-                    const zip = new JSZip();
-                    for (const file of allFilesToZip) {
-                        zip.file(file.name, file);
+                    if (typeof JSZip !== 'undefined' && !window.JSZipLoadFailed) {
+                        const zip = new JSZip();
+                        for (const file of allFilesToZip) {
+                            zip.file(file.name, file);
+                        }
+                        const zipContent = await zip.generateAsync({type: 'base64'});
+                        editPayload.files = {
+                            zip_content: zipContent,
+                            file_count: allFilesToZip.length,
+                            replace_existing: true
+                        };
+                    } else {
+                        console.warn('JSZip not available, cannot process files');
+                        if (!confirm('File processing unavailable. Continue without file changes?')) {
+                            return;
+                        }
                     }
                     const zipContent = await zip.generateAsync({type: "base64"});
                     
@@ -2809,7 +2832,23 @@ window.editJournalEntry = (id) => {
 
             let files = [];
             let availableAccounts = [];
+            let accountsLoaded = false;
 
+            // Function to populate account dropdowns
+            function populateAccountDropdowns() {
+                const selects = modal.querySelectorAll('.accountSelect');
+                selects.forEach(select => {
+                    select.innerHTML = '<option value="">Select Account</option>';
+                    availableAccounts.forEach(account => {
+                        const option = document.createElement('option');
+                        option.value = account.id || account.account_id;
+                        option.textContent = `${account.account_number} - ${account.account_name}`;
+                        select.appendChild(option);
+                    });
+                });
+            }
+
+            // Load accounts first, then create initial rows
             fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2823,11 +2862,18 @@ window.editJournalEntry = (id) => {
                     try { accounts = JSON.parse(data.body); } catch { accounts = data.body; }
                 }
                 availableAccounts = accounts.filter(acc => acc.is_active === true || acc.is_active === 1 || acc.is_active === "1");
-
+                accountsLoaded = true;
+                
+                // Now add initial account rows with populated dropdowns
                 addAccountRow();
                 addAccountRow();
             })
-            .catch(err => console.error('Error loading accounts:', err));
+            .catch(err => {
+                console.error('Error loading accounts:', err);
+                // Still add rows but they will be empty
+                addAccountRow();
+                addAccountRow();
+            });
 
             // Add a new account row
             function addAccountRow() {
@@ -2863,8 +2909,16 @@ window.editJournalEntry = (id) => {
                 const creditInput = newRow.querySelector('.creditInput');
                 const removeBtn = newRow.querySelector('.removeRowBtn');
 
-                populateAccountDropdown(accountSelect);
-                updateAccountOptions();
+                // Populate the dropdown with accounts if they're already loaded
+                if (accountsLoaded && availableAccounts.length > 0) {
+                    accountSelect.innerHTML = '<option value="">Select Account</option>';
+                    availableAccounts.forEach(account => {
+                        const option = document.createElement('option');
+                        option.value = account.id || account.account_id;
+                        option.textContent = `${account.account_number} - ${account.account_name}`;
+                        accountSelect.appendChild(option);
+                    });
+                }
 
                 // Debit/Credit locking
                 debitInput.addEventListener('input', () => {
@@ -2898,7 +2952,13 @@ window.editJournalEntry = (id) => {
                 });
             }
 
-            modal.querySelector('#addNewAccountBtn').addEventListener('click', addAccountRow);
+            modal.querySelector('#addNewAccountBtn').addEventListener('click', () => {
+                addAccountRow();
+                // Ensure new row is populated if accounts are already loaded
+                if (accountsLoaded && availableAccounts.length > 0) {
+                    populateAccountDropdowns();
+                }
+            });
 
             // Update balance
             function updateBalance() {
@@ -3128,33 +3188,30 @@ window.editJournalEntry = (id) => {
             // Handle file upload if files are attached
             if (files.length > 0) {
                 try {
-                    // Load JSZip library dynamically if not loaded
-                    if (typeof JSZip === 'undefined') {
-                        const script = document.createElement('script');
-                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-                        document.head.appendChild(script);
-                        await new Promise((resolve, reject) => {
-                            script.onload = resolve;
-                            script.onerror = reject;
-                        });
+                    // Check if JSZip is available, if not, skip file processing
+                    if (typeof JSZip === 'undefined' || window.JSZipLoadFailed) {
+                        console.warn('JSZip not available, skipping file upload');
+                        if (!confirm('File upload library not available. Continue without files?')) {
+                            return;
+                        }
+                    } else {
+                        // Create zip file with all uploaded files
+                        const zip = new JSZip();
+                        
+                        for (const file of files) {
+                            const arrayBuffer = await file.arrayBuffer();
+                            zip.file(file.name, arrayBuffer);
+                        }
+                        
+                        // Generate zip as base64
+                        const zipContent = await zip.generateAsync({type: 'base64'});
+                        
+                        // Add files to payload
+                        payload.files = {
+                            zip_content: zipContent,
+                            file_count: files.length
+                        };
                     }
-
-                    // Create zip file with all uploaded files
-                    const zip = new JSZip();
-                    
-                    for (const file of files) {
-                        const arrayBuffer = await file.arrayBuffer();
-                        zip.file(file.name, arrayBuffer);
-                    }
-                    
-                    // Generate zip as base64
-                    const zipContent = await zip.generateAsync({type: 'base64'});
-                    
-                    // Add files to payload
-                    payload.files = {
-                        zip_content: zipContent,
-                        file_count: files.length
-                    };
                 } catch (fileError) {
                     console.error('Error processing files:', fileError);
                     if (!confirm('Error processing files. Continue without files?')) {
@@ -3561,6 +3618,11 @@ window.loadTransactionFiles = async (transactionId) => {
         }
 
         // Extract zip file using JSZip
+        if (typeof JSZip === 'undefined' || window.JSZipLoadFailed) {
+            container.innerHTML = '<div style="color:#f00;">File viewing not available - JSZip library failed to load</div>';
+            return;
+        }
+        
         const zip = new JSZip();
         // The result.zip_content should be base64 encoded
         let extractedZip;
