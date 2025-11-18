@@ -814,6 +814,12 @@ async function loadReports() {
     }
 
     async function generateTBPage() {
+        const reportType = document.getElementById('reportType').value;
+        
+        if (reportType === 'incomeStatement') {
+            return generateIncomeStatement();
+        }
+        
         resultsEl.innerHTML = '<p>Generating trial balance...</p>';
         msgEl.textContent = '';
         try {
@@ -986,6 +992,151 @@ async function loadReports() {
         const w = window.open('', '_blank'); if (!w) { alert('Popup blocked. Allow popups to print.'); return; }
         w.document.write(`<html><head><title>Trial Balance</title><style>table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #ccc;text-align:left}td.right{text-align:right}</style></head><body><h2>Trial Balance</h2>${content}</body></html>`);
         w.document.close(); w.focus(); setTimeout(()=> w.print(), 300);
+    }
+
+    async function generateIncomeStatement() {
+        resultsEl.innerHTML = '<p>Generating income statement...</p>';
+        msgEl.textContent = '';
+        try {
+            const asOfDate = document.getElementById('tbAsOf_page').value;
+            const fromDate = document.getElementById('tbFrom_page').value;
+            const toDate = document.getElementById('tbTo_page').value;
+            
+            // Fetch accounts
+            const accounts = await fetchAccountsForTB();
+            
+            // Fetch all transactions
+            const transResponse = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_trans_list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: ADMIN_ID })
+            });
+            let transData = await transResponse.json();
+            if (transData && typeof transData.body === 'string') {
+                try { transData = JSON.parse(transData.body); } catch (e) {}
+            }
+            let allTransactions = Array.isArray(transData) ? transData :
+                                 Array.isArray(transData.body) ? transData.body :
+                                 Array.isArray(transData.transactions) ? transData.transactions : [];
+            
+            // Filter transactions for the period
+            let transactionsToInclude = allTransactions;
+            if (asOfDate) {
+                transactionsToInclude = allTransactions.filter(t => {
+                    const transDate = new Date(t.created_at || t.date).toISOString().split('T')[0];
+                    return transDate <= asOfDate;
+                });
+            } else if (fromDate || toDate) {
+                let openingBalanceTransactions = [];
+                let periodTransactions = [];
+                
+                if (fromDate) {
+                    openingBalanceTransactions = allTransactions.filter(t => {
+                        const transDate = new Date(t.created_at || t.date).toISOString().split('T')[0];
+                        return transDate < fromDate;
+                    });
+                    
+                    periodTransactions = allTransactions.filter(t => {
+                        const transDate = new Date(t.created_at || t.date).toISOString().split('T')[0];
+                        const withinPeriod = transDate >= fromDate && (!toDate || transDate <= toDate);
+                        return withinPeriod;
+                    });
+                    
+                    transactionsToInclude = [...openingBalanceTransactions, ...periodTransactions];
+                } else if (toDate) {
+                    transactionsToInclude = allTransactions.filter(t => {
+                        const transDate = new Date(t.created_at || t.date).toISOString().split('T')[0];
+                        return transDate <= toDate;
+                    });
+                }
+            }
+            
+            // Map accounts with their balances
+            const rows = accounts.map(a => ({
+                account_number: a.account_number || '',
+                account_name: a.account_name || '',
+                category: (a.category || '').toLowerCase(),
+                balance: Number(a.balance || 0)
+            }));
+            
+            // Only include approved transactions
+            const approvedTransactions = transactionsToInclude.filter(t => 
+                (t.status || '').toLowerCase() === 'approved'
+            );
+            
+            // Separate revenue and expense accounts
+            const revenueAccounts = rows.filter(r => r.category === 'revenue' && (r.balance > 0 || r.balance < 0));
+            const expenseAccounts = rows.filter(r => r.category === 'expenses' && (r.balance > 0 || r.balance < 0));
+            
+            // Calculate totals (Revenue and Expenses are typically credit accounts, so use absolute value)
+            let totalRevenue = 0;
+            revenueAccounts.forEach(r => {
+                totalRevenue += Math.abs(r.balance);
+            });
+            
+            let totalExpenses = 0;
+            expenseAccounts.forEach(r => {
+                totalExpenses += Math.abs(r.balance);
+            });
+            
+            let netIncome = totalRevenue - totalExpenses;
+            
+            // Add date range info
+            let dateInfo = '';
+            if (asOfDate) {
+                dateInfo += `Income Statement as of ${asOfDate}`;
+            } else if (fromDate || toDate) {
+                dateInfo += `Income Statement for period ${fromDate || 'Beginning'} to ${toDate || 'Current'}`;
+            } else {
+                dateInfo += 'Income Statement - All Time';
+            }
+            
+            // Build HTML - Single Table
+            let html = `<div style="display:flex; justify-content:center;">`;
+            html += `<div style="width:55%;">`;
+            html += `<p style="font-weight:bold; margin-bottom:8px; color:#333; font-size:1.14em;">${dateInfo}</p>`;
+            html += `<p style="margin-bottom:16px; color:#666; font-size:1.02em;">Based on ${approvedTransactions.length} approved transactions</p>`;
+            
+            html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Description</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Amount</th></tr></thead><tbody>`;
+            
+            // Revenues Section
+            html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Revenues</td></tr>`;
+            revenueAccounts.forEach(r => {
+                const displayAmount = String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(Math.abs(r.balance))}` : formatAccounting(Math.abs(r.balance));
+                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
+            });
+            const totalRevenueDisplay = `$&nbsp;&nbsp;${formatAccounting(totalRevenue)}`;
+            html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Revenue Total</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalRevenueDisplay}</td></tr>`;
+            
+            // Expenses Section
+            html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Expenses</td></tr>`;
+            expenseAccounts.forEach(r => {
+                const displayAmount = String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(Math.abs(r.balance))}` : formatAccounting(Math.abs(r.balance));
+                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
+            });
+            const totalExpensesDisplay = `$&nbsp;&nbsp;${formatAccounting(totalExpenses)}`;
+            html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Expenses Total</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalExpensesDisplay}</td></tr>`;
+            
+            // Net Income Row
+            const netIncomeDisplay = `$&nbsp;&nbsp;${formatAccounting(netIncome)}`;
+            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Net Income</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${netIncomeDisplay}</td></tr>`;
+            
+            html += `</tbody></table>`;
+            html += `</div></div>`;
+            resultsEl.innerHTML = html;
+            lastTB = { 
+                type: 'incomeStatement',
+                revenues: revenueAccounts, 
+                expenses: expenseAccounts, 
+                totalRevenue, 
+                totalExpenses, 
+                netIncome,
+                generatedAt: new Date().toISOString(), 
+                dateInfo 
+            };
+        } catch (err) {
+            resultsEl.innerHTML = `<p style="color:red;">Error generating income statement: ${err.message}</p>`;
+        }
     }
 
     document.getElementById('generateTB_page').addEventListener('click', generateTBPage);
