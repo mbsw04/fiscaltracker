@@ -780,7 +780,7 @@ async function loadReports() {
             </div>
         </div>
         <div id="tbMsg_page" style="color:#c00; margin-bottom:8px;"></div>
-        <div id="tbResults_page" style="max-height:60vh; overflow:auto;"></div>
+        <div id="tbResults_page" style=""></div>
         <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
             <button id="saveTB_page" class="action-btn">Save CSV</button>
             <button id="emailTB_page" class="action-btn">Email</button>
@@ -878,52 +878,42 @@ async function loadReports() {
             }
             // If no dates specified, use all transactions (default behavior)
             
-            // Calculate cumulative account balances
-            const accountBalances = {};
-            accounts.forEach(acc => {
-                // Start with the account's stored balance as the opening balance
-                accountBalances[acc.id] = Number(acc.balance || 0);
-            });
+            // Use final account balances directly from the database
+            const rows = accounts.map(a => ({
+                account_number: a.account_number || '',
+                account_name: a.account_name || '',
+                category: (a.category || '').toLowerCase(),
+                balance: Number(a.balance || 0)
+            }));
             
-            // Only include approved transactions in trial balance
+            // Only include approved transactions in trial balance (for counting purposes)
             const approvedTransactions = transactionsToInclude.filter(t => 
                 (t.status || '').toLowerCase() === 'approved'
             );
             
-            // Apply transactions on top of opening balances
-            approvedTransactions.forEach(trans => {
-                // Process debit accounts
-                if (trans.debit_account_ids_array && trans.debit_amounts_array) {
-                    trans.debit_account_ids_array.forEach((accountId, index) => {
-                        if (accountBalances.hasOwnProperty(accountId)) {
-                            accountBalances[accountId] += (trans.debit_amounts_array[index] || 0);
-                        }
-                    });
-                }
-                
-                // Process credit accounts
-                if (trans.credit_account_ids_array && trans.credit_amounts_array) {
-                    trans.credit_account_ids_array.forEach((accountId, index) => {
-                        if (accountBalances.hasOwnProperty(accountId)) {
-                            accountBalances[accountId] -= (trans.credit_amounts_array[index] || 0);
-                        }
-                    });
-                }
-            });
+            const tbRows = rows
+                .map(r => {
+                    const bal = Number(r.balance) || 0;
+                    let debit = 0, credit = 0;
+                    // Assets and Expenses go to debit side
+                    // Liabilities, Owner's Equity, and Revenue go to credit side
+                    if (r.category === 'assets' || r.category === 'expenses') {
+                        debit = bal;
+                    } else if (r.category === 'liabilities' || r.category === 'ownerequity' || r.category === 'owner equity' || r.category === 'owners equity' || r.category === "owner's equity" || r.category === 'revenue') {
+                        credit = Math.abs(bal);
+                    } else {
+                        // Default behavior for other categories
+                        if (bal >= 0) { debit = bal; } else { credit = Math.abs(bal); }
+                    }
+                    return { account_number: r.account_number, account_name: r.account_name, debit, credit, balance: bal };
+                })
+                .filter(r => r.debit > 0 || r.credit > 0); // Filter out zero-balance accounts
             
-            // Create trial balance rows with calculated balances
-            const rows = accounts.map(a => ({
-                account_number: a.account_number || '',
-                account_name: a.account_name || '',
-                balance: accountBalances[a.id] || 0
-            }));
-            
+            // Recalculate totals after filtering
             let totalDebit = 0, totalCredit = 0;
-            const tbRows = rows.map(r => {
-                const bal = Number(r.balance) || 0;
-                let debit = 0, credit = 0;
-                if (bal >= 0) { debit = bal; totalDebit += bal; } else { credit = Math.abs(bal); totalCredit += Math.abs(bal); }
-                return { account_number: r.account_number, account_name: r.account_name, debit, credit, balance: bal };
+            tbRows.forEach(r => {
+                totalDebit += r.debit;
+                totalCredit += r.credit;
             });
 
             // Add date range info to the header
@@ -936,15 +926,20 @@ async function loadReports() {
                 dateInfo += 'Trial Balance - All Time';
             }
 
-            let html = `<div style="overflow:auto;">`;
-            html += `<p style="font-weight:bold; margin-bottom:12px; color:#333; font-size:1.1em;">${dateInfo}</p>`;
-            html += `<p style="margin-bottom:8px; color:#666; font-size:0.9em;">Based on ${approvedTransactions.length} approved transactions</p>`;
-            html += `<table style="width:100%; border-collapse:collapse;"><thead><tr><th style="text-align:left; padding:8px; border-bottom:2px solid #333;">Account Number</th><th style="text-align:left; padding:8px; border-bottom:2px solid #333;">Account Name</th><th style="text-align:right; padding:8px; border-bottom:2px solid #333;">Debit</th><th style="text-align:right; padding:8px; border-bottom:2px solid #333;">Credit</th></tr></thead><tbody>`;
+            let html = `<div style="display:flex; justify-content:center;">`;
+            html += `<div style="width:55%;">`;
+            html += `<p style="font-weight:bold; margin-bottom:8px; color:#333; font-size:1.14em;">${dateInfo}</p>`;
+            html += `<p style="margin-bottom:8px; color:#666; font-size:1.02em;">Based on ${approvedTransactions.length} approved transactions</p>`;
+            html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333;">Account Number</th><th style="text-align:left; padding:6px; border-bottom:2px solid #333;">Account Name</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333;">Debit</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333;">Credit</th></tr></thead><tbody>`;
             tbRows.forEach(r => { 
-                html += `<tr><td style="padding:8px;">${r.account_number}</td><td style="padding:8px;">${r.account_name}</td><td style="padding:8px; text-align:right">${formatAccounting(r.debit)}</td><td style="padding:8px; text-align:right">${formatAccounting(r.credit)}</td></tr>`; 
+                const debitDisplay = r.debit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.debit)}` : formatAccounting(r.debit)) : '';
+                const creditDisplay = r.credit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.credit)}` : formatAccounting(r.credit)) : '';
+                html += `<tr><td style="padding:6px;">${r.account_number}</td><td style="padding:6px;">${r.account_name}</td><td style="padding:6px; text-align:right">${debitDisplay}</td><td style="padding:6px; text-align:right">${creditDisplay}</td></tr>`; 
             });
-            html += `<tr style="font-weight:bold; border-top:2px solid #333;"><td colspan="2" style="padding:8px; text-align:right">Totals</td><td style="padding:8px; text-align:right">${formatAccounting(totalDebit)}</td><td style="padding:8px; text-align:right">${formatAccounting(totalCredit)}</td></tr>`;
-            html += `</tbody></table></div>`;
+            const totalDebitDisplay = tbRows.some(r => String(r.account_number).endsWith('01')) ? `$&nbsp;&nbsp;${formatAccounting(totalDebit)}` : formatAccounting(totalDebit);
+            const totalCreditDisplay = tbRows.some(r => String(r.account_number).endsWith('01')) ? `$&nbsp;&nbsp;${formatAccounting(totalCredit)}` : formatAccounting(totalCredit);
+            html += `<tr style="font-weight:bold; border-top:2px solid #333;"><td colspan="2" style="padding:6px; text-align:right">Totals</td><td style="padding:6px; text-align:right">${totalDebitDisplay}</td><td style="padding:6px; text-align:right">${totalCreditDisplay}</td></tr>`;
+            html += `</tbody></table></div></div>`;
             resultsEl.innerHTML = html;
             lastTB = { rows: tbRows, totalDebit, totalCredit, generatedAt: new Date().toISOString(), dateInfo };
         } catch (err) {
