@@ -1329,9 +1329,11 @@ async function loadReports() {
 
             let html = `<div style="display:flex; justify-content:center;">`;
             html += `<div style="width:55%;">`;
-            html += `<p style="font-weight:bold; margin-bottom:8px; color:#333; font-size:1.14em;">${dateInfo}</p>`;
-            html += `<p style="margin-bottom:8px; color:#666; font-size:1.02em;">Based on ${approvedTransactions.length} approved transactions</p>`;
-            html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Number</th><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Name</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Debit</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Credit</th></tr></thead><tbody>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.44em;">Trial Balance</p>`;
+            html += `<p style="text-align:center; margin-bottom:4px; color:#333; font-size:1.296em;">Addams & Family Inc</p>`;
+            const todayDate = new Date().toISOString().split('T')[0];
+            html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.176em;">As of ${todayDate} - All Accounts</p>`;
+            html += `<table style="width:100%; border-collapse:collapse; font-size:1.296em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Number</th><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Name</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Debit</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Credit</th></tr></thead><tbody>`;
             tbRows.forEach(r => { 
                 const debitDisplay = r.debit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.debit)}` : formatAccounting(r.debit)) : '';
                 const creditDisplay = r.credit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.credit)}` : formatAccounting(r.credit)) : '';
@@ -1385,7 +1387,7 @@ async function loadReports() {
         if (!lastTB) { alert('No trial balance to print.'); return; }
         const content = resultsEl.innerHTML;
         const w = window.open('', '_blank'); if (!w) { alert('Popup blocked. Allow popups to print.'); return; }
-        w.document.write(`<html><head><title>Trial Balance</title><style>table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #ccc;text-align:left}td.right{text-align:right}</style></head><body><h2>Trial Balance</h2>${content}</body></html>`);
+        w.document.write(`<html><head><title>Trial Balance</title><style>body{margin:0.5in;font-family:Arial,sans-serif}table{width:100%;border-collapse:collapse}th,td{padding:6px;border:none;text-align:left;font-size:0.9em}th{border-bottom:2px solid #333}td.right{text-align:right}@media print{body{margin:0.25in}table{font-size:0.85em}}</style></head><body>${content}</body></html>`);
         w.document.close(); w.focus(); setTimeout(()=> w.print(), 300);
     }
 
