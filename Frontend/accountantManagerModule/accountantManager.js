@@ -1296,19 +1296,18 @@ async function loadReports() {
                 .map(r => {
                     const bal = Number(r.balance) || 0;
                     let debit = 0, credit = 0;
-                    // Assets and Expenses go to debit side
-                    // Liabilities, Owner's Equity, and Revenue go to credit side
-                    if (r.category === 'assets' || r.category === 'expenses') {
+                    // Assets (including non-current) and Expenses go to debit side
+                    // Liabilities (including non-current), Owner's Equity, and Revenue go to credit side
+                    if (r.category === 'assets' || r.category === 'expenses' || r.category === 'non-current assets' || r.category === 'noncurrentassets') {
                         debit = bal;
-                    } else if (r.category === 'liabilities' || r.category === 'ownerequity' || r.category === 'owner equity' || r.category === 'owners equity' || r.category === "owner's equity" || r.category === 'revenue') {
+                    } else if (r.category === 'liabilities' || r.category === 'ownerequity' || r.category === 'owner equity' || r.category === 'owners equity' || r.category === "owner's equity" || r.category === 'revenue' || r.category === 'non-current liabilities' || r.category === 'noncurrentliabilities') {
                         credit = Math.abs(bal);
                     } else {
                         // Default behavior for other categories
                         if (bal >= 0) { debit = bal; } else { credit = Math.abs(bal); }
                     }
                     return { account_number: r.account_number, account_name: r.account_name, debit, credit, balance: bal };
-                })
-                .filter(r => r.debit > 0 || r.credit > 0); // Filter out zero-balance accounts
+                });
             
             // Recalculate totals after filtering
             let totalDebit = 0, totalCredit = 0;
@@ -1329,8 +1328,10 @@ async function loadReports() {
 
             let html = `<div style="display:flex; justify-content:center;">`;
             html += `<div style="width:55%;">`;
-            html += `<p style="font-weight:bold; margin-bottom:8px; color:#333; font-size:1.14em;">${dateInfo}</p>`;
-            html += `<p style="margin-bottom:8px; color:#666; font-size:1.02em;">Based on ${approvedTransactions.length} approved transactions</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.44em;">Addams & Family Inc</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.368em;">Trial Balance</p>`;
+            const todayDate = new Date().toISOString().split('T')[0];
+            html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.224em;">As of ${todayDate} - All Accounts</p>`;
             html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Number</th><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Name</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Debit</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Credit</th></tr></thead><tbody>`;
             tbRows.forEach(r => { 
                 const debitDisplay = r.debit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.debit)}` : formatAccounting(r.debit)) : '';
@@ -1385,7 +1386,7 @@ async function loadReports() {
         if (!lastTB) { alert('No trial balance to print.'); return; }
         const content = resultsEl.innerHTML;
         const w = window.open('', '_blank'); if (!w) { alert('Popup blocked. Allow popups to print.'); return; }
-        w.document.write(`<html><head><title>Trial Balance</title><style>table{width:100%;border-collapse:collapse}th,td{padding:8px;border:1px solid #ccc;text-align:left}td.right{text-align:right}</style></head><body><h2>Trial Balance</h2>${content}</body></html>`);
+        w.document.write(`<html><head><title>Trial Balance</title><style>body{margin:0.5in;font-family:Arial,sans-serif}table{width:100%;border-collapse:collapse}th,td{padding:6px;border:none;text-align:left;font-size:0.9em}th{border-bottom:2px solid #333}td.right{text-align:right}@media print{body{margin:0.25in}table{font-size:0.85em}}</style></head><body>${content}</body></html>`);
         w.document.close(); w.focus(); setTimeout(()=> w.print(), 300);
     }
 
@@ -1489,8 +1490,10 @@ async function loadReports() {
             // Build HTML - Single Table
             let html = `<div style="display:flex; justify-content:center;">`;
             html += `<div style="width:55%;">`;
-            html += `<p style="font-weight:bold; margin-bottom:8px; color:#333; font-size:1.14em;">${dateInfo}</p>`;
-            html += `<p style="margin-bottom:16px; color:#666; font-size:1.02em;">Based on ${approvedTransactions.length} approved transactions</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.44em;">Addams & Family Inc</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.368em;">Income Statement</p>`;
+            const todayDate = new Date().toISOString().split('T')[0];
+            html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.224em;">As of ${todayDate} - All Accounts</p>`;
             
             html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Description</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Amount</th></tr></thead><tbody>`;
             
@@ -1644,8 +1647,10 @@ async function loadReports() {
             // Build HTML - Single Table
             let html = `<div style="display:flex; justify-content:center;">`;
             html += `<div style="width:55%;">`;
-            html += `<p style="font-weight:bold; margin-bottom:8px; color:#333; font-size:1.14em;">${dateInfo}</p>`;
-            html += `<p style="margin-bottom:16px; color:#666; font-size:1.02em;">Based on ${approvedTransactions.length} approved transactions</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.44em;">Addams & Family Inc</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.368em;">Balance Sheet</p>`;
+            const todayDate = new Date().toISOString().split('T')[0];
+            html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.224em;">As of ${todayDate} - All Accounts</p>`;
             
             html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Description</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Amount</th></tr></thead><tbody>`;
             
@@ -1804,8 +1809,10 @@ async function loadReports() {
             // Build HTML - Single Table
             let html = `<div style="display:flex; justify-content:center;">`;
             html += `<div style="width:55%;">`;
-            html += `<p style="font-weight:bold; margin-bottom:8px; color:#333; font-size:1.14em;">${dateInfo}</p>`;
-            html += `<p style="margin-bottom:16px; color:#666; font-size:1.02em;">Based on ${approvedTransactions.length} approved transactions</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.44em;">Addams & Family Inc</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.368em;">Retained Earnings Statement</p>`;
+            const todayDate = new Date().toISOString().split('T')[0];
+            html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.224em;">As of ${todayDate} - All Accounts</p>`;
             
             html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Description</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Amount</th></tr></thead><tbody>`;
             
