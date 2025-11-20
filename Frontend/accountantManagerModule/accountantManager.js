@@ -1307,7 +1307,8 @@ async function loadReports() {
                         if (bal >= 0) { debit = bal; } else { credit = Math.abs(bal); }
                     }
                     return { account_number: r.account_number, account_name: r.account_name, debit, credit, balance: bal };
-                });
+                })
+                .filter(r => r.balance !== 0); // Filter out zero-balance accounts
             
             // Recalculate totals after filtering
             let totalDebit = 0, totalCredit = 0;
