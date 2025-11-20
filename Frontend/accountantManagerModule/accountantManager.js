@@ -1792,7 +1792,14 @@ async function loadReports() {
             let netIncome = totalRevenue - totalExpenses;
             
             // Retained Earnings Statement values
-            const beginningBalance = 0;  // Currently 0 as requested
+            // Find Retained Earnings account for beginning balance
+            const retainedEarningsAccount = rows.find(r => 
+                r.category === 'retainedarnings' || 
+                r.category === 'retained earnings' ||
+                (r.account_name && r.account_name.toLowerCase().includes('retained'))
+            );
+            
+            const beginningBalance = retainedEarningsAccount ? Math.abs(retainedEarningsAccount.balance) : 0;
             const lesDrawings = 0;        // Currently 0 as requested
             const endingBalance = beginningBalance + netIncome - lesDrawings;
             
