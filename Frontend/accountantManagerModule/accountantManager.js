@@ -1328,11 +1328,11 @@ async function loadReports() {
 
             let html = `<div style="display:flex; justify-content:center;">`;
             html += `<div style="width:55%;">`;
-            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.44em;">Trial Balance</p>`;
-            html += `<p style="text-align:center; margin-bottom:4px; color:#333; font-size:1.296em;">Addams & Family Inc</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.44em;">Addams & Family Inc</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.368em;">Trial Balance</p>`;
             const todayDate = new Date().toISOString().split('T')[0];
-            html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.176em;">As of ${todayDate} - All Accounts</p>`;
-            html += `<table style="width:100%; border-collapse:collapse; font-size:1.296em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Number</th><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Name</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Debit</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Credit</th></tr></thead><tbody>`;
+            html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.224em;">As of ${todayDate} - All Accounts</p>`;
+            html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Number</th><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Name</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Debit</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Credit</th></tr></thead><tbody>`;
             tbRows.forEach(r => { 
                 const debitDisplay = r.debit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.debit)}` : formatAccounting(r.debit)) : '';
                 const creditDisplay = r.credit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.credit)}` : formatAccounting(r.credit)) : '';
@@ -1490,8 +1490,10 @@ async function loadReports() {
             // Build HTML - Single Table
             let html = `<div style="display:flex; justify-content:center;">`;
             html += `<div style="width:55%;">`;
-            html += `<p style="font-weight:bold; margin-bottom:8px; color:#333; font-size:1.14em;">${dateInfo}</p>`;
-            html += `<p style="margin-bottom:16px; color:#666; font-size:1.02em;">Based on ${approvedTransactions.length} approved transactions</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.44em;">Addams & Family Inc</p>`;
+            html += `<p style="text-align:center; font-weight:bold; margin-bottom:4px; color:#333; font-size:1.368em;">Income Statement</p>`;
+            const todayDate = new Date().toISOString().split('T')[0];
+            html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.224em;">As of ${todayDate} - All Accounts</p>`;
             
             html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Description</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Amount</th></tr></thead><tbody>`;
             
