@@ -1296,19 +1296,34 @@ async function loadReports() {
                 .map(r => {
                     const bal = Number(r.balance) || 0;
                     let debit = 0, credit = 0;
-                    // Assets (including non-current) and Expenses go to debit side
-                    // Liabilities (including non-current), Owner's Equity, and Revenue go to credit side
-                    if (r.category === 'assets' || r.category === 'expenses' || r.category === 'non-current assets' || r.category === 'noncurrentassets') {
-                        debit = bal;
-                    } else if (r.category === 'liabilities' || r.category === 'ownerequity' || r.category === 'owner equity' || r.category === 'owners equity' || r.category === "owner's equity" || r.category === 'revenue' || r.category === 'non-current liabilities' || r.category === 'noncurrentliabilities') {
-                        credit = Math.abs(bal);
+                    
+                    // Determine normal side based on category
+                    const isDebitCategory = r.category === 'assets' || r.category === 'expenses' || r.category === 'non-current assets' || r.category === 'noncurrentassets';
+                    const isCreditCategory = r.category === 'liabilities' || r.category === 'ownerequity' || r.category === 'owner equity' || r.category === 'owners equity' || r.category === "owner's equity" || r.category === 'revenue' || r.category === 'non-current liabilities' || r.category === 'noncurrentliabilities';
+                    
+                    if (bal >= 0) {
+                        // Positive balance: place on normal side
+                        if (isDebitCategory) {
+                            debit = bal;
+                        } else if (isCreditCategory) {
+                            credit = bal;
+                        } else {
+                            debit = bal;
+                        }
                     } else {
-                        // Default behavior for other categories
-                        if (bal >= 0) { debit = bal; } else { credit = Math.abs(bal); }
+                        // Negative balance: place on opposite side
+                        if (isDebitCategory) {
+                            credit = Math.abs(bal);
+                        } else if (isCreditCategory) {
+                            debit = Math.abs(bal);
+                        } else {
+                            credit = Math.abs(bal);
+                        }
                     }
+                    
                     return { account_number: r.account_number, account_name: r.account_name, debit, credit, balance: bal };
                 })
-                .filter(r => r.balance !== 0); // Filter out zero-balance accounts
+                .filter(r => r.debit > 0 || r.credit > 0); // Filter out zero-balance accounts
             
             // Recalculate totals after filtering
             let totalDebit = 0, totalCredit = 0;
