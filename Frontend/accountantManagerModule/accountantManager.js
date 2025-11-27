@@ -3939,7 +3939,12 @@ function showAccountModal(accountNumber) {
         // Always map account number to account ID using availableAccounts
         if (window.availableAccounts && Array.isArray(window.availableAccounts)) {
             const found = window.availableAccounts.find(a => String(a.account_number) === String(accountNumber));
-            if (found) accountId = Number(found.id || found.account_id);
+            if (found) {
+                accountId = Number(found.id || found.account_id);
+                // Also get normal_side or category from availableAccounts for proper balance calculation
+                if (!acc.category && found.category) acc.category = found.category;
+                if (found.normal_side) acc.normal_side = found.normal_side;
+            }
         }
     } catch (e) { acc = null; }
 
@@ -4052,6 +4057,18 @@ function showAccountModal(accountNumber) {
             if (!filtered.length) {
                 html += `<tr><td colspan="6" style="text-align:center; color:#c00; padding:16px;">No transactions found for this account.</td></tr>`;
             } else {
+                // Determine normal side from account's normal_side field or category
+                let normalSide = 'debit'; // default
+                if (acc.normal_side) {
+                    normalSide = String(acc.normal_side).toLowerCase();
+                } else if (acc.category) {
+                    const category = String(acc.category).toLowerCase();
+                    // Credit-normal accounts: Liabilities, Owner's Equity, Revenue
+                    if (category === 'liabilities' || category === 'ownerequity' || category === 'revenue') {
+                        normalSide = 'credit';
+                    }
+                }
+                
                 let runningBalance = 0;
                 filtered.forEach(e => {
                     const accountIdInt = parseInt(accountId); // Use integer for comparison
@@ -4064,13 +4081,25 @@ function showAccountModal(accountNumber) {
                     if (isDebit) {
                         const debitIndex = e.debit_account_ids_array.indexOf(accountIdInt);
                         debitAmount = e.debit_amounts_array[debitIndex] || 0;
-                        runningBalance += debitAmount;
+                        // For debit-normal accounts: debits increase balance
+                        // For credit-normal accounts: debits decrease balance
+                        if (normalSide === 'debit') {
+                            runningBalance += debitAmount;
+                        } else {
+                            runningBalance -= debitAmount;
+                        }
                     }
                     
                     if (isCredit) {
                         const creditIndex = e.credit_account_ids_array.indexOf(accountIdInt);
                         creditAmount = e.credit_amounts_array[creditIndex] || 0;
-                        runningBalance -= creditAmount;
+                        // For credit-normal accounts: credits increase balance
+                        // For debit-normal accounts: credits decrease balance
+                        if (normalSide === 'credit') {
+                            runningBalance += creditAmount;
+                        } else {
+                            runningBalance -= creditAmount;
+                        }
                     }
                     
                     html += `<tr>
