@@ -1537,6 +1537,7 @@ async function loadReports() {
             
             // Net Income Row
             const netIncomeDisplay = `$&nbsp;&nbsp;${formatAccounting(netIncome)}`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:12px; border:none;"></td></tr>`;
             html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Net Income</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${netIncomeDisplay}</td></tr>`;
             
             html += `</tbody></table>`;
@@ -1703,6 +1704,7 @@ async function loadReports() {
             
             // Total Liabilities and Equity Row
             const totalLiabilitiesAndEquityDisplay = `$&nbsp;&nbsp;${formatAccounting(totalLiabilitiesAndEquity)}`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:12px; border:none;"></td></tr>`;
             html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Total Liabilities & Equity</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalLiabilitiesAndEquityDisplay}</td></tr>`;
             
             html += `</tbody></table>`;
@@ -1857,6 +1859,7 @@ async function loadReports() {
             
             // Ending Balance Row
             const endingBalanceDisplay = `$&nbsp;&nbsp;${formatAccounting(endingBalance)}`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:12px; border:none;"></td></tr>`;
             html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Ending Balance</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${endingBalanceDisplay}</td></tr>`;
             
             html += `</tbody></table>`;
