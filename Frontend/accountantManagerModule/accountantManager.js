@@ -1349,14 +1349,18 @@ async function loadReports() {
             const todayDate = new Date().toISOString().split('T')[0];
             html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.224em;">As of ${todayDate} - All Accounts</p>`;
             html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Number</th><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Name</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Debit</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Credit</th></tr></thead><tbody>`;
-            tbRows.forEach(r => { 
+            tbRows.forEach((r, index) => { 
                 const debitDisplay = r.debit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.debit)}` : formatAccounting(r.debit)) : '';
                 const creditDisplay = r.credit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.credit)}` : formatAccounting(r.credit)) : '';
-                html += `<tr style="border:none;"><td style="padding:6px; border:none;">${r.account_number}</td><td style="padding:6px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${debitDisplay}</td><td style="padding:6px; text-align:right; border:none;">${creditDisplay}</td></tr>`; 
+                const isLastRow = index === tbRows.length - 1;
+                const trBorderStyle = isLastRow ? 'border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;' : 'border:none;';
+                const tdBorderStyle = isLastRow ? 'border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;' : 'border:none;';
+                html += `<tr style="${trBorderStyle}"><td style="padding:6px; ${tdBorderStyle}">${r.account_number}</td><td style="padding:6px; ${tdBorderStyle}">${r.account_name}</td><td style="padding:6px; text-align:right; ${tdBorderStyle}">${debitDisplay}</td><td style="padding:6px; text-align:right; ${tdBorderStyle}">${creditDisplay}</td></tr>`; 
             });
             const totalDebitDisplay = tbRows.some(r => String(r.account_number).endsWith('01')) ? `$&nbsp;&nbsp;${formatAccounting(totalDebit)}` : formatAccounting(totalDebit);
             const totalCreditDisplay = tbRows.some(r => String(r.account_number).endsWith('01')) ? `$&nbsp;&nbsp;${formatAccounting(totalCredit)}` : formatAccounting(totalCredit);
-            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td colspan="2" style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Totals</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalDebitDisplay}</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalCreditDisplay}</td></tr>`;
+            html += `<tr style="border:none;"><td colspan="4" style="padding:12px; border:none;"></td></tr>`;
+            html += `<tr style="font-weight:bold; border-top:none; border-bottom:none; border-left:none; border-right:none;"><td colspan="2" style="padding:6px; text-align:right; border:none;">Totals</td><td style="padding:6px; text-align:right; border:none;">${totalDebitDisplay}</td><td style="padding:6px; text-align:right; border:none;">${totalCreditDisplay}</td></tr>`;
             html += `</tbody></table></div></div>`;
             resultsEl.innerHTML = html;
             lastTB = { rows: tbRows, totalDebit, totalCredit, generatedAt: new Date().toISOString(), dateInfo };
@@ -2662,6 +2666,69 @@ window.editJournalEntry = (id) => {
                 body: JSON.stringify({ manager_id: ADMIN_ID, trans_id: id })
             });
             if (!res.ok) throw new Error('Approval failed');
+            
+            // After approval, check if entry contains revenue credits and create retained earnings entry
+            const entry = entries.find(e => e.id === id);
+            if (entry && entry.credit_account_ids_array && entry.credit_amounts_array) {
+                // Fetch accounts to check which credits are revenue accounts
+                const accountsRes = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: ADMIN_ID })
+                });
+                const accountsData = await accountsRes.json();
+                let accounts = [];
+                if (Array.isArray(accountsData)) accounts = accountsData;
+                else if (accountsData.body) {
+                    try { accounts = JSON.parse(accountsData.body); } catch { accounts = accountsData.body; }
+                }
+                
+                // Find Retained Earnings account
+                const retainedEarningsAccount = accounts.find(acc => 
+                    acc.category === 'retainedarnings' || 
+                    acc.category === 'retained earnings' ||
+                    (acc.account_name && acc.account_name.toLowerCase().includes('retained'))
+                );
+                
+                if (retainedEarningsAccount) {
+                    // Check each credited account for revenue category
+                    for (let i = 0; i < entry.credit_account_ids_array.length; i++) {
+                        const creditAccountId = entry.credit_account_ids_array[i];
+                        const creditAmount = entry.credit_amounts_array[i];
+                        
+                        const creditAccount = accounts.find(acc => acc.id === creditAccountId);
+                        
+                        // If it's a revenue account, create retained earnings entry
+                        if (creditAccount && creditAccount.category === 'revenue') {
+                            const rePayload = {
+                                user_id: ADMIN_ID,
+                                date: entry.date,
+                                description: entry.description,
+                                type: 'closing',
+                                status: 'pending',
+                                debit_account_id: retainedEarningsAccount.id.toString(),
+                                credit_account_id: creditAccountId.toString(),
+                                debit: creditAmount.toString(),
+                                credit: creditAmount.toString()
+                            };
+                            
+                            try {
+                                const reRes = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_trans', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(rePayload)
+                                });
+                                if (!reRes.ok) {
+                                    console.warn('Failed to create retained earnings entry for revenue account', creditAccount.account_name);
+                                }
+                            } catch (err) {
+                                console.warn('Error creating retained earnings entry:', err);
+                            }
+                        }
+                    }
+                }
+            }
+            
             await fetchJournalEntries();
             // Update badge count
             if (CURRENT_ROLE === 'manager') {
@@ -3939,12 +4006,7 @@ function showAccountModal(accountNumber) {
         // Always map account number to account ID using availableAccounts
         if (window.availableAccounts && Array.isArray(window.availableAccounts)) {
             const found = window.availableAccounts.find(a => String(a.account_number) === String(accountNumber));
-            if (found) {
-                accountId = Number(found.id || found.account_id);
-                // Also get normal_side or category from availableAccounts for proper balance calculation
-                if (!acc.category && found.category) acc.category = found.category;
-                if (found.normal_side) acc.normal_side = found.normal_side;
-            }
+            if (found) accountId = Number(found.id || found.account_id);
         }
     } catch (e) { acc = null; }
 
@@ -4057,18 +4119,6 @@ function showAccountModal(accountNumber) {
             if (!filtered.length) {
                 html += `<tr><td colspan="6" style="text-align:center; color:#c00; padding:16px;">No transactions found for this account.</td></tr>`;
             } else {
-                // Determine normal side from account's normal_side field or category
-                let normalSide = 'debit'; // default
-                if (acc.normal_side) {
-                    normalSide = String(acc.normal_side).toLowerCase();
-                } else if (acc.category) {
-                    const category = String(acc.category).toLowerCase();
-                    // Credit-normal accounts: Liabilities, Owner's Equity, Revenue
-                    if (category === 'liabilities' || category === 'ownerequity' || category === 'revenue') {
-                        normalSide = 'credit';
-                    }
-                }
-                
                 let runningBalance = 0;
                 filtered.forEach(e => {
                     const accountIdInt = parseInt(accountId); // Use integer for comparison
@@ -4081,25 +4131,13 @@ function showAccountModal(accountNumber) {
                     if (isDebit) {
                         const debitIndex = e.debit_account_ids_array.indexOf(accountIdInt);
                         debitAmount = e.debit_amounts_array[debitIndex] || 0;
-                        // For debit-normal accounts: debits increase balance
-                        // For credit-normal accounts: debits decrease balance
-                        if (normalSide === 'debit') {
-                            runningBalance += debitAmount;
-                        } else {
-                            runningBalance -= debitAmount;
-                        }
+                        runningBalance += debitAmount;
                     }
                     
                     if (isCredit) {
                         const creditIndex = e.credit_account_ids_array.indexOf(accountIdInt);
                         creditAmount = e.credit_amounts_array[creditIndex] || 0;
-                        // For credit-normal accounts: credits increase balance
-                        // For debit-normal accounts: credits decrease balance
-                        if (normalSide === 'credit') {
-                            runningBalance += creditAmount;
-                        } else {
-                            runningBalance -= creditAmount;
-                        }
+                        runningBalance -= creditAmount;
                     }
                     
                     html += `<tr>
