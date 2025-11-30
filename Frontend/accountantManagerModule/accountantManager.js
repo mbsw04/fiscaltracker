@@ -4,10 +4,12 @@
 window.addEventListener('DOMContentLoaded', () => {
     try {
         const user = JSON.parse(localStorage.getItem('user'));
-        if (user && user.first_name && user.last_name) {
-            document.getElementById('profileName').textContent = user.first_name + ' ' + user.last_name;
-        } else if (user && user.first_name) {
-            document.getElementById('profileName').textContent = user.first_name;
+        const profileNameEl = document.getElementById('profileName');
+        
+        if (profileNameEl && user && user.first_name && user.last_name) {
+            profileNameEl.textContent = user.first_name + ' ' + user.last_name;
+        } else if (profileNameEl && user && user.first_name) {
+            profileNameEl.textContent = user.first_name;
         }
         
         // Set dashboard title based on role
@@ -508,21 +510,26 @@ async function calculateAndDisplayRatios() {
         let totalRevenue = 0;
         let netIncome = 0;
         let inventory = 0;
+        let prepaidAndSupplies = 0;
         
         activeAccounts.forEach(acc => {
             const balance = parseFloat(acc.balance) || 0;
             const category = (acc.category || '').toLowerCase();
             const subcategory = (acc.subcategory || '').toLowerCase();
+            const accountName = acc.account_name.toLowerCase();
             
             // Assets
             if (category === 'assets' || category === 'asset') {
                 totalAssets += Math.abs(balance);
-                if (subcategory.includes('current')) {
+                if (subcategory === 'current-assets') {
                     currentAssets += Math.abs(balance);
                     // Identify inventory accounts (typically named with 'inventory' or 'stock')
-                    if (acc.account_name.toLowerCase().includes('inventory') || 
-                        acc.account_name.toLowerCase().includes('stock')) {
+                    if (accountName.includes('inventory') || accountName.includes('stock')) {
                         inventory += Math.abs(balance);
+                    }
+                    // Identify prepaid and supplies accounts for quick ratio exclusion
+                    if (accountName.includes('prepaid') || accountName.includes('supplies')) {
+                        prepaidAndSupplies += Math.abs(balance);
                     }
                 }
             }
@@ -530,7 +537,7 @@ async function calculateAndDisplayRatios() {
             // Liabilities
             if (category === 'liabilities' || category === 'liability') {
                 totalLiabilities += Math.abs(balance);
-                if (subcategory.includes('current')) {
+                if (subcategory === 'current-liabilities') {
                     currentLiabilities += Math.abs(balance);
                 }
             }
@@ -624,12 +631,13 @@ async function calculateAndDisplayRatios() {
                 `$${formatAccounting(totalRevenue)} / $${formatAccounting(totalAssets)}`, 
                 1.0, 0.5);
         
-        // 6. Quick Ratio = (Current Assets - Inventory) / Current Liabilities
+        // 6. Quick Ratio = (Current Assets - Inventory - Prepaid - Supplies) / Current Liabilities
         // Good: ≥1.0, Warning: ≥0.5, Poor: <0.5
-        const quickRatio = currentLiabilities > 0 ? (currentAssets - inventory) / currentLiabilities : 0;
+        const quickAssets = currentAssets - inventory - prepaidAndSupplies;
+        const quickRatio = currentLiabilities > 0 ? quickAssets / currentLiabilities : 0;
         document.getElementById('quickRatioContent').innerHTML = 
             formatRatioDisplay('Quick Ratio', quickRatio, 
-                `($${formatAccounting(currentAssets)} - $${formatAccounting(inventory)}) / $${formatAccounting(currentLiabilities)}`, 
+                `($${formatAccounting(currentAssets)} - $${formatAccounting(inventory)} - $${formatAccounting(prepaidAndSupplies)}) / $${formatAccounting(currentLiabilities)}`, 
                 1.0, 0.5);
         
     } catch (err) {
