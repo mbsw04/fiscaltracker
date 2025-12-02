@@ -1,13 +1,15 @@
 // Accountant/Manager panel JS - derived from adminModule/admin.js with role-specific simplifications
 
 // Set profile name from localStorage user object
-window.addEventListener('DOMContentLoaded', () => {
+function setProfileNameAndDashboard() {
     try {
         const user = JSON.parse(localStorage.getItem('user'));
-        if (user && user.first_name && user.last_name) {
-            document.getElementById('profileName').textContent = user.first_name + ' ' + user.last_name;
-        } else if (user && user.first_name) {
-            document.getElementById('profileName').textContent = user.first_name;
+        const profileNameEl = document.getElementById('profileName');
+        
+        if (profileNameEl && user && user.first_name && user.last_name) {
+            profileNameEl.textContent = user.first_name + ' ' + user.last_name;
+        } else if (profileNameEl && user && user.first_name) {
+            profileNameEl.textContent = user.first_name;
         }
         
         // Set dashboard title based on role
@@ -22,8 +24,20 @@ window.addEventListener('DOMContentLoaded', () => {
                 dashboardTitle.textContent = 'Dashboard';
             }
         }
-    } catch (e) {}
-    // Attach logout handler to clear user and redirect to login
+    } catch (e) {
+        console.error('Error setting profile name:', e);
+    }
+}
+
+// Run immediately if DOM is ready, otherwise wait for DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setProfileNameAndDashboard);
+} else {
+    setProfileNameAndDashboard();
+}
+
+// Attach logout handlers
+function attachLogoutHandlers() {
     try {
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
@@ -40,8 +54,17 @@ window.addEventListener('DOMContentLoaded', () => {
                 showLogoutModal();
             });
         }
-    } catch (e) {}
-});
+    } catch (e) {
+        console.error('Error attaching logout handlers:', e);
+    }
+}
+
+// Run immediately if DOM is ready, otherwise wait
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachLogoutHandlers);
+} else {
+    attachLogoutHandlers();
+}
 
 function showLogoutModal() {
     let modal = document.getElementById('logoutConfirmModal');
@@ -51,7 +74,7 @@ function showLogoutModal() {
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content" style="position: relative;">
-                <button type="button" id="closeLogoutModal" class="modal-close-x" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
+                <button class="modal-close-x" id="closeLogoutModal" style="position:absolute;top:10px;right:16px;background:none;border:none;font-size:26px;cursor:pointer;color:#555;">&times;</button>
                 <h3>Confirm Logout</h3>
                 <p>Are you sure you want to log out?</p>
                 <div class="modal-actions">
@@ -60,11 +83,17 @@ function showLogoutModal() {
             </div>
         `;
         document.body.appendChild(modal);
-        modal.querySelector('#closeLogoutModal').addEventListener('click', () => { modal.style.display = 'none'; });
-        modal.querySelector('#confirmLogoutBtn').addEventListener('click', () => { try { localStorage.removeItem('user'); } catch (e) {}; window.location.href = '../LoginModule/index.html'; });
+
+        // Attach handlers
+        modal.querySelector('#closeLogoutModal').addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+        modal.querySelector('#confirmLogoutBtn').addEventListener('click', () => {
+            try { localStorage.removeItem('user'); } catch (e) {}
+            window.location.href = '../LoginModule/index.html';
+        });
     }
     modal.style.display = 'flex';
- 
 }
 
 const actionContent = document.getElementById('actionContent');
@@ -272,6 +301,7 @@ function updateContent(tab) {
         case 'reports': loadReports(); break;
         case 'journal': loadJournal(); break;
         case 'eventLog': loadEventLog(); break;
+        case 'help': loadHelp(); break;
         default: actionContent.innerHTML = '';
     }
 }
@@ -508,21 +538,26 @@ async function calculateAndDisplayRatios() {
         let totalRevenue = 0;
         let netIncome = 0;
         let inventory = 0;
+        let prepaidAndSupplies = 0;
         
         activeAccounts.forEach(acc => {
             const balance = parseFloat(acc.balance) || 0;
             const category = (acc.category || '').toLowerCase();
             const subcategory = (acc.subcategory || '').toLowerCase();
+            const accountName = acc.account_name.toLowerCase();
             
             // Assets
             if (category === 'assets' || category === 'asset') {
                 totalAssets += Math.abs(balance);
-                if (subcategory.includes('current')) {
+                if (subcategory === 'current-assets') {
                     currentAssets += Math.abs(balance);
                     // Identify inventory accounts (typically named with 'inventory' or 'stock')
-                    if (acc.account_name.toLowerCase().includes('inventory') || 
-                        acc.account_name.toLowerCase().includes('stock')) {
+                    if (accountName.includes('inventory') || accountName.includes('stock')) {
                         inventory += Math.abs(balance);
+                    }
+                    // Identify prepaid and supplies accounts for quick ratio exclusion
+                    if (accountName.includes('prepaid') || accountName.includes('supplies')) {
+                        prepaidAndSupplies += Math.abs(balance);
                     }
                 }
             }
@@ -530,7 +565,7 @@ async function calculateAndDisplayRatios() {
             // Liabilities
             if (category === 'liabilities' || category === 'liability') {
                 totalLiabilities += Math.abs(balance);
-                if (subcategory.includes('current')) {
+                if (subcategory === 'current-liabilities') {
                     currentLiabilities += Math.abs(balance);
                 }
             }
@@ -624,12 +659,13 @@ async function calculateAndDisplayRatios() {
                 `$${formatAccounting(totalRevenue)} / $${formatAccounting(totalAssets)}`, 
                 1.0, 0.5);
         
-        // 6. Quick Ratio = (Current Assets - Inventory) / Current Liabilities
+        // 6. Quick Ratio = (Current Assets - Inventory - Prepaid - Supplies) / Current Liabilities
         // Good: ≥1.0, Warning: ≥0.5, Poor: <0.5
-        const quickRatio = currentLiabilities > 0 ? (currentAssets - inventory) / currentLiabilities : 0;
+        const quickAssets = currentAssets - inventory - prepaidAndSupplies;
+        const quickRatio = currentLiabilities > 0 ? quickAssets / currentLiabilities : 0;
         document.getElementById('quickRatioContent').innerHTML = 
             formatRatioDisplay('Quick Ratio', quickRatio, 
-                `($${formatAccounting(currentAssets)} - $${formatAccounting(inventory)}) / $${formatAccounting(currentLiabilities)}`, 
+                `($${formatAccounting(currentAssets)} - $${formatAccounting(inventory)} - $${formatAccounting(prepaidAndSupplies)}) / $${formatAccounting(currentLiabilities)}`, 
                 1.0, 0.5);
         
     } catch (err) {
@@ -4124,4 +4160,135 @@ function switchToJournalAndShowTransaction(transactionId) {
     setTimeout(() => {
         showTransactionDetails(transactionId);
     }, 1000);
+}
+
+// ----------------------
+// HELP TAB
+// ----------------------
+function loadHelp() {
+    // Determine role-based title and tabs
+    const roleTitle = CURRENT_ROLE === 'manager' ? 'Manager' : 'Accountant';
+    const tabs = ['Dashboard', 'Chart of Accounts', 'Journal', 'Event Log', 'Reports'];
+    
+    let dropdownsHtml = '';
+    tabs.forEach(tab => {
+        let content = '';
+        
+        if (tab === 'Dashboard') {
+            content = `
+                <p><strong>How are dashboard ratios calculated?</strong></p>
+                <p style="margin-bottom: 16px;">The following financial ratios are calculated and displayed on the dashboard:</p>
+                <ul style="line-height: 1.8;">
+                    <li><strong>Current Ratio:</strong> Current Assets / Current Liabilities</li>
+                    <li><strong>Quick Ratio:</strong> (Current Assets - Inventory - Prepaid - Supplies) / Current Liabilities</li>
+                    <li><strong>Return on Assets (ROA):</strong> Net Income / Total Assets</li>
+                    <li><strong>Return on Equity (ROE):</strong> Net Income / Total Equity</li>
+                    <li><strong>Net Profit Margin:</strong> Net Income / Revenue</li>
+                    <li><strong>Asset Turnover:</strong> Revenue / Total Assets</li>
+                </ul>
+            `;
+        } else if (tab === 'Chart of Accounts') {
+            content = `
+                <p><strong>How do I view journal entries for an account?</strong></p>
+                <p style="margin-bottom: 16px;">Click on the account name or account number to view all journal entries associated with that account.</p>
+                
+                <p><strong>How do I view a journal entry post reference?</strong></p>
+                <p style="margin-bottom: 16px;">Click on the reference number of any journal entry to view the complete post details.</p>
+                
+                <p><strong>How do I use the email modal in Chart of Accounts?</strong></p>
+                <p>Click the email button next to the search bar to open the email modal. Enter the recipient's email address, subject line, and message. Click "Send Email" and it will be sent to the specified recipient. Otherwise, press clear to clear all information or the "x" to exit out.</p>
+                
+                <p><strong> How can I filter or search for specific accounts?</strong></p>
+                <p>You can use the search bar at the top of the Chart of Accounts tab to filter accounts by account name, number, category, or subcategory. Simply type in your search criteria and the list will update in real-time. You can also click the value headers to sort the accounts accordingly!</p>
+            `;
+        } else if (tab === 'Journal') {
+            if (CURRENT_ROLE === 'manager') {
+                content = `
+                    <p><strong>How do I search for journal entries?</strong></p>
+                    <p style="margin-bottom: 16px;">Use the search bar to find entries by account name or details. You can also filter by date range using the start date and end date fields next to the search bar.</p>
+                    
+                    <p><strong>How do I filter journal entries by status?</strong></p>
+                    <p style="margin-bottom: 16px;">Use the status filter dropdown to view all entries, or filter by pending, approved, or rejected entries.</p>
+                    
+                    <p><strong>How do I create a new journal entry?</strong></p>
+                    <p style="margin-bottom: 16px;">Click the green "New Journal Entry" button. In the modal, you can drag and drop files of supported types, select the entry date, add a description, choose the transaction type (standard, reversal, adjustment, or closing), and select accounts to debit or credit. Debits and credits must be equal. Click "Add New Accounts" to add more accounts or click the "x" to remove accounts. Click "Create Entry" to submit for approval, "Clear" to clear all fields, or the "x" in the top right to exit.</p>
+                    
+                    <p><strong>How do I view transaction details?</strong></p>
+                    <p style="margin-bottom: 16px;">Click on any reference number to view complete transaction details, including any attached files.</p>
+                    
+                    <p><strong>What do the action buttons do for managers?</strong></p>
+                    <ul style="line-height: 1.8;">
+                        <li><strong>Edit button:</strong> Allows you to edit the transaction details of pending entries</li>
+                        <li><strong>Approve button:</strong> Approves the journal entry and posts it to the accounts</li>
+                        <li><strong>Reject button:</strong> Rejects the journal entry with an optional reason</li>
+                        <li><strong>View button:</strong> Opens the full transaction details modal</li>
+                    </ul>
+                    <p style="margin-bottom: 16px;">Note: An alert will appear above the journal tab when you have pending entries awaiting approval.</p>
+                `;
+            } else {
+                content = `
+                    <p><strong>How do I search for journal entries?</strong></p>
+                    <p style="margin-bottom: 16px;">Use the search bar to find entries by account name or details. You can also filter by date range using the start date and end date fields next to the search bar.</p>
+                    
+                    <p><strong>How do I filter journal entries by status?</strong></p>
+                    <p style="margin-bottom: 16px;">Use the status filter dropdown to view all entries, or filter by pending, approved, or rejected entries.</p>
+                    
+                    <p><strong>How do I create a new journal entry?</strong></p>
+                    <p style="margin-bottom: 16px;">Click the green "New Journal Entry" button. In the modal, you can drag and drop files of supported types, select the entry date, add a description, choose the transaction type (standard, reversal, adjustment, or closing), and select accounts to debit or credit. Debits and credits must be equal. Click "Add New Accounts" to add more accounts or click the "x" to remove accounts. Click "Create Entry" to submit for manager approval, "Clear" to clear all fields, or the "x" in the top right to exit.</p>
+                    
+                    <p><strong>How do I view transaction details?</strong></p>
+                    <p style="margin-bottom: 16px;">Click on any reference number to view complete transaction details, including any attached files.</p>
+                    
+                    <p><strong>What happens after I submit a journal entry?</strong></p>
+                    <p>After you submit a journal entry, it will show as pending until a manager reviews it. The manager can either approve or reject the entry. Once approved, the entry will be posted to the accounts. If rejected, you may need to create a new entry with corrections.</p>
+                `;
+            }
+        } else if (tab === 'Event Log') {
+            content = `
+                <p><strong>How do I search for events?</strong></p>
+                <p style="margin-bottom: 16px;">Use the search bar to find events. You can filter which column to search by using the dropdown menu and selecting between All Columns, Table, Record ID, Action, or Changed By.</p>
+                
+                <p><strong>How do I view event details?</strong></p>
+                <p style="margin-bottom: 16px;">Click on any event ID to view the complete event details. This will show a before and after image of the database table, with the after image (right side) highlighting the row that changed.</p>
+                
+                <p><strong>How do I filter or sort events?</strong></p>
+                <p>Click on any column name at the top of the table to sort the events by that column.</p>
+            `;
+        } else if (tab === 'Reports') {
+            content = `
+                <p><strong>What types of reports can I generate?</strong></p>
+                <p style="margin-bottom: 16px;">You can generate four types of financial reports: Trial Balance, Income Statement, Balance Sheet, and Retained Earnings. Select your desired report type from the dropdown menu.</p>
+                
+                <p><strong>How do I filter report dates?</strong></p>
+                <p style="margin-bottom: 16px;">You can filter by a specific date using the "As Of Date" field, or select a date range by setting both a "From" date and "To" date.</p>
+                
+                <p><strong>How do I generate a report?</strong></p>
+                <p style="margin-bottom: 16px;">After selecting the report type and date parameters, click the green "Generate" button to create the report based on your criteria.</p>
+                
+                <p><strong>What can I do with a generated report?</strong></p>
+                <ul style="line-height: 1.8;">
+                    <li><strong>Clear:</strong> Clears the current report from the page so you can generate a new one</li>
+                    <li><strong>Save CSV:</strong> Downloads the report as a CSV file to your computer</li>
+                    <li><strong>Email:</strong> Opens a modal where you can enter a recipient's email address to send them a copy of the report</li>
+                    <li><strong>Print:</strong> Opens the print dialog to print a physical copy of the report</li>
+                </ul>
+            `;
+        }
+        
+        dropdownsHtml += `
+            <details style="margin-bottom: 12px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <summary style="cursor: pointer; font-weight: 600; padding: 16px; background: #f8f9fa; border-radius: 8px;">${tab}</summary>
+                <div style="padding: 16px;">
+                    ${content || '<!-- Content will be added here -->'}
+                </div>
+            </details>
+        `;
+    });
+    
+    actionContent.innerHTML = `
+        <h2>${roleTitle} Help Page</h2>
+        <div style="max-width: 900px; margin: 0 auto;">
+            ${dropdownsHtml}
+        </div>
+    `;
 }
