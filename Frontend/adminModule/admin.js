@@ -207,6 +207,9 @@ function updateContent(tab) {
             document.getElementById('expiredPasswordsBtn')
                 .addEventListener('click', loadExpiredPasswordsReport);
             break;
+        case 'help':
+            loadHelp();
+            break;
         
         default:
             actionContent.innerHTML = '';
@@ -294,21 +297,26 @@ async function calculateAndDisplayRatios() {
         let totalRevenue = 0;
         let netIncome = 0;
         let inventory = 0;
+        let prepaidAndSupplies = 0;
         
         activeAccounts.forEach(acc => {
             const balance = parseFloat(acc.balance) || 0;
             const category = (acc.category || '').toLowerCase();
             const subcategory = (acc.subcategory || '').toLowerCase();
+            const accountName = acc.account_name.toLowerCase();
             
             // Assets
             if (category === 'assets' || category === 'asset') {
                 totalAssets += Math.abs(balance);
-                if (subcategory.includes('current')) {
+                if (subcategory === 'current-assets') {
                     currentAssets += Math.abs(balance);
                     // Identify inventory accounts (typically named with 'inventory' or 'stock')
-                    if (acc.account_name.toLowerCase().includes('inventory') || 
-                        acc.account_name.toLowerCase().includes('stock')) {
+                    if (accountName.includes('inventory') || accountName.includes('stock')) {
                         inventory += Math.abs(balance);
+                    }
+                    // Identify prepaid and supplies accounts for quick ratio exclusion
+                    if (accountName.includes('prepaid') || accountName.includes('supplies')) {
+                        prepaidAndSupplies += Math.abs(balance);
                     }
                 }
             }
@@ -316,7 +324,7 @@ async function calculateAndDisplayRatios() {
             // Liabilities
             if (category === 'liabilities' || category === 'liability') {
                 totalLiabilities += Math.abs(balance);
-                if (subcategory.includes('current')) {
+                if (subcategory === 'current-liabilities') {
                     currentLiabilities += Math.abs(balance);
                 }
             }
@@ -410,12 +418,13 @@ async function calculateAndDisplayRatios() {
                 `$${formatAccounting(totalRevenue)} / $${formatAccounting(totalAssets)}`, 
                 1.0, 0.5);
         
-        // 6. Quick Ratio = (Current Assets - Inventory) / Current Liabilities
+        // 6. Quick Ratio = (Current Assets - Inventory - Prepaid - Supplies) / Current Liabilities
         // Good: ≥1.0, Warning: ≥0.5, Poor: <0.5
-        const quickRatio = currentLiabilities > 0 ? (currentAssets - inventory) / currentLiabilities : 0;
+        const quickAssets = currentAssets - inventory - prepaidAndSupplies;
+        const quickRatio = currentLiabilities > 0 ? quickAssets / currentLiabilities : 0;
         document.getElementById('quickRatioContent').innerHTML = 
             formatRatioDisplay('Quick Ratio', quickRatio, 
-                `($${formatAccounting(currentAssets)} - $${formatAccounting(inventory)}) / $${formatAccounting(currentLiabilities)}`, 
+                `($${formatAccounting(currentAssets)} - $${formatAccounting(inventory)} - $${formatAccounting(prepaidAndSupplies)}) / $${formatAccounting(currentLiabilities)}`, 
                 1.0, 0.5);
         
     } catch (err) {
@@ -2463,4 +2472,139 @@ function initButtonTooltips() {
     } catch (err) {
         console.error('initButtonTooltips failed', err);
     }
+}
+
+// ----------------------
+// HELP TAB
+// ----------------------
+function loadHelp() {
+    // Admin role has specific tabs
+    const tabs = ['Dashboard', 'Chart of Accounts', 'Event Log', 'Manage Users', 'User Requests', 'Generate Reports'];
+    
+    let dropdownsHtml = '';
+    tabs.forEach(tab => {
+        let content = '';
+        
+        if (tab === 'Dashboard') {
+            content = `
+                <p><strong>How are dashboard ratios calculated?</strong></p>
+                <p style="margin-bottom: 16px;">The following financial ratios are calculated and displayed on the dashboard:</p>
+                <ul style="line-height: 1.8;">
+                    <li><strong>Current Ratio:</strong> Current Assets / Current Liabilities</li>
+                    <li><strong>Quick Ratio:</strong> (Current Assets - Inventory - Prepaid - Supplies) / Current Liabilities</li>
+                    <li><strong>Return on Assets (ROA):</strong> Net Income / Total Assets</li>
+                    <li><strong>Return on Equity (ROE):</strong> Net Income / Total Equity</li>
+                    <li><strong>Net Profit Margin:</strong> Net Income / Revenue</li>
+                    <li><strong>Asset Turnover:</strong> Revenue / Total Assets</li>
+                </ul>
+            `;
+        } else if (tab === 'Chart of Accounts') {
+            content = `
+                <p><strong>How do I create a new account?</strong></p>
+                <p style="margin-bottom: 16px;">Click the green "Create New Account" button. In the modal, enter the Account Name, Account ID Number, Initial Balance, Account Category, Account Subcategory, Statement, and description. Click "Create" to create the account or "Clear" to clear all fields.</p>
+                
+                <p><strong>How do I search for accounts?</strong></p>
+                <p style="margin-bottom: 16px;">Use the search bar at the top to search for accounts by name, number, category, or other details.</p>
+                
+                <p><strong>How do I send an email about accounts?</strong></p>
+                <p style="margin-bottom: 16px;">Click the "Send Email" button. Select the role of the user you want to email, then choose from the displayed list of users in that role. Enter your message in the message box and click "Send Email" to send, or "Clear" to clear the modal.</p>
+                
+                <p><strong>How do I view account details?</strong></p>
+                <p style="margin-bottom: 16px;">Click on either the account number or account name to load the full details of that account.</p>
+                
+                <p><strong>How do I edit an account?</strong></p>
+                <p style="margin-bottom: 16px;">Click the blue "Edit" button next to the account. You can modify the Account Name, Account ID Number, Initial Balance, Account Category, Account Subcategory, Statement, and description.</p>
+                
+                <p><strong>How do I deactivate an account?</strong></p>
+                <p style="margin-bottom: 16px;">Click the "Deactivate" button next to the account. Note that the account balance must be 0 before it can be deactivated.</p>
+                
+                <p><strong>How do I filter or sort accounts?</strong></p>
+                <p style="margin-bottom: 16px;">Click on any column name at the top of the table to sort accounts by that column.</p>
+                
+                <p><strong>Where can I find inactive accounts?</strong></p>
+                <p>Inactive accounts are displayed at the bottom of the page. You can reactivate them by clicking the "Activate" button next to the account.</p>
+            `;
+        } else if (tab === 'Manage Users') {
+            content = `
+                <p><strong>How do I create a new user?</strong></p>
+                <p style="margin-bottom: 16px;">Click the green "Create New User" button. In the modal, enter the user's First Name, Last Name, Email, Date of Birth, and select their Role (Administrator, Manager, or Accountant). Click "Create" to create the user or "Clear" to clear all fields. The system will automatically generate a username and temporary password for the new user.</p>
+                
+                <p><strong>How are users organized?</strong></p>
+                <p style="margin-bottom: 16px;">Users are displayed in three separate tables: Active Users, Inactive Users, and Suspended Users. This organization makes it easy to see the status of all users at a glance.</p>
+                
+                <p><strong>How do I edit user information?</strong></p>
+                <p style="margin-bottom: 16px;">In the Active Users table, click the "Edit Info" button next to the user. You can modify their First Name, Last Name, Email, and Role. Click "Update Info" to save changes or "Clear" to clear the form.</p>
+                
+                <p><strong>How do I deactivate a user?</strong></p>
+                <p style="margin-bottom: 16px;">Click the "Deactivate" button next to an active user. Confirm the action in the modal. Deactivated users lose all access to the system until they are reactivated. Deactivated users appear in the Inactive Users table.</p>
+                
+                <p><strong>How do I reactivate a user?</strong></p>
+                <p style="margin-bottom: 16px;">Find the user in the Inactive Users table and click the "Activate" button. Confirm the action to restore their access.</p>
+                
+                <p><strong>How do I suspend a user?</strong></p>
+                <p style="margin-bottom: 16px;">Click the "Suspend" button next to an active user. Select the suspension start date (From) and end date (To). The default is today through 7 days from today. Click "Suspend" to confirm or "Clear" to reset the dates. Suspended users appear in the Suspended Users table with their suspension dates displayed.</p>
+                
+                <p><strong>How do I unsuspend a user?</strong></p>
+                <p style="margin-bottom: 16px;">Find the user in the Suspended Users table and click the "Unsuspend" button. Confirm the action to immediately restore their access.</p>
+                
+                <p><strong>How do I send an email to a user?</strong></p>
+                <p style="margin-bottom: 16px;">Click the "Email" button next to an active user. The modal will display their email address. Enter your message in the message box and click "Send Email" to send, or "Clear" to clear the message field. Your name and email will be automatically added to the email as the sender.</p>
+                
+                <p><strong>What is the difference between deactivate and suspend?</strong></p>
+                <p>Deactivate is a permanent status change until the user is manually reactivated. Suspend is temporary with specific start and end dates - the user's access is restricted only during that time period. Use suspend for temporary situations like leave or disciplinary actions, and deactivate for permanent changes like employment termination.</p>
+            `;
+        } else if (tab === 'User Requests') {
+            content = `
+                <p><strong>What are user requests?</strong></p>
+                <p style="margin-bottom: 16px;">User requests are registration requests from individuals who want to access the system. New users can submit a registration request with their information, which then appears in the pending requests table for administrator review.</p>
+                
+                <p><strong>How are user requests organized?</strong></p>
+                <p style="margin-bottom: 16px;">User requests are displayed in three separate tables: Pending Requests (awaiting your decision), Approved Requests (users you have approved), and Rejected Requests (requests you have declined).</p>
+                
+                <p><strong>How do I approve a user request?</strong></p>
+                <p style="margin-bottom: 16px;">In the Pending Requests table, select a role from the dropdown menu next to the user's information (Administrator, Manager, or Accountant). Then click the "Approve" button. The system will register the user with the selected role and send them an email with their username and temporary password.</p>
+                
+                <p><strong>How do I reject a user request?</strong></p>
+                <p style="margin-bottom: 16px;">In the Pending Requests table, click the "Reject" button next to the request. The request will be moved to the Rejected Requests table and the user will not be granted access to the system.</p>
+                
+                <p><strong>What information is shown for each request?</strong></p>
+                <p style="margin-bottom: 16px;">For pending requests, you can see the user's name, email, date of birth, and when they submitted the request. For approved and rejected requests, you can also see who resolved the request (which administrator) and when it was resolved.</p>
+                
+                <p><strong>What happens after I approve a request?</strong></p>
+                <p>The user is automatically registered in the system with the role you selected. They receive an email notification with their auto-generated username and temporary password. They can then log in and will be prompted to change their password. The approved request moves to the Approved Requests table for your records.</p>
+            `;
+        } else if (tab === 'Event Log') {
+            content = `
+                <p><strong>How do I search for events?</strong></p>
+                <p style="margin-bottom: 16px;">Use the search bar to find events. You can filter which column to search by using the dropdown menu and selecting between All Columns, Table, Record ID, Action, or Changed By.</p>
+                
+                <p><strong>How do I view event details?</strong></p>
+                <p style="margin-bottom: 16px;">Click on any event ID to view the complete event details. This will show a before and after image of the database table, with the after image (right side) highlighting the row that changed.</p>
+                
+                <p><strong>How do I filter or sort events?</strong></p>
+                <p>Click on any column name at the top of the table to sort the events by that column.</p>
+            `;
+        } else if (tab === 'Generate Reports') {
+            content = `
+                <p><strong>What reports can administrators generate?</strong></p>
+                <p>As an administrator, you can generate an Expired Passwords report by clicking the "Expired Passwords" button. This report shows all users whose passwords have expired and need to be reset.</p>
+            `;
+        }
+        
+        dropdownsHtml += `
+            <details style="margin-bottom: 12px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <summary style="cursor: pointer; font-weight: 600; padding: 16px; background: #f8f9fa; border-radius: 8px;">${tab}</summary>
+                <div style="padding: 16px;">
+                    ${content || '<!-- Content will be added here -->'}
+                </div>
+            </details>
+        `;
+    });
+    
+    actionContent.innerHTML = `
+        <h2>Admin Help Page</h2>
+        <div style="max-width: 900px; margin: 0 auto;">
+            ${dropdownsHtml}
+        </div>
+    `;
 }
