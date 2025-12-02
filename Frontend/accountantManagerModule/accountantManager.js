@@ -1332,19 +1332,34 @@ async function loadReports() {
                 .map(r => {
                     const bal = Number(r.balance) || 0;
                     let debit = 0, credit = 0;
-                    // Assets (including non-current) and Expenses go to debit side
-                    // Liabilities (including non-current), Owner's Equity, and Revenue go to credit side
-                    if (r.category === 'assets' || r.category === 'expenses' || r.category === 'non-current assets' || r.category === 'noncurrentassets') {
-                        debit = bal;
-                    } else if (r.category === 'liabilities' || r.category === 'ownerequity' || r.category === 'owner equity' || r.category === 'owners equity' || r.category === "owner's equity" || r.category === 'revenue' || r.category === 'non-current liabilities' || r.category === 'noncurrentliabilities') {
-                        credit = Math.abs(bal);
+                    
+                    // Determine normal side based on category
+                    const isDebitCategory = r.category === 'assets' || r.category === 'expenses' || r.category === 'non-current assets' || r.category === 'noncurrentassets';
+                    const isCreditCategory = r.category === 'liabilities' || r.category === 'ownerequity' || r.category === 'owner equity' || r.category === 'owners equity' || r.category === "owner's equity" || r.category === 'revenue' || r.category === 'non-current liabilities' || r.category === 'noncurrentliabilities';
+                    
+                    if (bal >= 0) {
+                        // Positive balance: place on normal side
+                        if (isDebitCategory) {
+                            debit = bal;
+                        } else if (isCreditCategory) {
+                            credit = bal;
+                        } else {
+                            debit = bal;
+                        }
                     } else {
-                        // Default behavior for other categories
-                        if (bal >= 0) { debit = bal; } else { credit = Math.abs(bal); }
+                        // Negative balance: place on opposite side
+                        if (isDebitCategory) {
+                            credit = Math.abs(bal);
+                        } else if (isCreditCategory) {
+                            debit = Math.abs(bal);
+                        } else {
+                            credit = Math.abs(bal);
+                        }
                     }
+                    
                     return { account_number: r.account_number, account_name: r.account_name, debit, credit, balance: bal };
                 })
-                .filter(r => r.balance !== 0); // Filter out zero-balance accounts
+                .filter(r => r.debit > 0 || r.credit > 0); // Filter out zero-balance accounts
             
             // Recalculate totals after filtering
             let totalDebit = 0, totalCredit = 0;
@@ -1370,17 +1385,58 @@ async function loadReports() {
             const todayDate = new Date().toISOString().split('T')[0];
             html += `<p style="text-align:center; margin-bottom:16px; color:#666; font-size:1.224em;">As of ${todayDate} - All Accounts</p>`;
             html += `<table style="width:100%; border-collapse:collapse; font-size:1.08em; border:none;"><thead><tr><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Number</th><th style="text-align:left; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Account Name</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Debit</th><th style="text-align:right; padding:6px; border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;">Credit</th></tr></thead><tbody>`;
-            tbRows.forEach(r => { 
+            tbRows.forEach((r, index) => { 
                 const debitDisplay = r.debit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.debit)}` : formatAccounting(r.debit)) : '';
                 const creditDisplay = r.credit > 0 ? (String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.credit)}` : formatAccounting(r.credit)) : '';
-                html += `<tr style="border:none;"><td style="padding:6px; border:none;">${r.account_number}</td><td style="padding:6px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${debitDisplay}</td><td style="padding:6px; text-align:right; border:none;">${creditDisplay}</td></tr>`; 
+                const isLastRow = index === tbRows.length - 1;
+                const trBorderStyle = isLastRow ? 'border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;' : 'border:none;';
+                const tdBorderStyle = isLastRow ? 'border-bottom:2px solid #333; border-top:none; border-left:none; border-right:none;' : 'border:none;';
+                html += `<tr style="${trBorderStyle}"><td style="padding:6px; ${tdBorderStyle}"><button class="tb-acc-link" data-account-number="${r.account_number}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${r.account_number}</button></td><td style="padding:6px; ${tdBorderStyle}"><button class="tb-acc-link" data-account-number="${r.account_number}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${r.account_name}</button></td><td style="padding:6px; text-align:right; ${tdBorderStyle}">${debitDisplay}</td><td style="padding:6px; text-align:right; ${tdBorderStyle}">${creditDisplay}</td></tr>`; 
             });
             const totalDebitDisplay = tbRows.some(r => String(r.account_number).endsWith('01')) ? `$&nbsp;&nbsp;${formatAccounting(totalDebit)}` : formatAccounting(totalDebit);
             const totalCreditDisplay = tbRows.some(r => String(r.account_number).endsWith('01')) ? `$&nbsp;&nbsp;${formatAccounting(totalCredit)}` : formatAccounting(totalCredit);
-            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td colspan="2" style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Totals</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalDebitDisplay}</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalCreditDisplay}</td></tr>`;
+            html += `<tr style="border:none;"><td colspan="4" style="padding:12px; border:none;"></td></tr>`;
+            html += `<tr style="font-weight:bold; border-top:none; border-bottom:none; border-left:none; border-right:none;"><td colspan="2" style="padding:6px; text-align:right; border:none;">Totals</td><td style="padding:6px; text-align:right; border:none;">${totalDebitDisplay}</td><td style="padding:6px; text-align:right; border:none;">${totalCreditDisplay}</td></tr>`;
             html += `</tbody></table></div></div>`;
             resultsEl.innerHTML = html;
             lastTB = { rows: tbRows, totalDebit, totalCredit, generatedAt: new Date().toISOString(), dateInfo };
+            
+            // Attach click listeners to Trial Balance account links to open ledger
+            resultsEl.querySelectorAll('.tb-acc-link').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const accountNumber = e.currentTarget.getAttribute('data-account-number');
+                    
+                    // Ensure window.availableAccounts is populated
+                    if (!window.availableAccounts || !Array.isArray(window.availableAccounts) || window.availableAccounts.length === 0) {
+                        try {
+                            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: ADMIN_ID })
+                            });
+                            let data = await res.json();
+                            if (data && typeof data.body === 'string') {
+                                try { data = JSON.parse(data.body); } catch (e) {}
+                            }
+                            let rows = [];
+                            if (Array.isArray(data)) rows = data;
+                            else if (Array.isArray(data.rows)) rows = data.rows;
+                            else if (Array.isArray(data.accounts)) rows = data.accounts;
+                            else if (Array.isArray(data.body)) rows = data.body;
+                            rows = (rows || []).map(r => ({ ...r, is_active: r.is_active === 1 || r.is_active === true || String(r.is_active) === 'true' }));
+                            window.availableAccounts = rows.filter(a => a.is_active);
+                        } catch (err) {
+                            console.error('Error fetching accounts for modal:', err);
+                        }
+                    }
+                    
+                    // Switch to Chart of Accounts tab
+                    document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+                    document.querySelector('[data-tab="chartOfAccounts"]').classList.add('active');
+                    loadChartOfAccounts();
+                    // Show the account modal after a brief delay to ensure tab is loaded
+                    setTimeout(() => showAccountModal(accountNumber), 100);
+                });
+            });
         } catch (err) {
             resultsEl.innerHTML = `<p style="color:red;">Error generating trial balance: ${err.message}</p>`;
         }
@@ -1538,7 +1594,7 @@ async function loadReports() {
             html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Revenues</td></tr>`;
             revenueAccounts.forEach(r => {
                 const displayAmount = String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(Math.abs(r.balance))}` : formatAccounting(Math.abs(r.balance));
-                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
+                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;"><button class="tb-acc-link" data-account-number="${r.account_number}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${r.account_name}</button></td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
             });
             const totalRevenueDisplay = `$&nbsp;&nbsp;${formatAccounting(totalRevenue)}`;
             html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Revenue Total</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalRevenueDisplay}</td></tr>`;
@@ -1547,13 +1603,14 @@ async function loadReports() {
             html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Expenses</td></tr>`;
             expenseAccounts.forEach(r => {
                 const displayAmount = String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(Math.abs(r.balance))}` : formatAccounting(Math.abs(r.balance));
-                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
+                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;"><button class="tb-acc-link" data-account-number="${r.account_number}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${r.account_name}</button></td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
             });
             const totalExpensesDisplay = `$&nbsp;&nbsp;${formatAccounting(totalExpenses)}`;
             html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Expenses Total</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalExpensesDisplay}</td></tr>`;
             
             // Net Income Row
             const netIncomeDisplay = `$&nbsp;&nbsp;${formatAccounting(netIncome)}`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:12px; border:none;"></td></tr>`;
             html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Net Income</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${netIncomeDisplay}</td></tr>`;
             
             html += `</tbody></table>`;
@@ -1569,6 +1626,43 @@ async function loadReports() {
                 generatedAt: new Date().toISOString(), 
                 dateInfo 
             };
+            
+            // Attach click listeners to Income Statement account links to open ledger
+            resultsEl.querySelectorAll('.tb-acc-link').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const accountNumber = e.currentTarget.getAttribute('data-account-number');
+                    
+                    // Ensure window.availableAccounts is populated
+                    if (!window.availableAccounts || !Array.isArray(window.availableAccounts) || window.availableAccounts.length === 0) {
+                        try {
+                            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: ADMIN_ID })
+                            });
+                            let data = await res.json();
+                            if (data && typeof data.body === 'string') {
+                                try { data = JSON.parse(data.body); } catch (e) {}
+                            }
+                            let rows = [];
+                            if (Array.isArray(data)) rows = data;
+                            else if (Array.isArray(data.rows)) rows = data.rows;
+                            else if (Array.isArray(data.accounts)) rows = data.accounts;
+                            else if (Array.isArray(data.body)) rows = data.body;
+                            rows = (rows || []).map(r => ({ ...r, is_active: r.is_active === 1 || r.is_active === true || String(r.is_active) === 'true' }));
+                            window.availableAccounts = rows.filter(a => a.is_active);
+                        } catch (err) {
+                            console.error('Error fetching accounts for modal:', err);
+                        }
+                    }
+                    
+                    // Switch to Chart of Accounts tab
+                    document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+                    document.querySelector('[data-tab="chartOfAccounts"]').classList.add('active');
+                    loadChartOfAccounts();
+                    // Show the account modal after a brief delay to ensure tab is loaded
+                    setTimeout(() => showAccountModal(accountNumber), 100);
+                });
+            });
         } catch (err) {
             resultsEl.innerHTML = `<p style="color:red;">Error generating income statement: ${err.message}</p>`;
         }
@@ -1695,32 +1789,35 @@ async function loadReports() {
             html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Assets</td></tr>`;
             assetAccounts.forEach(r => {
                 const displayAmount = String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(r.balance)}` : formatAccounting(r.balance);
-                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
+                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;"><button class="tb-acc-link" data-account-number="${r.account_number}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${r.account_name}</button></td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
             });
             const totalAssetsDisplay = `$&nbsp;&nbsp;${formatAccounting(totalAssets)}`;
-            html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Total Assets</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalAssetsDisplay}</td></tr>`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:6px; border:none;"></td></tr>`;
+            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Total Assets</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalAssetsDisplay}</td></tr>`;
             
             // Liabilities Section
             html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Liabilities</td></tr>`;
             liabilityAccounts.forEach(r => {
                 const displayAmount = String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(Math.abs(r.balance))}` : formatAccounting(Math.abs(r.balance));
-                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
+                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;"><button class="tb-acc-link" data-account-number="${r.account_number}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${r.account_name}</button></td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
             });
             const totalLiabilitiesDisplay = `$&nbsp;&nbsp;${formatAccounting(totalLiabilities)}`;
-            html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Total Liabilities</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalLiabilitiesDisplay}</td></tr>`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:6px; border:none;"></td></tr>`;
+            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Total Liabilities</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalLiabilitiesDisplay}</td></tr>`;
             
             // Owner's Equity Section
             html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Owner's Equity</td></tr>`;
             equityAccounts.forEach(r => {
                 const displayAmount = String(r.account_number).endsWith('01') ? `$&nbsp;&nbsp;${formatAccounting(Math.abs(r.balance))}` : formatAccounting(Math.abs(r.balance));
-                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
+                html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;"><button class="tb-acc-link" data-account-number="${r.account_number}" style="background:none;border:none;color:#007bff;cursor:pointer;padding:0;margin:0;font-size:0.95em;text-decoration:underline;">${r.account_name}</button></td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
             });
             const totalEquityDisplay = `$&nbsp;&nbsp;${formatAccounting(totalEquity)}`;
             html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Total Owner's Equity</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalEquityDisplay}</td></tr>`;
             
             // Total Liabilities and Equity Row
             const totalLiabilitiesAndEquityDisplay = `$&nbsp;&nbsp;${formatAccounting(totalLiabilitiesAndEquity)}`;
-            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Total Liabilities & Equity</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalLiabilitiesAndEquityDisplay}</td></tr>`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:12px; border:none;"></td></tr>`;
+            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:2px solid #333; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:2px solid #333; border-left:none; border-right:none;">Total Liabilities & Equity</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:2px solid #333; border-left:none; border-right:none;">${totalLiabilitiesAndEquityDisplay}</td></tr>`;
             
             html += `</tbody></table>`;
             html += `</div></div>`;
@@ -1737,6 +1834,43 @@ async function loadReports() {
                 generatedAt: new Date().toISOString(), 
                 dateInfo 
             };
+            
+            // Attach click listeners to Balance Sheet account links to open ledger
+            resultsEl.querySelectorAll('.tb-acc-link').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const accountNumber = e.currentTarget.getAttribute('data-account-number');
+                    
+                    // Ensure window.availableAccounts is populated
+                    if (!window.availableAccounts || !Array.isArray(window.availableAccounts) || window.availableAccounts.length === 0) {
+                        try {
+                            const res = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: ADMIN_ID })
+                            });
+                            let data = await res.json();
+                            if (data && typeof data.body === 'string') {
+                                try { data = JSON.parse(data.body); } catch (e) {}
+                            }
+                            let rows = [];
+                            if (Array.isArray(data)) rows = data;
+                            else if (Array.isArray(data.rows)) rows = data.rows;
+                            else if (Array.isArray(data.accounts)) rows = data.accounts;
+                            else if (Array.isArray(data.body)) rows = data.body;
+                            rows = (rows || []).map(r => ({ ...r, is_active: r.is_active === 1 || r.is_active === true || String(r.is_active) === 'true' }));
+                            window.availableAccounts = rows.filter(a => a.is_active);
+                        } catch (err) {
+                            console.error('Error fetching accounts for modal:', err);
+                        }
+                    }
+                    
+                    // Switch to Chart of Accounts tab
+                    document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+                    document.querySelector('[data-tab="chartOfAccounts"]').classList.add('active');
+                    loadChartOfAccounts();
+                    // Show the account modal after a brief delay to ensure tab is loaded
+                    setTimeout(() => showAccountModal(accountNumber), 100);
+                });
+            });
         } catch (err) {
             resultsEl.innerHTML = `<p style="color:red;">Error generating balance sheet: ${err.message}</p>`;
         }
@@ -1874,6 +2008,7 @@ async function loadReports() {
             
             // Ending Balance Row
             const endingBalanceDisplay = `$&nbsp;&nbsp;${formatAccounting(endingBalance)}`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:12px; border:none;"></td></tr>`;
             html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Ending Balance</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${endingBalanceDisplay}</td></tr>`;
             
             html += `</tbody></table>`;
@@ -2683,6 +2818,69 @@ window.editJournalEntry = (id) => {
                 body: JSON.stringify({ manager_id: ADMIN_ID, trans_id: id })
             });
             if (!res.ok) throw new Error('Approval failed');
+            
+            // After approval, check if entry contains revenue credits and create retained earnings entry
+            const entry = entries.find(e => e.id === id);
+            if (entry && entry.credit_account_ids_array && entry.credit_amounts_array) {
+                // Fetch accounts to check which credits are revenue accounts
+                const accountsRes = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_accounts_list', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: ADMIN_ID })
+                });
+                const accountsData = await accountsRes.json();
+                let accounts = [];
+                if (Array.isArray(accountsData)) accounts = accountsData;
+                else if (accountsData.body) {
+                    try { accounts = JSON.parse(accountsData.body); } catch { accounts = accountsData.body; }
+                }
+                
+                // Find Retained Earnings account
+                const retainedEarningsAccount = accounts.find(acc => 
+                    acc.category === 'retainedarnings' || 
+                    acc.category === 'retained earnings' ||
+                    (acc.account_name && acc.account_name.toLowerCase().includes('retained'))
+                );
+                
+                if (retainedEarningsAccount) {
+                    // Check each credited account for revenue category
+                    for (let i = 0; i < entry.credit_account_ids_array.length; i++) {
+                        const creditAccountId = entry.credit_account_ids_array[i];
+                        const creditAmount = entry.credit_amounts_array[i];
+                        
+                        const creditAccount = accounts.find(acc => acc.id === creditAccountId);
+                        
+                        // If it's a revenue account, create retained earnings entry
+                        if (creditAccount && creditAccount.category === 'revenue') {
+                            const rePayload = {
+                                user_id: ADMIN_ID,
+                                date: entry.date,
+                                description: entry.description,
+                                type: 'closing',
+                                status: 'pending',
+                                debit_account_id: retainedEarningsAccount.id.toString(),
+                                credit_account_id: creditAccountId.toString(),
+                                debit: creditAmount.toString(),
+                                credit: creditAmount.toString()
+                            };
+                            
+                            try {
+                                const reRes = await fetch('https://is8v3qx6m4.execute-api.us-east-1.amazonaws.com/dev/AA_create_trans', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(rePayload)
+                                });
+                                if (!reRes.ok) {
+                                    console.warn('Failed to create retained earnings entry for revenue account', creditAccount.account_name);
+                                }
+                            } catch (err) {
+                                console.warn('Error creating retained earnings entry:', err);
+                            }
+                        }
+                    }
+                }
+            }
+            
             await fetchJournalEntries();
             // Update badge count
             if (CURRENT_ROLE === 'manager') {
@@ -3942,29 +4140,37 @@ function showAccountModal(accountNumber) {
     let accountId = null;
     
     try {
-        // Search DOM rows for a matching data-account-number attribute
-        const el = document.querySelector(`[data-account-number='${accountNumber}']`);
-        if (el) {
-            const cells = el.querySelectorAll('td');
-            acc = { account_number: accountNumber };
-            if (cells && cells.length) {
-                acc.account_name = cells[1]?.textContent || '';
-                acc.category = cells[2]?.textContent || '';
-                acc.subcategory = cells[3]?.textContent || '';
-                acc.balance = cells[4]?.textContent || '';
-                acc.statement = cells[5]?.textContent || '';
-                acc.description = cells[6]?.textContent || '';
-            }
-        }
-        
-        // Always map account number to account ID using availableAccounts
+        // First, try to get account data from availableAccounts (highest priority)
         if (window.availableAccounts && Array.isArray(window.availableAccounts)) {
             const found = window.availableAccounts.find(a => String(a.account_number) === String(accountNumber));
             if (found) {
                 accountId = Number(found.id || found.account_id);
-                // Also get normal_side or category from availableAccounts for proper balance calculation
-                if (!acc.category && found.category) acc.category = found.category;
-                if (found.normal_side) acc.normal_side = found.normal_side;
+                acc = {
+                    account_number: found.account_number || accountNumber,
+                    account_name: found.account_name || '',
+                    category: found.category || '',
+                    subcategory: found.subcategory || '',
+                    balance: found.balance || '',
+                    statement: found.statement || '',
+                    description: found.description || ''
+                };
+            }
+        }
+        
+        // Fallback: Search DOM rows for a matching data-account-number attribute
+        if (!acc) {
+            const el = document.querySelector(`[data-account-number='${accountNumber}']`);
+            if (el) {
+                const cells = el.querySelectorAll('td');
+                acc = { account_number: accountNumber };
+                if (cells && cells.length) {
+                    acc.account_name = cells[1]?.textContent || '';
+                    acc.category = cells[2]?.textContent || '';
+                    acc.subcategory = cells[3]?.textContent || '';
+                    acc.balance = cells[4]?.textContent || '';
+                    acc.statement = cells[5]?.textContent || '';
+                    acc.description = cells[6]?.textContent || '';
+                }
             }
         }
     } catch (e) { acc = null; }
@@ -4078,18 +4284,6 @@ function showAccountModal(accountNumber) {
             if (!filtered.length) {
                 html += `<tr><td colspan="6" style="text-align:center; color:#c00; padding:16px;">No transactions found for this account.</td></tr>`;
             } else {
-                // Determine normal side from account's normal_side field or category
-                let normalSide = 'debit'; // default
-                if (acc.normal_side) {
-                    normalSide = String(acc.normal_side).toLowerCase();
-                } else if (acc.category) {
-                    const category = String(acc.category).toLowerCase();
-                    // Credit-normal accounts: Liabilities, Owner's Equity, Revenue
-                    if (category === 'liabilities' || category === 'ownerequity' || category === 'revenue') {
-                        normalSide = 'credit';
-                    }
-                }
-                
                 let runningBalance = 0;
                 filtered.forEach(e => {
                     const accountIdInt = parseInt(accountId); // Use integer for comparison
@@ -4102,25 +4296,13 @@ function showAccountModal(accountNumber) {
                     if (isDebit) {
                         const debitIndex = e.debit_account_ids_array.indexOf(accountIdInt);
                         debitAmount = e.debit_amounts_array[debitIndex] || 0;
-                        // For debit-normal accounts: debits increase balance
-                        // For credit-normal accounts: debits decrease balance
-                        if (normalSide === 'debit') {
-                            runningBalance += debitAmount;
-                        } else {
-                            runningBalance -= debitAmount;
-                        }
+                        runningBalance += debitAmount;
                     }
                     
                     if (isCredit) {
                         const creditIndex = e.credit_account_ids_array.indexOf(accountIdInt);
                         creditAmount = e.credit_amounts_array[creditIndex] || 0;
-                        // For credit-normal accounts: credits increase balance
-                        // For debit-normal accounts: credits decrease balance
-                        if (normalSide === 'credit') {
-                            runningBalance += creditAmount;
-                        } else {
-                            runningBalance -= creditAmount;
-                        }
+                        runningBalance -= creditAmount;
                     }
                     
                     html += `<tr>
