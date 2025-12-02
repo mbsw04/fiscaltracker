@@ -1718,7 +1718,8 @@ async function loadReports() {
                 html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
             });
             const totalAssetsDisplay = `$&nbsp;&nbsp;${formatAccounting(totalAssets)}`;
-            html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Total Assets</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalAssetsDisplay}</td></tr>`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:6px; border:none;"></td></tr>`;
+            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Total Assets</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalAssetsDisplay}</td></tr>`;
             
             // Liabilities Section
             html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Liabilities</td></tr>`;
@@ -1727,7 +1728,8 @@ async function loadReports() {
                 html += `<tr style="border:none;"><td style="padding:6px; padding-left:24px; border:none;">${r.account_name}</td><td style="padding:6px; text-align:right; border:none;">${displayAmount}</td></tr>`;
             });
             const totalLiabilitiesDisplay = `$&nbsp;&nbsp;${formatAccounting(totalLiabilities)}`;
-            html += `<tr style="font-weight:bold; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">Total Liabilities</td><td style="padding:6px; text-align:right; border-top:1px solid #ccc; border-bottom:none; border-left:none; border-right:none;">${totalLiabilitiesDisplay}</td></tr>`;
+            html += `<tr style="border:none;"><td colspan="2" style="padding:6px; border:none;"></td></tr>`;
+            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; padding-left:24px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Total Liabilities</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalLiabilitiesDisplay}</td></tr>`;
             
             // Owner's Equity Section
             html += `<tr style="font-weight:bold; background-color:#f9f9f9;"><td colspan="2" style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Owner's Equity</td></tr>`;
@@ -1741,7 +1743,7 @@ async function loadReports() {
             // Total Liabilities and Equity Row
             const totalLiabilitiesAndEquityDisplay = `$&nbsp;&nbsp;${formatAccounting(totalLiabilitiesAndEquity)}`;
             html += `<tr style="border:none;"><td colspan="2" style="padding:12px; border:none;"></td></tr>`;
-            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">Total Liabilities & Equity</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:none; border-left:none; border-right:none;">${totalLiabilitiesAndEquityDisplay}</td></tr>`;
+            html += `<tr style="font-weight:bold; border-top:2px solid #333; border-bottom:2px solid #333; border-left:none; border-right:none;"><td style="padding:6px; border-top:2px solid #333; border-bottom:2px solid #333; border-left:none; border-right:none;">Total Liabilities & Equity</td><td style="padding:6px; text-align:right; border-top:2px solid #333; border-bottom:2px solid #333; border-left:none; border-right:none;">${totalLiabilitiesAndEquityDisplay}</td></tr>`;
             
             html += `</tbody></table>`;
             html += `</div></div>`;
