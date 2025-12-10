@@ -3083,16 +3083,40 @@ window.editJournalEntry = (id) => {
             let availableAccounts = [];
             let accountsLoaded = false;
 
-            // Function to populate account dropdowns
-            function populateAccountDropdowns() {
-                const selects = modal.querySelectorAll('.accountSelect');
-                selects.forEach(select => {
-                    select.innerHTML = '<option value="">Select Account</option>';
+            // Function to populate a single account dropdown
+            function populateAccountDropdown(selectElement) {
+                selectElement.innerHTML = '<option value="">Select Account</option>';
+                if (availableAccounts && availableAccounts.length > 0) {
                     availableAccounts.forEach(account => {
                         const option = document.createElement('option');
                         option.value = account.id || account.account_id;
                         option.textContent = `${account.account_number} - ${account.account_name}`;
-                        select.appendChild(option);
+                        selectElement.appendChild(option);
+                    });
+                }
+            }
+
+            // Function to populate all account dropdowns
+            function populateAccountDropdowns() {
+                const selects = modal.querySelectorAll('.accountSelect');
+                selects.forEach(select => populateAccountDropdown(select));
+            }
+
+            // Function to update account options and prevent duplicates
+            function updateAccountOptions() {
+                const selectedAccounts = Array.from(accountRowsContainer.querySelectorAll('select'))
+                    .map(s => s.value)
+                    .filter(v => v);
+
+                accountRowsContainer.querySelectorAll('select').forEach(select => {
+                    const currentValue = select.value; 
+                    populateAccountDropdown(select);     
+                    select.value = currentValue;         
+
+                    Array.from(select.options).forEach(option => {
+                        if (option.value && option.value !== currentValue && selectedAccounts.includes(option.value)) {
+                            option.disabled = true;
+                        }
                     });
                 });
             }
@@ -3160,13 +3184,7 @@ window.editJournalEntry = (id) => {
 
                 // Populate the dropdown with accounts if they're already loaded
                 if (accountsLoaded && availableAccounts.length > 0) {
-                    accountSelect.innerHTML = '<option value="">Select Account</option>';
-                    availableAccounts.forEach(account => {
-                        const option = document.createElement('option');
-                        option.value = account.id || account.account_id;
-                        option.textContent = `${account.account_number} - ${account.account_name}`;
-                        accountSelect.appendChild(option);
-                    });
+                    populateAccountDropdown(accountSelect);
                 }
 
                 // Debit/Credit locking
@@ -3203,10 +3221,8 @@ window.editJournalEntry = (id) => {
 
             modal.querySelector('#addNewAccountBtn').addEventListener('click', () => {
                 addAccountRow();
-                // Ensure new row is populated if accounts are already loaded
-                if (accountsLoaded && availableAccounts.length > 0) {
-                    populateAccountDropdowns();
-                }
+                // Update account options after adding new row to prevent duplicates
+                updateAccountOptions();
             });
 
             // Update balance
